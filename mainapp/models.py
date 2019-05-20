@@ -48,9 +48,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_login = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    #
-    # hospital = models.ForeignKey('Hospital', on_delete=models.DO_NOTHING, related_name="users", null=True)
-    # research_institution = models.ForeignKey('ResearchInstitution', on_delete=models.DO_NOTHING, related_name="users", null=True)
+    organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="users", null=True)
 
     objects = UserManager()
 
@@ -80,30 +78,31 @@ class User(AbstractBaseUser, PermissionsMixin):
         # need to manualy edit the primary key and change it from timestamp to [patient_id,timestamp] in that order
         db_table = 'users'
 
-class Hospital(models.Model):
+class Organization(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
 
     class Meta:
-        db_table = 'hospitals'
-
-class ResearchInstitutions(models.Model):
-    name = models.CharField(max_length=255, primary_key=True)
-
-    class Meta:
-        db_table = 'research_institutions'
+        db_table = 'organizations'
 
 class Study(models.Model):
-    name = models.CharField(max_length=255)
-    research_institution = models.ForeignKey('ResearchInstitutions', on_delete=models.DO_NOTHING, related_name="studies", null=True)
-    hospital = models.ForeignKey('Hospital', on_delete=models.DO_NOTHING, related_name="studies")
+    name = models.CharField(max_length=255,primary_key=True)
+    datasets = models.ManyToManyField('Dataset', related_name="studies")
+    users = models.ManyToManyField('User', related_name="studies")
 
     class Meta:
         db_table = 'studies'
-        unique_together = (('hospital', 'name'),)
 
 class Dataset(models.Model):
     name = models.CharField(max_length=255, primary_key=True)
-    study = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets")
+    users = models.ManyToManyField('User', related_name="datasets")
 
     class Meta:
         db_table = 'datasets'
+
+class execution(models.Model):
+    identifier = models.CharField(max_length=255, primary_key=True)
+    user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="executions", null=True)
+    study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="executions", null=True)
+
+    class Meta:
+        db_table = 'executions'
