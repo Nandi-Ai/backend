@@ -17,11 +17,15 @@ from django.contrib import admin
 from django.urls import path
 from django.conf.urls import url
 from mainapp import views
+from mainapp.views import schema_view
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # url(r'^create_scan/$', views.ScanManager.as_view(), name='scan_manager'),
-    # url(r'^get_scan/(?P<scan_id>[^/]+)$', views.ScanManager.as_view(), name='scan_manager'),
+    url(r'^api-docs/$', schema_view),
+    # url(r'^create/$', views.ScanManager.as_view(), name='scan_manager'),
+    url(r'^get_dataset/(?P<scan_id>[^/]+)$', views.DatasetManager.as_view(), name='dataset_manager'),
+
 
 ]
 

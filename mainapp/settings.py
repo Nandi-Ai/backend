@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'mainapp'
+    'mainapp',
+    'rest_framework_swagger',
 ]
 
 MIDDLEWARE = [
@@ -132,7 +133,7 @@ REST_FRAMEWORK = {
     # 'DEFAULT_PAGINATION_CLASS': None,
     # 'DEFAULT_AUTHENTICATION_CLASSES': (
     #     'rest_framework.authentication.BasicAuthentication',  # for authentication using swagger and such
-    # 'dreamed_dms.lib.MyTokenAuthentication',
+    # 'mainapp.lib.MyTokenAuthentication',
     # )
 }
 
