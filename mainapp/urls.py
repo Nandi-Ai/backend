@@ -15,17 +15,29 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from django.conf.urls import url
+from django.conf.urls import url,include
 from mainapp import views
 from mainapp.views import schema_view
+from rest_framework.routers import SimpleRouter
+from django.contrib.auth import views as auth_views
 
+class OptionalSlashRouter(SimpleRouter):
+
+    def __init__(self):
+        self.trailing_slash = '/?'
+        super(SimpleRouter, self).__init__()
+
+router = OptionalSlashRouter()
+
+router.register(r'datasets', views.DatasetViewSet, 'datasets')
 
 urlpatterns = [
+    url('', include(router.urls)),
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
-    url(r'^api-docs/$', schema_view),
+    url(r'^docs/$', schema_view),
     # url(r'^create/$', views.ScanManager.as_view(), name='scan_manager'),
-    url(r'^get_dataset/(?P<scan_id>[^/]+)$', views.DatasetManager.as_view(), name='dataset_manager'),
-
-
+    # url(r'^get_dataset/(?P<dataset_id>[^/]+)$', views.DatasetManager.as_view(), name='dataset_manager'),
+    url(r'^get_execution/(?P<study_id>[^/]+)$', views.GetExecution.as_view(), name='get_execution'),
+    url(r'^get_execution_config/(?P<execution_identifier>[^/]+)$', views.GetExecutionConfig.as_view(), name='get_execution_config'),
 ]
-

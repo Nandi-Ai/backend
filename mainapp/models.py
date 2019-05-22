@@ -85,22 +85,26 @@ class Organization(models.Model):
         db_table = 'organizations'
 
 class Study(models.Model):
-    name = models.CharField(max_length=255,primary_key=True)
+    name = models.CharField(max_length=255)
+    organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
     datasets = models.ManyToManyField('Dataset', related_name="studies")
     users = models.ManyToManyField('User', related_name="studies")
 
     class Meta:
         db_table = 'studies'
+        unique_together = (("name", "organization"),)
 
 class Dataset(models.Model):
-    name = models.CharField(max_length=255, primary_key=True)
+    name = models.CharField(max_length=255)
     users = models.ManyToManyField('User', related_name="datasets")
+    #studies m2m
 
     class Meta:
         db_table = 'datasets'
 
-class execution(models.Model):
-    identifier = models.CharField(max_length=255, primary_key=True)
+
+class Execution(models.Model):
+    identifier = models.CharField(max_length=255, null=True)
     user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="executions", null=True)
     study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="executions", null=True)
 
