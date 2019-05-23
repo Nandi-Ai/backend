@@ -55,7 +55,7 @@ class GetExecutionConfig(APIView):
         creds = response['Credentials']
 
         config = {}
-        config['bucket'] = execution.study.name+"-lynx-workspace"
+        config['bucket'] = execution.study.name+"-"+execution.study.organization.name+"-lynx-workspace"
         config['aws_sts_creds'] = creds
 
         return Response(config)
