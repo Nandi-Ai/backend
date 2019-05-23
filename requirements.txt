@@ -9,6 +9,7 @@ django-filter==2.1.0
 django-rest-swagger==2.2.0
 djangorestframework==3.9.4
 docutils==0.14
+gunicorn==19.9.0
 idna==2.8
 itypes==1.1.0
 Jinja2==2.10.1
