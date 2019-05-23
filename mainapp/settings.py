@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'mainapp',
     'rest_framework_swagger',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -133,7 +134,7 @@ REST_FRAMEWORK = {
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles/')
-
+CORS_ORIGIN_ALLOW_ALL=True
 token_valid_hours = 48
 
 from .local_settings import *
