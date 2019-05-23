@@ -131,6 +131,9 @@ REST_FRAMEWORK = {
     )
 }
 
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles/')
+
 token_valid_hours = 48
 
 from .local_settings import *
