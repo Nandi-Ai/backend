@@ -52,14 +52,11 @@ class GetExecutionConfig(APIView):
             RoleSessionName=role_session_name
         )
 
-        creds = response['Credentials']
-
         config = {}
         config['bucket'] = execution.study.name+"-"+execution.study.organization.name+"-lynx-workspace"
-        config['aws_sts_creds'] = creds
+        config['aws_sts_creds'] = response['Credentials']
 
         return Response(config)
-
 
 class GetExecution(APIView):
     def get(self, request, study_id):
@@ -71,7 +68,8 @@ class GetExecution(APIView):
         except Study.DoesNotExist:
             return Response({"error":"study does not exists"}, 400)
 
-        execution, created = Execution.objects.get_or_create(study = study)
+        # execution, created = Execution.objects.get_or_create(study = study)
+        execution, created = Execution.objects.create(study = study) #TODO CHANGE
 
         if created:
             execution.identifier = uuid.uuid4().hex
