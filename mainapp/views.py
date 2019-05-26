@@ -68,8 +68,7 @@ class GetExecution(APIView):
         except Study.DoesNotExist:
             return Response({"error":"study does not exists"}, 400)
 
-        # execution, created = Execution.objects.get_or_create(study = study)
-        execution, created = Execution.objects.create(study = study) #TODO CHANGE
+        execution, created = Execution.objects.get_or_create(study = study)
 
         if created:
             execution.identifier = uuid.uuid4().hex
