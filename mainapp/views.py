@@ -53,8 +53,10 @@ class GetExecutionConfig(APIView):
             RoleSessionName=role_session_name
         )
 
+        study = Study.objects.get(execution = execution)
+
         config = {}
-        config['bucket'] = execution.study.name+"-"+execution.study.organization.name+"-lynx-workspace"
+        config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
         config['aws_sts_creds'] = response['Credentials']
 
         return Response(config)
@@ -72,7 +74,7 @@ class GetExecution(APIView):
             study.execution = execution
             study.save()
             execution.identifier = uuid.uuid4().hex
-            execution.study = study
+            # execution.study = study
             execution.user = request.user
             execution.save()
     
