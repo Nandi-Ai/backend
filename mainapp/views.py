@@ -38,8 +38,6 @@ class GetExecutionConfig(APIView):
         except Execution.DoesNotExist:
             return Response({"error": "execution does not exists"}, 400)
 
-        datasets = execution.study.datasets.all()
-
         # Create IAM client
         sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,
                                                         aws_secret_access_key=settings.aws_secret_access_key,
@@ -64,15 +62,15 @@ class GetExecutionConfig(APIView):
 class GetExecution(APIView):
     def get(self, request, study_id):
 
-
         try:
             study = request.user.studies.get(id=study_id)
         except Study.DoesNotExist:
             return Response({"error":"study does not exists"}, 400)
 
-        execution, created = Execution.objects.get_or_create(study = study)
-
-        if created:
+        if not study.execution:
+            execution = Execution.objects.create(study=study)
+            study.execution = execution
+            study.save()
             execution.identifier = uuid.uuid4().hex
             execution.study = study
             execution.user = request.user
@@ -91,7 +89,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Response({"error":"error creating execution"+str(res.text)})
 
-        return Response({'execution_identifier': execution.identifier, 'token': settings.jh_api_user_token}, status=201)
+        return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token}, status=201)
 #
 # class DatasetManager(GenericAPIView):
 #     serializer_class = DatasetSerializer
