@@ -7,6 +7,9 @@ from mainapp.serializers import DatasetSerializer,ExecutionSerializer
 from rest_framework_swagger.views import get_swagger_view
 from mainapp import settings
 import boto3
+#from botocore.vendored import requests #if using requests in a lambda fucntion
+import requests
+import uuid
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -60,8 +63,7 @@ class GetExecutionConfig(APIView):
 
 class GetExecution(APIView):
     def get(self, request, study_id):
-        from botocore.vendored import requests
-        import uuid
+
 
         try:
             study = request.user.studies.get(id=study_id)
@@ -75,7 +77,7 @@ class GetExecution(APIView):
             execution.study = study
             execution.user = request.user
             execution.save()
-
+    
             headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 
             data = {
