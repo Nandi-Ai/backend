@@ -71,12 +71,12 @@ class GetExecution(APIView):
 
         if not study.execution:
             execution = Execution.objects.create()
-            study.execution = execution
-            study.save()
             execution.identifier = uuid.uuid4().hex
             # execution.study = study
             execution.user = request.user
             execution.save()
+            study.execution = execution
+            study.save()
     
             headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 
@@ -91,7 +91,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Response({"error":"error creating execution"+str(res.text)})
 
-        return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token}, status=201)
+        return Response({'execution_identifier': execution.identifier, 'token': settings.jh_api_user_token}, status=201)
 #
 # class DatasetManager(GenericAPIView):
 #     serializer_class = DatasetSerializer
