@@ -70,7 +70,7 @@ class GetExecution(APIView):
             return Response({"error":"study does not exists"}, 400)
 
         if not study.execution:
-            execution = Execution.objects.create(study=study)
+            execution = Execution.objects.create()
             study.execution = execution
             study.save()
             execution.identifier = uuid.uuid4().hex
