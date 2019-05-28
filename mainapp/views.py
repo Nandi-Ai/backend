@@ -59,11 +59,22 @@ class GetExecutionConfig(APIView):
         config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
         config['aws_sts_creds'] = response['Credentials']
 
-        from subprocess import Popen
-        command = "sleep 30 && kubectl exec jupyter-5417453f526c4bb98e84fceac84a141a -- python /usr/local/bin/sync_to_s3.py &"
 
-        proc = Popen(command.split(" "), shell=False,
-                     stdin=None, stdout=None, stderr=None, close_fds=True)
+        def send_sync_signal(execution_identifier):
+            import time
+            import subprocess
+
+            time.sleep(30)
+            command = "kubectl exec jupyter-"+execution_identifier+" -- python /usr/local/bin/sync_to_s3.py &"
+            subprocess.check_output(command.split(" "))
+
+        from multiprocessing import Process
+        p = Process(target=send_sync_signal, args=(execution_identifier,))
+        p.start()
+
+        #
+        # proc = Popen(command.split(" "), shell=False,
+        #              stdin=None, stdout=None, stderr=None, close_fds=True)
         #
         # import kubernetes.config
         # from kubernetes.client.rest import ApiException
