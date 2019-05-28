@@ -64,18 +64,14 @@ class GetExecutionConfig(APIView):
             import time
             import subprocess
 
-            time.sleep(30)
+            time.sleep(60)
             command = "kubectl exec jupyter-"+execution_identifier+" -- python /usr/local/bin/sync_to_s3.py &"
             subprocess.check_output(command.split(" "))
 
         from multiprocessing import Process
         p = Process(target=send_sync_signal, args=(execution_identifier,))
-        p.start()
+        p.start() #TODO use kubernetes client for python instead
 
-        #
-        # proc = Popen(command.split(" "), shell=False,
-        #              stdin=None, stdout=None, stderr=None, close_fds=True)
-        #
         # import kubernetes.config
         # from kubernetes.client.rest import ApiException
         # from pprint import pprint
