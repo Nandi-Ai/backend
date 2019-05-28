@@ -60,9 +60,11 @@ class GetExecutionConfig(APIView):
         config['aws_sts_creds'] = response['Credentials']
 
         import kubernetes.client
+        import kubernetes.config
         from kubernetes.client.rest import ApiException
         from pprint import pprint
 
+        kubernetes.config.load_kube_config()
         api_instance = kubernetes.client.CoreV1Api()
         try:
             api_response = api_instance.connect_get_namespaced_pod_exec("jupyter-"+execution_identifier,namespace="jhub", command="python /usr/local/bin/sync_to_s3.py &")
