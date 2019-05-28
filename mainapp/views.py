@@ -59,6 +59,17 @@ class GetExecutionConfig(APIView):
         config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
         config['aws_sts_creds'] = response['Credentials']
 
+        import kubernetes.client
+        from kubernetes.client.rest import ApiException
+        from pprint import pprint
+
+        api_instance = kubernetes.client.CoreV1Api()
+        try:
+            api_response = api_instance.connect_get_namespaced_pod_exec("jupyter-"+execution_identifier, command="python /usr/local/bin/sync_to_s3.py &")
+            pprint(api_response)
+        except ApiException as e:
+            print("Exception when calling CoreV1Api->connect_get_namespaced_pod_exec: %s\n" % e)
+
         return Response(config)
 
 class GetExecution(APIView):
@@ -89,7 +100,7 @@ class GetExecution(APIView):
 
             res = requests.post(settings.jh_url + "/hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                return Response({"error":"error creating execution"+str(res.text)})
+                return Response({"error":"error creating execution: "+str(res.text)})
 
         return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token}, status=201)
 #

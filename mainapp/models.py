@@ -103,7 +103,6 @@ class Dataset(models.Model):
     class Meta:
         db_table = 'datasets'
 
-
 class Execution(models.Model):
     identifier = models.CharField(max_length=255, null=True)
     user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="executions", null=True)
