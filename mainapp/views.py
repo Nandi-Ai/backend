@@ -65,7 +65,7 @@ class GetExecutionConfig(APIView):
 
         api_instance = kubernetes.client.CoreV1Api()
         try:
-            api_response = api_instance.connect_get_namespaced_pod_exec("jupyter-"+execution_identifier, command="python /usr/local/bin/sync_to_s3.py &")
+            api_response = api_instance.connect_get_namespaced_pod_exec("jupyter-"+execution_identifier,namespace="jhub", command="python /usr/local/bin/sync_to_s3.py &")
             pprint(api_response)
         except ApiException as e:
             print("Exception when calling CoreV1Api->connect_get_namespaced_pod_exec: %s\n" % e)
