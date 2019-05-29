@@ -33,6 +33,15 @@ class DatasetViewSet(ModelViewSet):
 
 class GetExecutionConfig(APIView):
     def get(self, request, execution_identifier):
+
+        def send_sync_signal(execution_identifier):
+            import time
+            import subprocess
+
+            time.sleep(60)
+            command = "kubectl exec jupyter-"+execution_identifier+" -- python /usr/local/bin/sync_to_s3.py &"
+            subprocess.check_output(command.split(" "))
+
         try:
             execution = Execution.objects.get(identifier=execution_identifier)
         except Execution.DoesNotExist:
@@ -60,14 +69,6 @@ class GetExecutionConfig(APIView):
         config['aws_sts_creds'] = response['Credentials']
 
 
-        def send_sync_signal(execution_identifier):
-            import time
-            import subprocess
-
-            time.sleep(60)
-            command = "kubectl exec jupyter-"+execution_identifier+" -- python /usr/local/bin/sync_to_s3.py &"
-            subprocess.check_output(command.split(" "))
-
         from multiprocessing import Process
         p = Process(target=send_sync_signal, args=(execution_identifier,))
         p.start() #TODO use kubernetes client for python instead
@@ -85,6 +86,13 @@ class GetExecutionConfig(APIView):
         #     print("Exception when calling CoreV1Api->connect_get_namespaced_pod_exec: %s\n" % e)
 
         return Response(config)
+
+
+class Dummy(APIView):
+    def get(self, request):
+
+        return Response()
+
 
 class GetExecution(APIView):
     def get(self, request, study_id):

@@ -39,5 +39,6 @@ urlpatterns = [
     # url(r'^create/$', views.ScanManager.as_view(), name='scan_manager'),
     # url(r'^get_dataset/(?P<dataset_id>[^/]+)$', views.DatasetManager.as_view(), name='dataset_manager'),
     url(r'^get_execution/(?P<study_id>[^/]+)$', views.GetExecution.as_view(), name='get_execution'),
+    url(r'^dummy/$', views.Dummy.as_view(), name='dummy'),
     url(r'^get_execution_config/(?P<execution_identifier>[^/]+)$', views.GetExecutionConfig.as_view(), name='get_execution_config'),
 ]

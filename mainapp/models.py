@@ -34,6 +34,25 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
+    def get_or_create_for_cognito(self, payload):
+        from psycopg2 import IntegrityError
+        cognito_id = payload['sub']
+
+        try:
+            return self.get(cognito_id=cognito_id)
+        except self.model.DoesNotExist:
+            pass
+
+        try:
+            user = self.create(
+                cognito_id=cognito_id,
+                email=payload['email'],
+                is_active=True)
+        except IntegrityError:
+            user = self.get(cognito_id=cognito_id)
+
+        return user
+
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(
         verbose_name='email address',
@@ -49,6 +68,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="users", null=True)
+    cognito_id = models.CharField(max_length=255, blank=True, null=True)
+
 
     objects = UserManager()
 

@@ -129,7 +129,9 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',  # for authentication using swagger and such
         # 'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',  # for authentication the api from browser using x-csrf header. (feedback api)
+        'django_cognito_jwt.JSONWebTokenAuthentication',
         'mainapp.lib.MyTokenAuthentication',
+
     )
 }
 
@@ -137,5 +139,10 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles/')
 CORS_ORIGIN_ALLOW_ALL=True
 token_valid_hours = 48
+
+#COGNITO_USER_MODEL = "mainapp.User"
+COGNITO_AWS_REGION = 'us-east-2' # 'eu-central-1'
+COGNITO_USER_POOL = 'us-east-2_vNimoKeHX'   # 'eu-central-1_xYzaq'
+COGNITO_AUDIENCE = '4qh5k7leirlhg0dl1k566ku1p9'
 
 from .local_settings import *
