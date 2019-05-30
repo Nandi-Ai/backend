@@ -142,7 +142,7 @@ token_valid_hours = 48
 
 #COGNITO_USER_MODEL = "mainapp.User"
 COGNITO_AWS_REGION = 'us-east-2' # 'eu-central-1'
-COGNITO_USER_POOL = 'us-east-2_vNimoKeHX'   # 'eu-central-1_xYzaq'
-COGNITO_AUDIENCE = '4qh5k7leirlhg0dl1k566ku1p9'
+COGNITO_USER_POOL = 'us-east-2_kUJ9AIF9j'
+COGNITO_AUDIENCE = '1c1deujhq47qac5q00uc6rs0p7'
 
 from .local_settings import *
