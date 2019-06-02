@@ -34,7 +34,7 @@ class DatasetViewSet(ModelViewSet):
 #
 #         return Response(self.serializer_class(dataset, allow_null=True).data)
 
-class SendSyncSignal:
+class SendSyncSignal(APIView):
     def get(self, request):
         def send_sync_signal(execution_identifier):
 
