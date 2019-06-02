@@ -85,11 +85,11 @@ class GetSTS(APIView):
                                                         region_name=settings.aws_region_name)
 
         if permission =="read":
-            role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+            role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
         if permission == "write":
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
 
-        role_session_name = 'test_session'
+        role_session_name = 's3_session'
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
