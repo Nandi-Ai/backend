@@ -70,24 +70,28 @@ class GetSTS(APIView):
 
         execution_identifier = request.query_params.get('execution_identifier')
         permission = request.query_params.get('permission')
+        service = request.query_params.get('service')
 
         try:
             execution = Execution.objects.get(identifier=execution_identifier)
         except Execution.DoesNotExist:
             return Response({"error": "execution does not exists"}, 400)
 
-        if permission not in ("read", "write"):
-            return Response({"error":"permission can be read or write"},status=400)
-
         # Create IAM client
         sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,
                                                         aws_secret_access_key=settings.aws_secret_access_key,
                                                         region_name=settings.aws_region_name)
 
-        if permission =="read":
-            role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
-        if permission == "write":
-            role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+        if service == "athena":
+            role_to_assume_arn = 'arn:aws:iam::858916640373:role/athena_access'
+
+        if service == "s3":
+            if permission =="read":
+                role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
+            elif permission == "write":
+                role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+            else:
+                return Response({"error":"must set permission to read or write"}, status=400)
 
         role_session_name = 's3_session'
 
