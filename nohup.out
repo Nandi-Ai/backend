@@ -1,0 +1,1490 @@
+[2019-05-23 10:21:52 +0000] [26231] [INFO] Starting gunicorn 19.9.0
+[2019-05-23 10:21:52 +0000] [26231] [INFO] Listening at: http://127.0.0.1:8000 (26231)
+[2019-05-23 10:21:52 +0000] [26231] [INFO] Using worker: sync
+[2019-05-23 10:21:52 +0000] [26234] [INFO] Booting worker with pid: 26234
+[2019-05-23 10:21:52 +0000] [26234] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+ModuleNotFoundError: No module named 'start'
+[2019-05-23 10:21:52 +0000] [26234] [INFO] Worker exiting (pid: 26234)
+[2019-05-23 10:21:52 +0000] [26231] [INFO] Shutting down: Master
+[2019-05-23 10:21:52 +0000] [26231] [INFO] Reason: Worker failed to boot.
+[2019-05-23 12:06:50 +0000] [26449] [INFO] Starting gunicorn 19.9.0
+[2019-05-23 12:06:50 +0000] [26449] [INFO] Listening at: http://127.0.0.1:8000 (26449)
+[2019-05-23 12:06:50 +0000] [26449] [INFO] Using worker: sync
+[2019-05-23 12:06:50 +0000] [26452] [INFO] Booting worker with pid: 26452
+[2019-05-23 12:06:50 +0000] [26452] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+ModuleNotFoundError: No module named 'start'
+[2019-05-23 12:06:50 +0000] [26452] [INFO] Worker exiting (pid: 26452)
+[2019-05-23 12:06:50 +0000] [26449] [INFO] Shutting down: Master
+[2019-05-23 12:06:50 +0000] [26449] [INFO] Reason: Worker failed to boot.
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-23 12:06:56 +0000] [26453] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7f7d586096a8>
+  on_reload: <function OnReload.on_reload at 0x7f7d586097b8>
+  when_ready: <function WhenReady.when_ready at 0x7f7d586098c8>
+  pre_fork: <function Prefork.pre_fork at 0x7f7d586099d8>
+  post_fork: <function Postfork.post_fork at 0x7f7d58609ae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7f7d58609bf8>
+  worker_int: <function WorkerInt.worker_int at 0x7f7d58609d08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7f7d58609e18>
+  pre_exec: <function PreExec.pre_exec at 0x7f7d58609f28>
+  pre_request: <function PreRequest.pre_request at 0x7f7d586180d0>
+  post_request: <function PostRequest.post_request at 0x7f7d58618158>
+  child_exit: <function ChildExit.child_exit at 0x7f7d58618268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7f7d58618378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7f7d58618488>
+  on_exit: <function OnExit.on_exit at 0x7f7d58618598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-23 12:06:56 +0000] [26453] [INFO] Starting gunicorn 19.9.0
+[2019-05-23 12:06:56 +0000] [26453] [DEBUG] Arbiter booted
+[2019-05-23 12:06:56 +0000] [26453] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (26453)
+[2019-05-23 12:06:56 +0000] [26453] [INFO] Using worker: sync
+[2019-05-23 12:06:56 +0000] [26461] [INFO] Booting worker with pid: 26461
+[2019-05-23 12:06:56 +0000] [26463] [INFO] Booting worker with pid: 26463
+[2019-05-23 12:06:56 +0000] [26453] [DEBUG] 3 workers
+[2019-05-23 12:06:56 +0000] [26464] [INFO] Booting worker with pid: 26464
+[2019-05-23 12:07:07 +0000] [26464] [DEBUG] GET /
+Not Found: /
+[2019-05-23 12:07:08 +0000] [26463] [DEBUG] GET /favicon.ico
+Not Found: /favicon.ico
+[2019-05-23 12:07:12 +0000] [26464] [DEBUG] GET /get_execution
+Not Found: /get_execution
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-23 12:09:50 +0000] [26483] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7fa75d0a76a8>
+  on_reload: <function OnReload.on_reload at 0x7fa75d0a77b8>
+  when_ready: <function WhenReady.when_ready at 0x7fa75d0a78c8>
+  pre_fork: <function Prefork.pre_fork at 0x7fa75d0a79d8>
+  post_fork: <function Postfork.post_fork at 0x7fa75d0a7ae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7fa75d0a7bf8>
+  worker_int: <function WorkerInt.worker_int at 0x7fa75d0a7d08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7fa75d0a7e18>
+  pre_exec: <function PreExec.pre_exec at 0x7fa75d0a7f28>
+  pre_request: <function PreRequest.pre_request at 0x7fa75d0b60d0>
+  post_request: <function PostRequest.post_request at 0x7fa75d0b6158>
+  child_exit: <function ChildExit.child_exit at 0x7fa75d0b6268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7fa75d0b6378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7fa75d0b6488>
+  on_exit: <function OnExit.on_exit at 0x7fa75d0b6598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-23 12:09:50 +0000] [26483] [INFO] Starting gunicorn 19.9.0
+[2019-05-23 12:09:50 +0000] [26483] [DEBUG] Arbiter booted
+[2019-05-23 12:09:50 +0000] [26483] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (26483)
+[2019-05-23 12:09:50 +0000] [26483] [INFO] Using worker: sync
+[2019-05-23 12:09:50 +0000] [26491] [INFO] Booting worker with pid: 26491
+[2019-05-23 12:09:50 +0000] [26493] [INFO] Booting worker with pid: 26493
+[2019-05-23 12:09:50 +0000] [26494] [INFO] Booting worker with pid: 26494
+[2019-05-23 12:09:50 +0000] [26483] [DEBUG] 3 workers
+[2019-05-23 12:09:50 +0000] [26491] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+  File "/home/ubuntu/lynx-be/mainapp/wsgi.py", line 16, in <module>
+    application = get_wsgi_application()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+    django.setup(set_prefix=False)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/config.py", line 90, in create
+    module = import_module(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ModuleNotFoundError: No module named 'corsheaders'
+[2019-05-23 12:09:50 +0000] [26491] [INFO] Worker exiting (pid: 26491)
+[2019-05-23 12:09:50 +0000] [26493] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+  File "/home/ubuntu/lynx-be/mainapp/wsgi.py", line 16, in <module>
+    application = get_wsgi_application()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+    django.setup(set_prefix=False)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/config.py", line 90, in create
+    module = import_module(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ModuleNotFoundError: No module named 'corsheaders'
+[2019-05-23 12:09:50 +0000] [26493] [INFO] Worker exiting (pid: 26493)
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 210, in run
+    self.sleep()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 360, in sleep
+    ready = select.select([self.PIPE[0]], [], [], 1.0)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 245, in handle_chld
+    self.reap_workers()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 525, in reap_workers
+    raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/bin/gunicorn", line 10, in <module>
+    sys.exit(run())
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 61, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 223, in run
+    super(Application, self).run()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 72, in run
+    Arbiter(self).run()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 232, in run
+    self.halt(reason=inst.reason, exit_status=inst.exit_status)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 345, in halt
+    self.stop()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 393, in stop
+    time.sleep(0.1)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 245, in handle_chld
+    self.reap_workers()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 525, in reap_workers
+    raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+[2019-05-23 12:09:50 +0000] [26494] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+  File "/home/ubuntu/lynx-be/mainapp/wsgi.py", line 16, in <module>
+    application = get_wsgi_application()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+    django.setup(set_prefix=False)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/config.py", line 90, in create
+    module = import_module(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ModuleNotFoundError: No module named 'corsheaders'
+[2019-05-23 12:09:50 +0000] [26494] [INFO] Worker exiting (pid: 26494)
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-23 12:09:59 +0000] [26499] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7f4f709ed6a8>
+  on_reload: <function OnReload.on_reload at 0x7f4f709ed7b8>
+  when_ready: <function WhenReady.when_ready at 0x7f4f709ed8c8>
+  pre_fork: <function Prefork.pre_fork at 0x7f4f709ed9d8>
+  post_fork: <function Postfork.post_fork at 0x7f4f709edae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7f4f709edbf8>
+  worker_int: <function WorkerInt.worker_int at 0x7f4f709edd08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7f4f709ede18>
+  pre_exec: <function PreExec.pre_exec at 0x7f4f709edf28>
+  pre_request: <function PreRequest.pre_request at 0x7f4f709fc0d0>
+  post_request: <function PostRequest.post_request at 0x7f4f709fc158>
+  child_exit: <function ChildExit.child_exit at 0x7f4f709fc268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7f4f709fc378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7f4f709fc488>
+  on_exit: <function OnExit.on_exit at 0x7f4f709fc598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-23 12:09:59 +0000] [26499] [INFO] Starting gunicorn 19.9.0
+[2019-05-23 12:09:59 +0000] [26499] [DEBUG] Arbiter booted
+[2019-05-23 12:09:59 +0000] [26499] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (26499)
+[2019-05-23 12:09:59 +0000] [26499] [INFO] Using worker: sync
+[2019-05-23 12:09:59 +0000] [26507] [INFO] Booting worker with pid: 26507
+[2019-05-23 12:09:59 +0000] [26508] [INFO] Booting worker with pid: 26508
+[2019-05-23 12:09:59 +0000] [26510] [INFO] Booting worker with pid: 26510
+[2019-05-23 12:09:59 +0000] [26499] [DEBUG] 3 workers
+[2019-05-23 12:10:00 +0000] [26507] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+  File "/home/ubuntu/lynx-be/mainapp/wsgi.py", line 16, in <module>
+    application = get_wsgi_application()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+    django.setup(set_prefix=False)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/config.py", line 90, in create
+    module = import_module(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ModuleNotFoundError: No module named 'corsheaders'
+[2019-05-23 12:10:00 +0000] [26507] [INFO] Worker exiting (pid: 26507)
+[2019-05-23 12:10:00 +0000] [26508] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+  File "/home/ubuntu/lynx-be/mainapp/wsgi.py", line 16, in <module>
+    application = get_wsgi_application()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+    django.setup(set_prefix=False)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/config.py", line 90, in create
+    module = import_module(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ModuleNotFoundError: No module named 'corsheaders'
+[2019-05-23 12:10:00 +0000] [26508] [INFO] Worker exiting (pid: 26508)
+[2019-05-23 12:10:00 +0000] [26510] [ERROR] Exception in worker process
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 583, in spawn_worker
+    worker.init_process()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 129, in init_process
+    self.load_wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/workers/base.py", line 138, in load_wsgi
+    self.wsgi = self.app.wsgi()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 52, in load
+    return self.load_wsgiapp()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 41, in load_wsgiapp
+    return util.import_app(self.app_uri)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/util.py", line 350, in import_app
+    __import__(module)
+  File "/home/ubuntu/lynx-be/mainapp/wsgi.py", line 16, in <module>
+    application = get_wsgi_application()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/wsgi.py", line 12, in get_wsgi_application
+    django.setup(set_prefix=False)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/apps/config.py", line 90, in create
+    module = import_module(entry)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ModuleNotFoundError: No module named 'corsheaders'
+[2019-05-23 12:10:00 +0000] [26510] [INFO] Worker exiting (pid: 26510)
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 210, in run
+    self.sleep()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 360, in sleep
+    ready = select.select([self.PIPE[0]], [], [], 1.0)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 245, in handle_chld
+    self.reap_workers()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 525, in reap_workers
+    raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/bin/gunicorn", line 10, in <module>
+    sys.exit(run())
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/wsgiapp.py", line 61, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 223, in run
+    super(Application, self).run()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/app/base.py", line 72, in run
+    Arbiter(self).run()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 232, in run
+    self.halt(reason=inst.reason, exit_status=inst.exit_status)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 345, in halt
+    self.stop()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 393, in stop
+    time.sleep(0.1)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 245, in handle_chld
+    self.reap_workers()
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/gunicorn/arbiter.py", line 525, in reap_workers
+    raise HaltServer(reason, self.WORKER_BOOT_ERROR)
+gunicorn.errors.HaltServer: <HaltServer 'Worker failed to boot.' 3>
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-23 12:13:14 +0000] [26571] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7f8af7d3a6a8>
+  on_reload: <function OnReload.on_reload at 0x7f8af7d3a7b8>
+  when_ready: <function WhenReady.when_ready at 0x7f8af7d3a8c8>
+  pre_fork: <function Prefork.pre_fork at 0x7f8af7d3a9d8>
+  post_fork: <function Postfork.post_fork at 0x7f8af7d3aae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7f8af7d3abf8>
+  worker_int: <function WorkerInt.worker_int at 0x7f8af7d3ad08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7f8af7d3ae18>
+  pre_exec: <function PreExec.pre_exec at 0x7f8af7d3af28>
+  pre_request: <function PreRequest.pre_request at 0x7f8af7d490d0>
+  post_request: <function PostRequest.post_request at 0x7f8af7d49158>
+  child_exit: <function ChildExit.child_exit at 0x7f8af7d49268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7f8af7d49378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7f8af7d49488>
+  on_exit: <function OnExit.on_exit at 0x7f8af7d49598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-23 12:13:14 +0000] [26571] [INFO] Starting gunicorn 19.9.0
+[2019-05-23 12:13:14 +0000] [26571] [DEBUG] Arbiter booted
+[2019-05-23 12:13:14 +0000] [26571] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (26571)
+[2019-05-23 12:13:14 +0000] [26571] [INFO] Using worker: sync
+[2019-05-23 12:13:14 +0000] [26579] [INFO] Booting worker with pid: 26579
+[2019-05-23 12:13:14 +0000] [26581] [INFO] Booting worker with pid: 26581
+[2019-05-23 12:13:14 +0000] [26582] [INFO] Booting worker with pid: 26582
+[2019-05-23 12:13:14 +0000] [26571] [DEBUG] 3 workers
+[2019-05-23 12:13:25 +0000] [26581] [DEBUG] GET /get_execution
+Not Found: /get_execution
+[2019-05-23 12:14:15 +0000] [26581] [DEBUG] GET /get_execution/1
+Unauthorized: /get_execution/1
+[2019-05-23 12:15:47 +0000] [26582] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 12:15:48 +0000] [26581] [DEBUG] GET /get_execution/1
+[2019-05-23 12:20:13 +0000] [26581] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 12:20:13 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 12:22:36 +0000] [26582] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 12:22:36 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 12:29:01 +0000] [26581] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 12:29:01 +0000] [26582] [DEBUG] GET /get_execution/1
+[2019-05-23 13:33:20 +0000] [26582] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 13:33:20 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 13:40:30 +0000] [26579] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 13:40:30 +0000] [26581] [DEBUG] GET /get_execution/1
+[2019-05-23 13:47:05 +0000] [26581] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 13:47:05 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 13:48:39 +0000] [26582] [DEBUG] GET /get_execution_config/LAPTOP-C07L9L3Q
+Bad Request: /get_execution_config/LAPTOP-C07L9L3Q
+[2019-05-23 13:54:22 +0000] [26579] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 13:54:22 +0000] [26582] [DEBUG] GET /get_execution/1
+[2019-05-23 13:54:34 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 13:54:36 +0000] [26582] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 13:54:51 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 13:55:22 +0000] [26582] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 13:56:12 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 13:57:37 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 13:59:44 +0000] [26581] [DEBUG] GET /
+Not Found: /
+[2019-05-23 14:05:34 +0000] [26581] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:05:34 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 14:06:02 +0000] [26582] [DEBUG] GET /get_execution/1
+[2019-05-23 14:06:44 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:06:46 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:07:03 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:07:32 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:08:14 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:09:06 +0000] [26581] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:09:06 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 14:09:36 +0000] [26582] [DEBUG] GET /get_execution/1
+[2019-05-23 14:10:35 +0000] [26582] [DEBUG] GET /get_execution_config/kobi
+Bad Request: /get_execution_config/kobi
+[2019-05-23 14:10:37 +0000] [26579] [DEBUG] GET /get_execution_config/kobi
+Bad Request: /get_execution_config/kobi
+[2019-05-23 14:10:53 +0000] [26581] [DEBUG] GET /get_execution_config/kobi
+Bad Request: /get_execution_config/kobi
+[2019-05-23 14:11:26 +0000] [26579] [DEBUG] GET /get_execution_config/kobi
+Bad Request: /get_execution_config/kobi
+[2019-05-23 14:12:10 +0000] [26582] [DEBUG] GET /get_execution_config/kobi
+Bad Request: /get_execution_config/kobi
+[2019-05-23 14:13:21 +0000] [26579] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:13:21 +0000] [26581] [DEBUG] GET /get_execution/1
+[2019-05-23 14:13:23 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 14:13:37 +0000] [26582] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:13:39 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:13:53 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:14:23 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:14:58 +0000] [26579] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:14:59 +0000] [26582] [DEBUG] GET /get_execution/1
+[2019-05-23 14:19:28 +0000] [26581] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:19:29 +0000] [26582] [DEBUG] GET /get_execution/1
+[2019-05-23 14:21:24 +0000] [26582] [DEBUG] GET /latest/meta-data
+Not Found: /latest/meta-data
+[2019-05-23 14:23:30 +0000] [26582] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:23:30 +0000] [26579] [DEBUG] GET /get_execution/1
+[2019-05-23 14:23:50 +0000] [26582] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:23:53 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:24:09 +0000] [26582] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:24:40 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:25:33 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:27:07 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:27:47 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:28:24 +0000] [26581] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:28:28 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:29:38 +0000] [26579] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:30:14 +0000] [26582] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:30:18 +0000] [26747] [INFO] Booting worker with pid: 26747
+[2019-05-23 14:30:18 +0000] [26571] [DEBUG] 1 workers
+[2019-05-23 14:30:18 +0000] [26571] [INFO] Handling signal: hup
+[2019-05-23 14:30:18 +0000] [26571] [INFO] Hang up: Master
+[2019-05-23 14:30:18 +0000] [26571] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7f8af7d3a6a8>
+  on_reload: <function OnReload.on_reload at 0x7f8af7d3a7b8>
+  when_ready: <function WhenReady.when_ready at 0x7f8af7d3a8c8>
+  pre_fork: <function Prefork.pre_fork at 0x7f8af7d3a9d8>
+  post_fork: <function Postfork.post_fork at 0x7f8af7d3aae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7f8af7d3abf8>
+  worker_int: <function WorkerInt.worker_int at 0x7f8af7d3ad08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7f8af7d3ae18>
+  pre_exec: <function PreExec.pre_exec at 0x7f8af7d3af28>
+  pre_request: <function PreRequest.pre_request at 0x7f8af7d490d0>
+  post_request: <function PostRequest.post_request at 0x7f8af7d49158>
+  child_exit: <function ChildExit.child_exit at 0x7f8af7d49268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7f8af7d49378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7f8af7d49488>
+  on_exit: <function OnExit.on_exit at 0x7f8af7d49598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-23 14:30:18 +0000] [26750] [INFO] Booting worker with pid: 26750
+[2019-05-23 14:30:18 +0000] [26748] [INFO] Booting worker with pid: 26748
+[2019-05-23 14:30:18 +0000] [26571] [DEBUG] 3 workers
+[2019-05-23 14:30:18 +0000] [26749] [INFO] Booting worker with pid: 26749
+[2019-05-23 14:30:19 +0000] [26747] [INFO] Worker exiting (pid: 26747)
+[2019-05-23 14:32:17 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:33:50 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:34:55 +0000] [26749] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:34:55 +0000] [26748] [DEBUG] GET /get_execution/1
+[2019-05-23 14:35:06 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 14:37:36 +0000] [26750] [DEBUG] OPTIONS /get_execution/1
+[2019-05-23 14:37:36 +0000] [26748] [DEBUG] GET /get_execution/1
+[2019-05-23 14:38:23 +0000] [26750] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 15:07:51 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-23 15:17:33 +0000] [26748] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 15:17:42 +0000] [26750] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-23 16:00:29 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-23 16:59:29 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-23 16:59:54 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-23 17:16:32 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-23 18:24:17 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-23 18:24:55 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-23 18:26:37 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-23 21:21:23 +0000] [26749] [DEBUG] GET /robots.txt
+Not Found: /robots.txt
+[2019-05-23 21:21:24 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-23 23:02:41 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 00:08:04 +0000] [26750] [DEBUG] GET /
+Invalid HTTP_HOST header: '_'. The domain name provided is not valid according to RFC 1034/1035.
+Bad Request: /
+[2019-05-24 00:51:47 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 01:33:42 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 01:51:50 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 02:04:15 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 02:12:48 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 02:41:49 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 02:57:21 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 04:13:36 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 05:02:43 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 07:59:25 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 08:12:29 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 08:15:32 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 10:42:22 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 11:15:23 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 12:50:00 +0000] [26750] [DEBUG] GET /favicon.ico
+Not Found: /favicon.ico
+[2019-05-24 13:04:01 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 13:29:33 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 14:08:37 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 14:45:56 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 15:44:43 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 15:49:12 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 15:51:20 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 15:55:02 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 16:29:09 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 16:36:13 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 16:48:33 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 17:21:56 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-24 17:47:09 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 18:24:08 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 18:25:09 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 18:25:30 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 18:31:34 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 18:58:53 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-24 18:59:07 +0000] [26750] [DEBUG] GET /
+Invalid HTTP_HOST header: '_'. The domain name provided is not valid according to RFC 1034/1035.
+Bad Request: /
+[2019-05-24 20:17:00 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-24 22:22:09 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 00:11:24 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 00:49:17 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 01:10:27 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 01:20:53 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 02:20:05 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 03:24:38 +0000] [26749] [DEBUG] HEAD /index.php
+Not Found: /index.php
+[2019-05-25 03:24:38 +0000] [26749] [DEBUG] Ignoring EPIPE
+[2019-05-25 03:24:38 +0000] [26750] [DEBUG] HEAD /admin/images/tango.png
+Not Found: /admin/images/tango.png
+[2019-05-25 03:24:38 +0000] [26750] [DEBUG] Ignoring EPIPE
+[2019-05-25 03:31:53 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 03:50:41 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 04:37:56 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 04:37:56 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 04:37:56 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 05:56:43 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 07:09:55 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 07:19:31 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 09:00:41 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 09:00:47 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 09:00:56 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 09:08:03 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 09:38:51 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 10:31:37 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 11:21:28 +0000] [26748] [DEBUG] GET /
+Invalid HTTP_HOST header: '_'. The domain name provided is not valid according to RFC 1034/1035.
+Bad Request: /
+[2019-05-25 11:22:14 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 11:51:53 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 14:50:41 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 15:27:30 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 16:37:01 +0000] [26750] [DEBUG] GET /
+Invalid HTTP_HOST header: '_'. The domain name provided is not valid according to RFC 1034/1035.
+Bad Request: /
+[2019-05-25 16:40:08 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 17:12:01 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 17:13:07 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 17:41:17 +0000] [26749] [DEBUG] GET /echo.php
+Not Found: /echo.php
+[2019-05-25 17:42:45 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 19:31:55 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 19:32:00 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 19:32:42 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 20:17:42 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-25 20:26:37 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 21:49:39 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-25 22:23:35 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 23:20:30 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-25 23:38:37 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 00:00:58 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 00:11:19 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 00:41:56 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 00:51:05 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 00:53:51 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 01:12:45 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 02:23:02 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 03:40:11 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 03:41:30 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 03:42:34 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-26 03:52:50 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 04:12:41 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 04:25:15 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 05:36:48 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 06:23:05 +0000] [26749] [DEBUG] GET /
+Not Found: /
+[2019-05-26 08:33:05 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 08:33:53 +0000] [26748] [DEBUG] GET /
+Not Found: /
+[2019-05-26 08:34:11 +0000] [26750] [DEBUG] GET /
+Not Found: /
+[2019-05-26 08:37:11 +0000] [26748] [DEBUG] OPTIONS /get_execution/1
+[2019-05-26 08:37:11 +0000] [26750] [DEBUG] GET /get_execution/1
+[2019-05-26 08:37:47 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-26 08:40:25 +0000] [26749] [DEBUG] GET /get_execution/1
+[2019-05-26 08:41:08 +0000] [26750] [DEBUG] GET /get_execution/1
+[2019-05-26 08:41:59 +0000] [26748] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-26 08:42:02 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-26 08:42:20 +0000] [26748] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-26 08:42:53 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-26 08:43:44 +0000] [26750] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+[2019-05-26 08:45:14 +0000] [26749] [DEBUG] GET /get_execution_config/fdf93aadeefa4354a97b46d3bcc2694d
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-26 08:47:28 +0000] [30137] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7ffa30bec6a8>
+  on_reload: <function OnReload.on_reload at 0x7ffa30bec7b8>
+  when_ready: <function WhenReady.when_ready at 0x7ffa30bec8c8>
+  pre_fork: <function Prefork.pre_fork at 0x7ffa30bec9d8>
+  post_fork: <function Postfork.post_fork at 0x7ffa30becae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7ffa30becbf8>
+  worker_int: <function WorkerInt.worker_int at 0x7ffa30becd08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7ffa30bece18>
+  pre_exec: <function PreExec.pre_exec at 0x7ffa30becf28>
+  pre_request: <function PreRequest.pre_request at 0x7ffa30bfb0d0>
+  post_request: <function PostRequest.post_request at 0x7ffa30bfb158>
+  child_exit: <function ChildExit.child_exit at 0x7ffa30bfb268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7ffa30bfb378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7ffa30bfb488>
+  on_exit: <function OnExit.on_exit at 0x7ffa30bfb598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-26 08:47:28 +0000] [30137] [INFO] Starting gunicorn 19.9.0
+[2019-05-26 08:47:28 +0000] [30137] [DEBUG] Arbiter booted
+[2019-05-26 08:47:28 +0000] [30137] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (30137)
+[2019-05-26 08:47:28 +0000] [30137] [INFO] Using worker: sync
+[2019-05-26 08:47:28 +0000] [30145] [INFO] Booting worker with pid: 30145
+[2019-05-26 08:47:28 +0000] [30146] [INFO] Booting worker with pid: 30146
+[2019-05-26 08:47:28 +0000] [30147] [INFO] Booting worker with pid: 30147
+[2019-05-26 08:47:28 +0000] [30137] [DEBUG] 3 workers
+[2019-05-26 08:55:47 +0000] [30145] [DEBUG] OPTIONS /get_execution/1
+[2019-05-26 08:55:48 +0000] [30147] [DEBUG] GET /get_execution/1
+Internal Server Error: /get_execution/1
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/exception.py", line 34, in inner
+    response = get_response(request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 115, in _get_response
+    response = self.process_exception_by_middleware(e, request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 113, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/decorators/csrf.py", line 54, in wrapped_view
+    return view_func(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/generic/base.py", line 71, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 495, in dispatch
+    response = self.handle_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 455, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 492, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/home/ubuntu/lynx-be/mainapp/views.py", line 72, in get
+    execution, created = Execution.objects.create(study = study) #TODO CHANGE
+TypeError: 'Execution' object is not iterable
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-26 09:21:46 +0000] [30329] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7f6335bad6a8>
+  on_reload: <function OnReload.on_reload at 0x7f6335bad7b8>
+  when_ready: <function WhenReady.when_ready at 0x7f6335bad8c8>
+  pre_fork: <function Prefork.pre_fork at 0x7f6335bad9d8>
+  post_fork: <function Postfork.post_fork at 0x7f6335badae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7f6335badbf8>
+  worker_int: <function WorkerInt.worker_int at 0x7f6335badd08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7f6335bade18>
+  pre_exec: <function PreExec.pre_exec at 0x7f6335badf28>
+  pre_request: <function PreRequest.pre_request at 0x7f6335bbc0d0>
+  post_request: <function PostRequest.post_request at 0x7f6335bbc158>
+  child_exit: <function ChildExit.child_exit at 0x7f6335bbc268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7f6335bbc378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7f6335bbc488>
+  on_exit: <function OnExit.on_exit at 0x7f6335bbc598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-26 09:21:46 +0000] [30329] [INFO] Starting gunicorn 19.9.0
+[2019-05-26 09:21:46 +0000] [30329] [DEBUG] Arbiter booted
+[2019-05-26 09:21:46 +0000] [30329] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (30329)
+[2019-05-26 09:21:46 +0000] [30329] [INFO] Using worker: sync
+[2019-05-26 09:21:46 +0000] [30337] [INFO] Booting worker with pid: 30337
+[2019-05-26 09:21:46 +0000] [30338] [INFO] Booting worker with pid: 30338
+[2019-05-26 09:21:46 +0000] [30340] [INFO] Booting worker with pid: 30340
+[2019-05-26 09:21:46 +0000] [30329] [DEBUG] 3 workers
+[2019-05-26 09:22:09 +0000] [30338] [DEBUG] OPTIONS /get_execution/1
+[2019-05-26 09:22:10 +0000] [30340] [DEBUG] GET /get_execution/1
+Internal Server Error: /get_execution/1
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/exception.py", line 34, in inner
+    response = get_response(request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 115, in _get_response
+    response = self.process_exception_by_middleware(e, request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 113, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/decorators/csrf.py", line 54, in wrapped_view
+    return view_func(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/generic/base.py", line 71, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 495, in dispatch
+    response = self.handle_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 455, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 492, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/home/ubuntu/lynx-be/mainapp/views.py", line 71, in get
+    execution = Execution.objects.create(study=study)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/manager.py", line 82, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/query.py", line 420, in create
+    obj = self.model(**kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/base.py", line 501, in __init__
+    raise TypeError("%s() got an unexpected keyword argument '%s'" % (cls.__name__, kwarg))
+TypeError: Execution() got an unexpected keyword argument 'study'
+Starting lynx-be as ubuntu
+mkdir: cannot create directory ‘/home/ubuntuq’: Permission denied
+[2019-05-26 09:24:50 +0000] [30360] [DEBUG] Current configuration:
+  config: None
+  bind: ['unix:/home/ubuntu/gunicorn.sock']
+  backlog: 2048
+  workers: 3
+  worker_class: sync
+  threads: 1
+  worker_connections: 1000
+  max_requests: 0
+  max_requests_jitter: 0
+  timeout: 30
+  graceful_timeout: 30
+  keepalive: 2
+  limit_request_line: 4094
+  limit_request_fields: 100
+  limit_request_field_size: 8190
+  reload: False
+  reload_engine: auto
+  reload_extra_files: []
+  spew: False
+  check_config: False
+  preload_app: False
+  sendfile: None
+  reuse_port: False
+  chdir: /home/ubuntu/lynx-be
+  daemon: False
+  raw_env: []
+  pidfile: None
+  worker_tmp_dir: None
+  user: 1000
+  group: 1000
+  umask: 0
+  initgroups: False
+  tmp_upload_dir: None
+  secure_scheme_headers: {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+  forwarded_allow_ips: ['127.0.0.1']
+  accesslog: None
+  disable_redirect_access_to_syslog: False
+  access_log_format: %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  errorlog: -
+  loglevel: debug
+  capture_output: False
+  logger_class: gunicorn.glogging.Logger
+  logconfig: None
+  logconfig_dict: {}
+  syslog_addr: udp://localhost:514
+  syslog: False
+  syslog_prefix: None
+  syslog_facility: user
+  enable_stdio_inheritance: False
+  statsd_host: None
+  statsd_prefix: 
+  proc_name: lynx-be
+  default_proc_name: mainapp.wsgi:application
+  pythonpath: None
+  paste: None
+  on_starting: <function OnStarting.on_starting at 0x7f01759be6a8>
+  on_reload: <function OnReload.on_reload at 0x7f01759be7b8>
+  when_ready: <function WhenReady.when_ready at 0x7f01759be8c8>
+  pre_fork: <function Prefork.pre_fork at 0x7f01759be9d8>
+  post_fork: <function Postfork.post_fork at 0x7f01759beae8>
+  post_worker_init: <function PostWorkerInit.post_worker_init at 0x7f01759bebf8>
+  worker_int: <function WorkerInt.worker_int at 0x7f01759bed08>
+  worker_abort: <function WorkerAbort.worker_abort at 0x7f01759bee18>
+  pre_exec: <function PreExec.pre_exec at 0x7f01759bef28>
+  pre_request: <function PreRequest.pre_request at 0x7f01759cd0d0>
+  post_request: <function PostRequest.post_request at 0x7f01759cd158>
+  child_exit: <function ChildExit.child_exit at 0x7f01759cd268>
+  worker_exit: <function WorkerExit.worker_exit at 0x7f01759cd378>
+  nworkers_changed: <function NumWorkersChanged.nworkers_changed at 0x7f01759cd488>
+  on_exit: <function OnExit.on_exit at 0x7f01759cd598>
+  proxy_protocol: False
+  proxy_allow_ips: ['127.0.0.1']
+  keyfile: None
+  certfile: None
+  ssl_version: 2
+  cert_reqs: 0
+  ca_certs: None
+  suppress_ragged_eofs: True
+  do_handshake_on_connect: False
+  ciphers: TLSv1
+  raw_paste_global_conf: []
+[2019-05-26 09:24:50 +0000] [30360] [INFO] Starting gunicorn 19.9.0
+[2019-05-26 09:24:50 +0000] [30360] [DEBUG] Arbiter booted
+[2019-05-26 09:24:50 +0000] [30360] [INFO] Listening at: unix:/home/ubuntu/gunicorn.sock (30360)
+[2019-05-26 09:24:50 +0000] [30360] [INFO] Using worker: sync
+[2019-05-26 09:24:50 +0000] [30368] [INFO] Booting worker with pid: 30368
+[2019-05-26 09:24:50 +0000] [30369] [INFO] Booting worker with pid: 30369
+[2019-05-26 09:24:50 +0000] [30370] [INFO] Booting worker with pid: 30370
+[2019-05-26 09:24:50 +0000] [30360] [DEBUG] 3 workers
+[2019-05-26 09:24:55 +0000] [30369] [DEBUG] GET /get_execution/1
+Internal Server Error: /get_execution/1
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/exception.py", line 34, in inner
+    response = get_response(request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 115, in _get_response
+    response = self.process_exception_by_middleware(e, request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 113, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/decorators/csrf.py", line 54, in wrapped_view
+    return view_func(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/generic/base.py", line 71, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 495, in dispatch
+    response = self.handle_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 455, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 492, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/home/ubuntu/lynx-be/mainapp/views.py", line 73, in get
+    execution = Execution.objects.create(study=study)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/manager.py", line 82, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/query.py", line 420, in create
+    obj = self.model(**kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/base.py", line 501, in __init__
+    raise TypeError("%s() got an unexpected keyword argument '%s'" % (cls.__name__, kwarg))
+TypeError: Execution() got an unexpected keyword argument 'study'
+[2019-05-26 09:25:01 +0000] [30370] [DEBUG] GET /get_execution/1
+Internal Server Error: /get_execution/1
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/exception.py", line 34, in inner
+    response = get_response(request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 115, in _get_response
+    response = self.process_exception_by_middleware(e, request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 113, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/decorators/csrf.py", line 54, in wrapped_view
+    return view_func(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/generic/base.py", line 71, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 495, in dispatch
+    response = self.handle_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 455, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 492, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/home/ubuntu/lynx-be/mainapp/views.py", line 73, in get
+    execution = Execution.objects.create(study=study)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/manager.py", line 82, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/query.py", line 420, in create
+    obj = self.model(**kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/base.py", line 501, in __init__
+    raise TypeError("%s() got an unexpected keyword argument '%s'" % (cls.__name__, kwarg))
+TypeError: Execution() got an unexpected keyword argument 'study'
+[2019-05-26 09:26:38 +0000] [30369] [DEBUG] OPTIONS /get_execution/1
+[2019-05-26 09:26:39 +0000] [30370] [DEBUG] GET /get_execution/1
+Internal Server Error: /get_execution/1
+Traceback (most recent call last):
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/exception.py", line 34, in inner
+    response = get_response(request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 115, in _get_response
+    response = self.process_exception_by_middleware(e, request)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/core/handlers/base.py", line 113, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/decorators/csrf.py", line 54, in wrapped_view
+    return view_func(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/views/generic/base.py", line 71, in view
+    return self.dispatch(request, *args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 495, in dispatch
+    response = self.handle_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 455, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/rest_framework/views.py", line 492, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "/home/ubuntu/lynx-be/mainapp/views.py", line 73, in get
+    execution = Execution.objects.create(study=study)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/manager.py", line 82, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/query.py", line 420, in create
+    obj = self.model(**kwargs)
+  File "/home/ubuntu/.virtualenvs/lynx-be/lib/python3.6/site-packages/django/db/models/base.py", line 501, in __init__
+    raise TypeError("%s() got an unexpected keyword argument '%s'" % (cls.__name__, kwarg))
+TypeError: Execution() got an unexpected keyword argument 'study'
