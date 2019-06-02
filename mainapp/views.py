@@ -1,4 +1,4 @@
-from rest_framework.generics import GenericAPIView
+# from rest_framework.generics import GenericAPIView
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
@@ -10,6 +10,9 @@ import boto3
 #from botocore.vendored import requests #if using requests in a lambda fucntion
 import requests
 import uuid
+from multiprocessing import Process
+import time
+import subprocess
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -31,47 +34,22 @@ class DatasetViewSet(ModelViewSet):
 #
 #         return Response(self.serializer_class(dataset, allow_null=True).data)
 
-class GetExecutionConfig(APIView):
-    def get(self, request, execution_identifier):
-
+class SendSyncSignal:
+    def get(self, request):
         def send_sync_signal(execution_identifier):
-            import time
-            import subprocess
 
             time.sleep(60)
-            command = "kubectl exec jupyter-"+execution_identifier+" -- python /usr/local/bin/sync_to_s3.py &"
+            command = "kubectl exec jupyter-" + execution_identifier + " -- python /usr/local/bin/sync_to_s3.py &"
             subprocess.check_output(command.split(" "))
 
+        execution_identifier = request.query_params.get('execution_identifier')
         try:
             execution = Execution.objects.get(identifier=execution_identifier)
         except Execution.DoesNotExist:
             return Response({"error": "execution does not exists"}, 400)
 
-        # Create IAM client
-        sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,
-                                                        aws_secret_access_key=settings.aws_secret_access_key,
-                                                        region_name=settings.aws_region_name)
-
-        print('Default Provider Identity: : ' + sts_default_provider_chain.get_caller_identity()['Arn'])
-
-        role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
-        role_session_name = 'test_session'
-
-        response = sts_default_provider_chain.assume_role(
-            RoleArn=role_to_assume_arn,
-            RoleSessionName=role_session_name
-        )
-
-        study = Study.objects.get(execution = execution)
-
-        config = {}
-        config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
-        config['aws_sts_creds'] = response['Credentials']
-
-
-        from multiprocessing import Process
-        p = Process(target=send_sync_signal, args=(execution_identifier,))
-        p.start() #TODO use kubernetes client for python instead
+        p = Process(target=send_sync_signal, args=(execution.identifier,))
+        p.start()  # TODO use kubernetes client for python instead
 
         # import kubernetes.config
         # from kubernetes.client.rest import ApiException
@@ -85,8 +63,46 @@ class GetExecutionConfig(APIView):
         # except ApiException as e:
         #     print("Exception when calling CoreV1Api->connect_get_namespaced_pod_exec: %s\n" % e)
 
-        return Response(config)
+        return Response()
 
+class GetSTS(APIView):
+    def get(self, request):
+
+        execution_identifier = request.query_params.get('execution_identifier')
+        permission = request.query_params.get('permission')
+
+        try:
+            execution = Execution.objects.get(identifier=execution_identifier)
+        except Execution.DoesNotExist:
+            return Response({"error": "execution does not exists"}, 400)
+
+        if permission not in ("read", "write"):
+            return Response({"error":"permission can be read or write"},status=400)
+
+        # Create IAM client
+        sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,
+                                                        aws_secret_access_key=settings.aws_secret_access_key,
+                                                        region_name=settings.aws_region_name)
+
+        if permission =="read":
+            role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+        if permission == "write":
+            role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+
+        role_session_name = 'test_session'
+
+        response = sts_default_provider_chain.assume_role(
+            RoleArn=role_to_assume_arn,
+            RoleSessionName=role_session_name
+        )
+
+        study = Study.objects.get(execution = execution)
+
+        config = {}
+        config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
+        config['aws_sts_creds'] = response['Credentials']
+
+        return Response(config)
 
 class Dummy(APIView):
     def get(self, request):
