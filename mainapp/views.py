@@ -72,6 +72,8 @@ class GetSTS(APIView):
         permission = request.query_params.get('permission')
         service = request.query_params.get('service')
 
+
+
         try:
             execution = Execution.objects.get(identifier=execution_identifier)
         except Execution.DoesNotExist:
@@ -85,13 +87,16 @@ class GetSTS(APIView):
         if service == "athena":
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/athena_access'
 
-        if service == "s3":
+        elif service == "s3":
             if permission =="read":
                 role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
             elif permission == "write":
                 role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
             else:
                 return Response({"error":"must set permission to read or write"}, status=400)
+
+        else:
+            return Response({"error": "no service or service is not supported"}, status=400)
 
         role_session_name = 's3_session'
 
@@ -115,7 +120,8 @@ class Dummy(APIView):
 
 
 class GetExecution(APIView):
-    def get(self, request, study_id):
+    def get(self, request):
+        study_id = request.query_params.get('study')
 
         try:
             study = request.user.studies.get(id=study_id)
