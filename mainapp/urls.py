@@ -20,14 +20,14 @@ from mainapp import views
 from mainapp.views import schema_view
 from rest_framework.routers import SimpleRouter
 #from django.contrib.auth import views as auth_views
-
+#
 # class OptionalSlashRouter(SimpleRouter):
 #
 #     def __init__(self):
 #         self.trailing_slash = '/?'
 #         super(SimpleRouter, self).__init__()
 
-router = SimpleRouter(trailing_slash=False)
+router = SimpleRouter()
 
 router.register(r'datasets', views.DatasetViewSet, 'datasets')
 
