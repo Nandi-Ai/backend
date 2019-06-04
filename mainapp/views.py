@@ -2,7 +2,7 @@
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from mainapp.models import Dataset, Execution,Study
+from mainapp.models import Dataset, Execution,Study,User
 from mainapp.serializers import DatasetSerializer,ExecutionSerializer
 from rest_framework_swagger.views import get_swagger_view
 from mainapp import settings
@@ -13,6 +13,7 @@ import uuid
 from multiprocessing import Process
 import time
 import subprocess
+import hashlib
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -118,7 +119,6 @@ class Dummy(APIView):
 
         return Response()
 
-
 class GetExecution(APIView):
     def get(self, request):
         study_id = request.query_params.get('study')
@@ -130,6 +130,7 @@ class GetExecution(APIView):
 
         if not study.execution:
             execution = Execution.objects.create()
+            User.objects.create_user(email=execution.identifier+"@lynx.md", password=hashlib.md5(execution.identifier.encode('utf-8')).hexdigest())
             execution.identifier = uuid.uuid4().hex
             # execution.study = study
             execution.user = request.user
