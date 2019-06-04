@@ -130,14 +130,14 @@ class GetExecution(APIView):
 
         if not study.execution:
             execution = Execution.objects.create()
-            User.objects.create_user(email=execution.identifier+"@lynx.md", password=hashlib.md5(execution.identifier.encode('utf-8')).hexdigest())
             execution.identifier = uuid.uuid4().hex
             # execution.study = study
             execution.user = request.user
             execution.save()
+            User.objects.create_user(email=execution.identifier+"@lynx.md", password=hashlib.md5(execution.identifier.encode('utf-8')).hexdigest())
             study.execution = execution
             study.save()
-    
+
             headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 
             data = {
