@@ -98,14 +98,17 @@ class GetSTS(APIView):
         else:
             return Response({"error": "no service or service is not supported"}, status=400)
 
-        role_session_name = 's3_session'
+        role_session_name = 'session'
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
             RoleSessionName=role_session_name
         )
 
-        study = Study.objects.get(execution = execution)
+        try:
+            study = Study.objects.get(execution = execution)
+        except Study.DoesNotExist:
+            return Response({"error": "this is not the execution of any study"}, 400)
 
         config = {}
         config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
