@@ -37,15 +37,15 @@ class DatasetViewSet(ModelViewSet):
 
 class SendSyncSignal(APIView):
     def get(self, request):
-        def send_sync_signal(execution_identifier):
+        def send_sync_signal(ei):
 
             time.sleep(60)
-            command = "kubectl exec jupyter-" + execution_identifier + " -- python /usr/local/bin/sync_to_s3.py &"
+            command = "kubectl exec jupyter-" + ei + " -- python /usr/local/bin/sync_to_s3.py &"
             subprocess.check_output(command.split(" "))
 
-        execution_identifier = request.query_params.get('execution_identifier')
+        ei = request.user.email.split('@')[0]
         try:
-            execution = Execution.objects.get(identifier=execution_identifier)
+            execution = Execution.objects.get(identifier=ei)
         except Execution.DoesNotExist:
             return Response({"error": "execution does not exists"}, 400)
 
@@ -69,14 +69,13 @@ class SendSyncSignal(APIView):
 class GetSTS(APIView):
     def get(self, request):
 
-        execution_identifier = request.query_params.get('execution_identifier')
+        #execution_identifier = request.query_params.get('execution_identifier')
+        ei = request.user.email.split('@')[0]
         permission = request.query_params.get('permission')
         service = request.query_params.get('service')
 
-
-
         try:
-            execution = Execution.objects.get(identifier=execution_identifier)
+            execution = Execution.objects.get(identifier=ei)
         except Execution.DoesNotExist:
             return Response({"error": "execution does not exists"}, 400)
 
