@@ -42,7 +42,10 @@ class SendSyncSignal(APIView):
 
             time.sleep(60)
             command = "kubectl exec jupyter-" + ei + " -- python /usr/local/bin/sync_to_s3.py &"
-            subprocess.check_output(command.split(" "))
+            try:
+                subprocess.check_output(command.split(" "), stderr=subprocess.STDOUT, shell=True, timeout=600, universal_newlines=True)
+            except subprocess.CalledProcessError as exc:
+                print("Status : FAIL", exc.returncode, exc.output)
 
         ei = request.user.email.split('@')[0]
         try:
@@ -51,7 +54,7 @@ class SendSyncSignal(APIView):
             return Response({"error": "execution does not exists"}, 400)
 
         p = Process(target=send_sync_signal, args=(execution.identifier,))
-        p.start()  # TODO use kubernetes client for python instead
+        p.start()
 
         # import kubernetes.config
         # from kubernetes.client.rest import ApiException
