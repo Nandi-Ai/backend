@@ -108,11 +108,9 @@ class GetSTS(APIView):
         else:
             return Response({"error": "no service or service is not supported"}, status=400)
 
-        role_session_name = 'session'
-
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
-            RoleSessionName=role_session_name
+            RoleSessionName='session'
         )
 
         config = {}
