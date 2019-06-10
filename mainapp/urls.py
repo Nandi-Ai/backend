@@ -36,7 +36,7 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
     url(r'^docs/$', schema_view),
-    # url(r'^create/$', views.ScanManager.as_view(), name='scan_manager'),
+    url(r'^study/$', views.StudyManager.as_view(), name='study'),
     # url(r'^get_dataset/(?P<dataset_id>[^/]+)$', views.DatasetManager.as_view(), name='dataset_manager'),
     url(r'^get_execution/$', views.GetExecution.as_view(), name='get_execution'),
     url(r'^dummy/$', views.Dummy.as_view(), name='dummy'),

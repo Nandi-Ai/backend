@@ -1,9 +1,9 @@
-# from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from mainapp.models import Dataset, Execution,Study,User
-from mainapp.serializers import DatasetSerializer,ExecutionSerializer
+from mainapp.serializers import DatasetSerializer,StudySerializer
 from rest_framework_swagger.views import get_swagger_view
 from mainapp import settings
 import boto3
@@ -13,7 +13,8 @@ import uuid
 from multiprocessing import Process
 import time
 import subprocess
-import hashlib
+from django.db.utils import IntegrityError
+import json
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -22,7 +23,7 @@ class DatasetViewSet(ModelViewSet):
         queryset=self.request.user.datasets
 
     serializer_class = DatasetSerializer
-#
+
 # class ExecutionManager(GenericAPIView):
 #     serializer_class = ExecutionSerializer
 #
@@ -79,19 +80,28 @@ class GetSTS(APIView):
         except Execution.DoesNotExist:
             return Response({"error": "execution does not exists"}, 400)
 
+        try:
+            study = Study.objects.get(execution = execution)
+        except Study.DoesNotExist:
+            return Response({"error": "this is not the execution of any study"}, 400)
+
         # Create IAM client
-        sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,
-                                                        aws_secret_access_key=settings.aws_secret_access_key,
-                                                        region_name=settings.aws_region_name)
+        sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,aws_secret_access_key=settings.aws_secret_access_key,region_name=settings.aws_region)
+
+        workspace_bucket_name = study.name+"-"+study.organization.name+"-lynx-workspace"
 
         if service == "athena":
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/athena_access'
 
         elif service == "s3":
+            role_name = study.name + "-" + study.organization.name + "-lynx"
             if permission =="read":
-                role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
+                #role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
+                role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
             elif permission == "write":
-                role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+                # role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
+                role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
+
             else:
                 return Response({"error":"must set permission to read or write"}, status=400)
 
@@ -105,13 +115,8 @@ class GetSTS(APIView):
             RoleSessionName=role_session_name
         )
 
-        try:
-            study = Study.objects.get(execution = execution)
-        except Study.DoesNotExist:
-            return Response({"error": "this is not the execution of any study"}, 400)
-
         config = {}
-        config['bucket'] = study.name+"-"+study.organization.name+"-lynx-workspace"
+        config['bucket'] = workspace_bucket_name
         config['aws_sts_creds'] = response['Credentials']
 
         return Response(config)
@@ -154,7 +159,74 @@ class GetExecution(APIView):
                 return Response({"error":"error creating execution: "+str(res.text)})
 
         return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token})
-#
+
+
+class StudyManager(GenericAPIView):
+    serializer_class = StudySerializer
+
+    def post(self, request):
+        study_serialized = self.serializer_class(data=request.data)
+        if study_serialized.is_valid():
+
+            res_datasets = study_serialized.validated_data['datasets']
+            if not all(rds in request.user.datasets.all() for rds in res_datasets):
+                return Response({"error": "not all datasets are related to the current user"}, status=400)
+
+            if not request.user.organization:
+                return Response({"error": "user must be a part of organization"}, status=400)
+
+            try:
+                study = Study.objects.create(name=study_serialized.validated_data['name'], organization = request.user.organization)
+            except IntegrityError:
+                return Response({"error": "a study with the same name is already exists in this organization"}, status=400)
+
+            study.datasets.set(Dataset.objects.filter(id__in = [ds.id for ds in res_datasets]))
+
+            workspace_bucket_name = study.name + "-" + study.organization.name + "-lynx-workspace"
+            s3 = boto3.client('s3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key)
+            s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
+            with open('mainapp/s3_base_policy.json') as f:
+                policy_json = json.load(f)
+            policy_json['Statement'][0]['Resource'].append('arn:aws:s3:us-east-2:858916640373:'+workspace_bucket_name+'*')
+            client = boto3.client('iam', aws_access_key_id=settings.aws_access_key_id,aws_secret_access_key=settings.aws_secret_access_key,region_name=settings.aws_region)
+            policy_name = 'study-'+study.name+"-"+"-"+study.organization.name+"-lynx"
+            response = client.create_policy(
+                PolicyName=policy_name,
+                PolicyDocument=json.dumps(policy_json)
+            )
+
+            policy_arn = response['Policy']['Arn']
+
+            print(response)
+            with open('mainapp/trust_relationship_doc.json') as f:
+                trust_relationship_doc = json.load(f)
+
+            role_name = study.name+"-"+study.organization.name+"-lynx"
+            client.create_role(
+                RoleName=role_name,
+                AssumeRolePolicyDocument=json.dumps(trust_relationship_doc),
+                Description=policy_name
+            )
+
+            response = client.attach_role_policy(
+                RoleName=role_name,
+                PolicyArn=policy_arn
+            )
+
+            return Response(self.serializer_class(study).data, status=201)
+        else:
+            return Response({"error": study_serialized.errors}, status=400)
+    #
+    # def get(self, request, dataset_id):
+    #     try:
+    #         dataset = Dataset.objects.get(id=dataset_id, hosital = request.user.hospital)
+    #
+    #     except Dataset.DoesNotExist:
+    #         return Response({"error": "dataset with that id not exists"}, status=400)
+    #
+    #     return Response(self.serializer_class(dataset, allow_null=True).data)
+
+
 # class DatasetManager(GenericAPIView):
 #     serializer_class = DatasetSerializer
 #

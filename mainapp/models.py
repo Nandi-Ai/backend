@@ -1,6 +1,7 @@
 from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
+from django.db.utils import IntegrityError
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
@@ -35,7 +36,7 @@ class UserManager(BaseUserManager):
         return user
 
     def get_or_create_for_cognito(self, payload):
-        from psycopg2 import IntegrityError
+
         cognito_id = payload['sub']
 
         try:
