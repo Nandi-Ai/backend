@@ -27,17 +27,18 @@ from rest_framework.routers import SimpleRouter
 #         self.trailing_slash = '/?'
 #         super(SimpleRouter, self).__init__()
 
-router = SimpleRouter()
 
-router.register(r'datasets', views.DatasetViewSet, 'datasets')
+router = SimpleRouter()
 
 urlpatterns = [
     url('', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
     url(r'^docs/$', schema_view),
-    url(r'^study/$', views.StudyManager.as_view(), name='study'),
-    # url(r'^get_dataset/(?P<dataset_id>[^/]+)$', views.DatasetManager.as_view(), name='dataset_manager'),
+    url(r'^study/$', views.CreateStudy.as_view(), name='study'),
+    url(r'^study/(?P<study_id>[^/]+)$', views.GetStudy.as_view(), name='study'),
+    url(r'^dataset/$', views.CreateDataset.as_view(), name='dataset'),
+    url(r'^dataset/(?P<dataset_id>[^/]+)$', views.GetDataset.as_view(), name='dataset'),
     url(r'^get_execution/$', views.GetExecution.as_view(), name='get_execution'),
     url(r'^dummy/$', views.Dummy.as_view(), name='dummy'),
     url(r'^get_sts/$', views.GetSTS.as_view(), name='get_sts'),
