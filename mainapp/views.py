@@ -1,9 +1,9 @@
 from rest_framework.generics import GenericAPIView
 from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.response import Response
-from mainapp.models import Dataset, Execution,Study,User
-from mainapp.serializers import DatasetSerializer,StudySerializer
+from mainapp.models import *
+from mainapp.serializers import *
 from rest_framework_swagger.views import get_swagger_view
 from mainapp import settings
 import boto3
@@ -139,8 +139,9 @@ class CreateStudy(GenericAPIView):
         study_serialized = self.serializer_class(data=request.data)
         if study_serialized.is_valid():
 
-            res_datasets = study_serialized.validated_data['datasets']
-            if not all(rds in request.user.datasets.all() for rds in res_datasets):
+            req_datasets = study_serialized.validated_data['datasets']
+
+            if not all(rds in request.user.datasets.all() for rds in req_datasets):
                 return Response({"error": "not all datasets are related to the current user"}, status=400)
 
             if not request.user.organization:
@@ -151,9 +152,11 @@ class CreateStudy(GenericAPIView):
             except IntegrityError:
                 return Response({"error": "a study with the same name is already exists in this organization"}, status=400)
 
-            study.datasets.set(Dataset.objects.filter(id__in = [ds.id for ds in res_datasets]))
-            study.users.set([request.user]) #can user add also..
-
+            req_users = study_serialized.validated_data['users']
+            study.datasets.set(Dataset.objects.filter(id__in = [x.id for x in req_datasets]))
+            study.users.set([request.user] + list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
+            study.user_created = request.user
+            study.save()
             workspace_bucket_name ="lynx-workspace-"+study.name + "-" + str(study.id)
             s3 = boto3.client('s3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key)
             s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
@@ -204,12 +207,21 @@ class CreateDataset(GenericAPIView):
     serializer_class = DatasetSerializer
 
     def post(self, request):
-        dataset_serialized = self.serializer_class(data=request.data)
+        dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if dataset_serialized.is_valid():
-            #create the entity object:
+            #create the dataset insance:
             dataset = Dataset.objects.create(name=dataset_serialized.validated_data['name'])
-            dataset.users.set([request.user]) #can user add also..
+            dataset.description = dataset_serialized.validated_data['description']
+            dataset.readme = dataset_serialized.validated_data['readme']
+            req_users = dataset_serialized.validated_data['users']
+            dataset.users.set([request.user]+list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
+
+            req_tags = dataset_serialized.validated_data['tags']
+            dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
+            dataset.user_created = request.user
+
+            dataset.save()
 
             dataset_bucket_name = 'lynx-dataset-'+dataset.name+"-"+str(dataset.id)
 
@@ -291,3 +303,18 @@ class GetDataset(GenericAPIView):
             return Response({"error": "dataset with that id not exists"}, status=400)
 
         return Response(self.serializer_class(dataset, allow_null=True).data)
+
+class UserViewSet(ReadOnlyModelViewSet):
+    # def get_queryset(self):
+    #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
+
+class TagViewSet(ReadOnlyModelViewSet):
+    # def get_queryset(self):
+    #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
+
+
+

@@ -30,6 +30,10 @@ from rest_framework.routers import SimpleRouter
 
 router = SimpleRouter()
 
+router.register(r'users', views.UserViewSet, 'users')
+router.register(r'tags', views.TagViewSet, 'tags')
+
+
 urlpatterns = [
     url('', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),

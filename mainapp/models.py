@@ -101,7 +101,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = 'users'
 
 class Organization(models.Model):
-    name = models.CharField(max_length=255, primary_key=True)
+    name = models.CharField(max_length=255, primary_key = True)
 
     class Meta:
         db_table = 'organizations'
@@ -111,6 +111,7 @@ class Study(models.Model):
     organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
     datasets = models.ManyToManyField('Dataset', related_name="studies")
     users = models.ManyToManyField('User', related_name="studies")
+    user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="studies_created", null=True)
     execution = models.ForeignKey("Execution", on_delete=models.DO_NOTHING, related_name="studies", null=True)
 
     class Meta:
@@ -118,12 +119,24 @@ class Study(models.Model):
         unique_together = (("name", "organization"),)
 
 class Dataset(models.Model):
-    name = models.CharField(max_length=255)
+
+    name = models.CharField(max_length=32)
+    description = models.TextField(null=True, blank=True, max_length=255)
+    readme = models.TextField(blank=True, null=True)
     users = models.ManyToManyField('User', related_name="datasets")
-    #studies m2m
+    user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
+    tags = models.ManyToManyField('Tag', related_name="tags", null=True)
+    status = models.CharField(max_length=32, blank=True, null=True)
 
     class Meta:
         db_table = 'datasets'
+
+class Tag(models.Model):
+    name = models.CharField(max_length=32)
+    category = models.CharField(max_length=32, null=True, blank=True)
+
+    class Meta:
+        db_table = 'tags'
 
 class Execution(models.Model):
     identifier = models.CharField(max_length=255, null=True)
