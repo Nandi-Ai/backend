@@ -33,3 +33,6 @@ class StudySerializer(ModelSerializer):
         model = Study
         fields = ('name',"datasets",'users')
 
+class QuerySerializer(Serializer):
+    query = CharField(max_length=2048)
+    dataset = CharField(max_length=255)

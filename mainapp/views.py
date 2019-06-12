@@ -287,6 +287,7 @@ class CreateDataset(GenericAPIView):
             data['config'] = config
 
             return Response(data, status=201)
+            #TODO the frontend needs to notify when done uploading, and then needs to create a glue database to that dataset
         else:
             return Response({"error": dataset_serialized.errors}, status=400)
 
@@ -307,6 +308,7 @@ class UserViewSet(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
     queryset = User.objects.all()
 
+
 class TagViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
@@ -314,4 +316,44 @@ class TagViewSet(ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
 
 
+class RunQuery(GenericAPIView):
+    serializer_class = QuerySerializer
 
+    def post(self, request):
+        query_serialized = self.serializer_class(data=request.data)
+        if query_serialized.is_valid():
+            ei = request.user.email.split('@')[0]
+
+            try:
+                execution = Execution.objects.get(identifier=ei)
+            except Execution.DoesNotExist:
+                return Response({"error": "execution does not exists"}, 400)
+
+            try:
+                study = Study.objects.get(execution=execution)
+            except Study.DoesNotExist:
+                return Response({"error": "this is not the execution of any study"}, 400)
+
+            req_dataset_name = query_serialized.validated_data['dataset']
+
+            try:
+                dataset = study.datasets.get(name = req_dataset_name) #TODO need to make sure name of dataset is unique in study
+            except Dataset.DoesNotExist:
+                return Response({"error": "no permission to this dataset. make sure it is exists, yours or shared with you, and under that study"}, 400)
+
+
+            client = boto3.client('athena', region_name="us-east-2", aws_access_key_id=settings.aws_access_key_id,
+                                  aws_secret_access_key=settings.aws_secret_access_key)
+
+            response = client.start_query_execution(
+                QueryString=query_serialized.validated_data['query'],
+                QueryExecutionContext={
+                    'Database': dataset.name
+                },
+                ResultConfiguration={
+                    'OutputLocation': "s3://lynx-workspace-"+study.name+"-"+str(study.id),
+                }
+            )
+            print(response)
+
+            return Response({"query_execution_id": response['QueryExecutionId']})
