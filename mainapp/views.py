@@ -24,10 +24,7 @@ class SendSyncSignal(APIView):
 
             time.sleep(60)
             command = "kubectl exec jupyter-" + ei + " -- python /usr/local/bin/sync_to_s3.py &"
-            try:
-                subprocess.check_output(command.split(" "), stderr=subprocess.STDOUT, shell=True, timeout=600, universal_newlines=True)
-            except subprocess.CalledProcessError as exc:
-                print("Status : FAIL", exc.returncode, exc.output)
+            subprocess.check_output(command.split(" "))
 
         ei = request.user.email.split('@')[0]
         try:
