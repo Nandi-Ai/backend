@@ -25,7 +25,7 @@ class DatasetSerializer(ModelSerializer):
 
     class Meta:
         model = Dataset
-        fields = ('id','name','users','tags','readme','description','updated_at','status')
+        fields = ('id','name','users','tags','readme','description','updated_at','state')
 
 class StudySerializer(ModelSerializer):
     users = UserSerializer(many=True, allow_null=True)
