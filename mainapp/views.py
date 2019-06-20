@@ -218,6 +218,7 @@ class CreateDataset(GenericAPIView):
             req_tags = dataset_serialized.validated_data['tags']
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
+            dataset.state = "private"
 
             dataset.save()
 

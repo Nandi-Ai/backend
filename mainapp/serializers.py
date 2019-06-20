@@ -22,9 +22,10 @@ class TagSerializer(ModelSerializer):
 class DatasetSerializer(ModelSerializer):
     tags = TagSerializer(many=True, allow_null=True)
     users = UserSerializer(many=True, allow_null=True) #read_only = displaying only when GET and not POST
+
     class Meta:
         model = Dataset
-        fields = ('id','name','users','tags','readme','description')
+        fields = ('id','name','users','tags','readme','description','updated_at','status')
 
 class StudySerializer(ModelSerializer):
     users = UserSerializer(many=True, allow_null=True)
