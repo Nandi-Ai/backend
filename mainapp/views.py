@@ -15,6 +15,7 @@ import time
 import subprocess
 from django.db.utils import IntegrityError
 import json
+from mainapp.lib import validate_query
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -315,6 +316,12 @@ class TagViewSet(ReadOnlyModelViewSet):
     serializer_class = TagSerializer
     queryset = Tag.objects.all()
 
+class DatasetViewSet(ReadOnlyModelViewSet):
+    def get_queryset(self):
+        return self.request.user.datasets
+    # def get_queryset(self):
+    #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
+    serializer_class = DatasetSerializer
 
 class RunQuery(GenericAPIView):
     serializer_class = QuerySerializer
@@ -345,10 +352,17 @@ class RunQuery(GenericAPIView):
             client = boto3.client('athena', region_name="us-east-2", aws_access_key_id=settings.aws_access_key_id,
                                   aws_secret_access_key=settings.aws_secret_access_key)
 
+            query = query_serialized.validated_data['query']
+
+            validated, reason = validate_query(query = query, dataset = dataset)
+
+            if not validated:
+                return Response({"error": reason}, 400)
+
             response = client.start_query_execution(
-                QueryString=query_serialized.validated_data['query'],
+                QueryString=query,
                 QueryExecutionContext={
-                    'Database': dataset.name
+                    'Database': dataset.name #the name of the database in glue/athena
                 },
                 ResultConfiguration={
                     'OutputLocation': "s3://lynx-workspace-"+study.name+"-"+str(study.id),

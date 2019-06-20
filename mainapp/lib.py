@@ -4,7 +4,16 @@ from mainapp import settings
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from datetime import datetime as dt,timedelta as td
+import sqlparse
 
+def validate_query(query, dataset):
+    query_parsed = sqlparse(query)
+    statement = query_parsed[0]
+
+    if statement.get_type() == "SELECT":
+        pass
+
+    return True, False #validated, no reason..
 
 class MyTokenAuthentication(TokenAuthentication):
     keyword = "Bearer"

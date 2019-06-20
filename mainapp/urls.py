@@ -32,6 +32,7 @@ router = SimpleRouter()
 
 router.register(r'users', views.UserViewSet, 'users')
 router.register(r'tags', views.TagViewSet, 'tags')
+router.register(r'datasets', views.DatasetViewSet, 'datasets')
 
 
 urlpatterns = [
