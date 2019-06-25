@@ -1,4 +1,4 @@
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, CreateAPIView
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.response import Response
@@ -57,7 +57,7 @@ class GetSTS(APIView):
             return Response({"error": "this is not the execution of any study"}, 400)
 
         # Create IAM client
-        sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,aws_secret_access_key=settings.aws_secret_access_key,region_name=settings.aws_region)
+        sts_default_provider_chain = boto3.client('sts')
 
         workspace_bucket_name = "lynx-workspace-"+study.name + "-" + str(study.id)
 
@@ -156,12 +156,12 @@ class CreateStudy(GenericAPIView):
             study.user_created = request.user
             study.save()
             workspace_bucket_name ="lynx-workspace-"+study.name + "-" + str(study.id)
-            s3 = boto3.client('s3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key)
+            s3 = boto3.client('s3')
             s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
             with open('mainapp/s3_base_policy.json') as f:
                 policy_json = json.load(f)
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::'+workspace_bucket_name+'*')
-            client = boto3.client('iam', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key,region_name=settings.aws_region)
+            client = boto3.client('iam')
             policy_name = "lynx-workspace-"+study.name + "-" + str(study.id)
 
             response = client.create_policy(
@@ -191,6 +191,7 @@ class CreateStudy(GenericAPIView):
         else:
             return Response({"error": study_serialized.errors}, status=400)
 
+
 class GetStudy(GenericAPIView):
     serializer_class = StudySerializer
     def get(self, request, study_id):
@@ -200,6 +201,21 @@ class GetStudy(GenericAPIView):
             return Response({"error": "study doesn't exist"}, status=400)
 
         return Response(self.serializer_class(study, allow_null=True).data)
+
+
+class CreateDataSource(GenericAPIView):
+    serializer_class = DataSourceSerializer
+    def post(self, request):
+        datasource_serialized = self.serializer_class(data=request.data, allow_null=True)
+        if datasource_serialized.is_valid():
+            dataset = datasource_serialized.validated_data['dataset']
+            if dataset not in request.user.datasets.all():
+                return Response({"error":"dataset down no exists or not belong to the user"}, status=400)
+            data_source = DataSource.objects.create(name=datasource_serialized.validated_data['name'], dataset=dataset)
+            return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
+        else:
+            return Response({"error": datasource_serialized.errors}, status=400)
+
 
 class CreateDataset(GenericAPIView):
     serializer_class = DatasetSerializer
@@ -225,8 +241,8 @@ class CreateDataset(GenericAPIView):
             dataset_bucket_name = 'lynx-dataset-'+dataset.name+"-"+str(dataset.id)
 
             #create the dataset bucket:
-            s3 = boto3.client('s3', aws_access_key_id=settings.aws_access_key_id,
-                              aws_secret_access_key=settings.aws_secret_access_key)
+            s3 = boto3.client('s3')
+
             s3.create_bucket(Bucket=dataset_bucket_name,
                              CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
 
@@ -234,7 +250,7 @@ class CreateDataset(GenericAPIView):
             with open('mainapp/s3_base_policy.json') as f:
                 policy_json = json.load(f)
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::'+dataset_bucket_name+'*')
-            client = boto3.client('iam', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key,region_name=settings.aws_region)
+            client = boto3.client('iam')
 
             policy_name = 'lynx-dataset-'+dataset.name+"-"+str(dataset.id)
 
@@ -264,13 +280,10 @@ class CreateDataset(GenericAPIView):
             )
 
             #generate sts token so the user can upload the dataset to the bucket
-            sts_default_provider_chain = boto3.client('sts', aws_access_key_id=settings.aws_access_key_id,
-                                                      aws_secret_access_key=settings.aws_secret_access_key,
-                                                      region_name=settings.aws_region)
+            sts_default_provider_chain = boto3.client('sts')
 
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
 
-            import time
             time.sleep(8) #the role takes this time to be created!
 
             sts_response = sts_default_provider_chain.assume_role(
@@ -289,9 +302,21 @@ class CreateDataset(GenericAPIView):
             data['config'] = config
 
             return Response(data, status=201)
-            #TODO the frontend needs to notify when done uploading, and then needs to create a glue database to that dataset
+            #TODO the frontend needs to notify when done uploading (in another method), and then needs to create a glue database to that dataset
         else:
             return Response({"error": dataset_serialized.errors}, status=400)
+
+class DatasetUploaded(GenericAPIView):
+    serializer_class = DatasetUploadedSerializer
+    def post(self, request):
+        dataset_id = request.query_params.get('dataset')
+
+        try:
+            dataset = request.user.datasets.get(id=dataset_id)
+        except Dataset.DoesNotExist:
+            return Response({"error": "dataset with that id not exists"}, status=400)
+
+        return Response(status=200)
 
 class GetDataset(GenericAPIView):
     serializer_class = DatasetSerializer
@@ -302,7 +327,32 @@ class GetDataset(GenericAPIView):
         except Dataset.DoesNotExist:
             return Response({"error": "dataset with that id not exists"}, status=400)
 
-        return Response(self.serializer_class(dataset, allow_null=True).data)
+        # generate sts token so the user can upload the dataset to the bucket
+        sts_default_provider_chain = boto3.client('sts')
+
+        role_name  = "lynx-dataset-"+dataset.name+"-"+str(dataset.id)
+        role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
+
+        sts_response = sts_default_provider_chain.assume_role(
+            RoleArn=role_to_assume_arn,
+            RoleSessionName='session',
+            DurationSeconds=43200
+        )
+
+        dataset_bucket_name = 'lynx-dataset-' + dataset.name + "-" + str(dataset.id)
+
+        config = {}
+
+        config['bucket'] = dataset_bucket_name
+        config['aws_sts_creds'] = sts_response['Credentials']
+
+        data = self.serializer_class(dataset, allow_null=True).data
+
+        # add the sts token and bucket to the dataset response:
+        data['config'] = config
+
+        return Response(data)
+
 
 class UserViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
@@ -350,8 +400,7 @@ class RunQuery(GenericAPIView):
                 return Response({"error": "no permission to this dataset. make sure it is exists, yours or shared with you, and under that study"}, 400)
 
 
-            client = boto3.client('athena', region_name="us-east-2", aws_access_key_id=settings.aws_access_key_id,
-                                  aws_secret_access_key=settings.aws_secret_access_key)
+            client = boto3.client('athena')
 
             query = query_serialized.validated_data['query']
 

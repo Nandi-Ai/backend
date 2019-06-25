@@ -2,6 +2,7 @@ from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.db.utils import IntegrityError
+from django.contrib.postgres.fields import JSONField
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
@@ -128,7 +129,7 @@ class Dataset(models.Model):
     tags = models.ManyToManyField('Tag', related_name="tags")
     state = models.CharField(max_length=32, blank=True, null=True)
     override_bucket = models.CharField(max_length=255, blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now = True)
 
     @property
     def bucket(self):
@@ -136,6 +137,18 @@ class Dataset(models.Model):
 
     class Meta:
         db_table = 'datasets'
+
+class DataSource(models.Model):
+    name = models.CharField(max_length=255)
+    dataset = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="data_sources")
+    type = models.CharField(null=True, blank=True, max_length=32)
+    about = models.TextField(null=True, blank=True, max_length=2048)
+    columns = JSONField(null = True, blank = True, default = None)
+    preview = JSONField(null = True, blank = True, default = None)
+
+    class Meta:
+        db_table = 'data_sources'
+        unique_together = (("name", "dataset"),)
 
 class Tag(models.Model):
     name = models.CharField(max_length=32)

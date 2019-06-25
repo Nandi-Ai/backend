@@ -19,13 +19,21 @@ class TagSerializer(ModelSerializer):
         model = Tag
         fields = ('id','name', 'category',)
 
+
+class DataSourceSerializer(ModelSerializer):
+
+    class Meta:
+        model = DataSource
+        fields = '__all__'
+
 class DatasetSerializer(ModelSerializer):
     tags = TagSerializer(many=True, allow_null=True)
     users = UserSerializer(many=True, allow_null=True) #read_only = displaying only when GET and not POST
+    data_sources = DataSourceSerializer(many=True, allow_null=True)
 
     class Meta:
         model = Dataset
-        fields = ('id','name','users','tags','readme','description','updated_at','state')
+        fields = ('id','name','users','tags','readme','description','updated_at','state','data_sources')
 
 class StudySerializer(ModelSerializer):
     users = UserSerializer(many=True, allow_null=True)
@@ -37,3 +45,7 @@ class StudySerializer(ModelSerializer):
 class QuerySerializer(Serializer):
     query = CharField(max_length=2048)
     dataset = CharField(max_length=255)
+
+class DatasetUploadedSerializer(Serializer):
+    query = IntegerField()
+    catalogs = ListField()

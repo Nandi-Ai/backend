@@ -6,6 +6,12 @@ from rest_framework.exceptions import AuthenticationFailed
 from datetime import datetime as dt,timedelta as td
 import sqlparse
 
+
+def startup():
+    os.environ["AWS_ACCESS_KEY_ID"] = settings.aws_access_key_id
+    os.environ["AWS_SECRET_ACCESS_KEY"] = settings.aws_secret_access_key
+    os.environ["AWS_REGION"] = settings.aws_region
+
 def validate_query(query, dataset):
     query_parsed = sqlparse(query)
     statement = query_parsed[0]

@@ -19,6 +19,8 @@ from django.conf.urls import url,include
 from mainapp import views
 from mainapp.views import schema_view
 from rest_framework.routers import SimpleRouter
+from mainapp.lib import startup
+
 #from django.contrib.auth import views as auth_views
 #
 # class OptionalSlashRouter(SimpleRouter):
@@ -44,9 +46,12 @@ urlpatterns = [
     url(r'^study/(?P<study_id>[^/]+)$', views.GetStudy.as_view(), name='study'),
     url(r'^dataset/$', views.CreateDataset.as_view(), name='dataset'),
     url(r'^dataset/(?P<dataset_id>[^/]+)$', views.GetDataset.as_view(), name='dataset'),
+    url(r'^datasource/$', views.CreateDataSource.as_view(), name='datasource'),
     url(r'^get_execution/$', views.GetExecution.as_view(), name='get_execution'),
     url(r'^dummy/$', views.Dummy.as_view(), name='dummy'),
     url(r'^get_sts/$', views.GetSTS.as_view(), name='get_sts'),
     url(r'^send_sync_signal/$', views.SendSyncSignal.as_view(), name='send_sync_signal'),
     url(r'^run_query/$', views.RunQuery.as_view(), name='run_query'),
 ]
+
+startup()
