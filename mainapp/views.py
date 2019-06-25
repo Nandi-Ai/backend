@@ -225,7 +225,12 @@ class CreateDataset(GenericAPIView):
 
         if dataset_serialized.is_valid():
             #create the dataset insance:
-            dataset = Dataset.objects.create(name=dataset_serialized.validated_data['name'])
+            dataset_name = dataset_serialized.validated_data['name']
+
+            if dataset_name in [x.name for x in request.user.datasets.all()]:
+                return Response({"error":"this dataset already exist for that user"},status=400)
+
+            dataset = Dataset.objects.create(name=dataset_name)
             dataset.description = dataset_serialized.validated_data['description']
             dataset.readme = dataset_serialized.validated_data['readme']
             req_users = dataset_serialized.validated_data['users']
@@ -305,6 +310,7 @@ class CreateDataset(GenericAPIView):
             #TODO the frontend needs to notify when done uploading (in another method), and then needs to create a glue database to that dataset
         else:
             return Response({"error": dataset_serialized.errors}, status=400)
+
 
 class DatasetUploaded(GenericAPIView):
     serializer_class = DatasetUploadedSerializer
