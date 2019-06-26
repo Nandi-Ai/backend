@@ -39,17 +39,12 @@ router.register(r'data_sources', views.DataSourceViewSet, 'data_sources')
 router.register(r'studies', views.StudyViewSet, 'studies')
 
 
-
 urlpatterns = [
     url('', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
     url(r'^docs/$', schema_view),
-    url(r'^study/$', views.CreateStudy.as_view(), name='study'),
-    url(r'^study/(?P<study_id>[^/]+)$', views.GetStudy.as_view(), name='study'),
-    url(r'^dataset/$', views.CreateDataset.as_view(), name='dataset'),
     url(r'^get_dataset_sts/(?P<dataset_id>[^/]+)$', views.GetDatasetSTS.as_view(), name='get_dataset_sts'),
-    url(r'^data_source/$', views.CreateDataSource.as_view(), name='data_source'),
     url(r'^get_execution/$', views.GetExecution.as_view(), name='get_execution'),
     url(r'^dummy/$', views.Dummy.as_view(), name='dummy'),
     url(r'^get_sts/$', views.GetSTS.as_view(), name='get_sts'),
