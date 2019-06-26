@@ -223,7 +223,7 @@ class GetDatasetSTS(APIView):
         # generate sts token so the user can upload the dataset to the bucket
         sts_default_provider_chain = boto3.client('sts')
 
-        role_name = "lynx-dataset-"+dataset.name+"-"+str(dataset.id)
+        role_name = "lynx-dataset-"+str(dataset.id)
         role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
 
         sts_response = sts_default_provider_chain.assume_role(
@@ -316,7 +316,7 @@ class DatasetViewSet(ModelViewSet):
                 trust_relationship_doc = json.load(f)
 
             # create the dataset role:
-            role_name = "lynx-dataset-" + dataset.name + "-" + str(dataset.id)
+            role_name = "lynx-dataset-" + str(dataset.id)
             client.create_role(
                 RoleName=role_name,
                 AssumeRolePolicyDocument=json.dumps(trust_relationship_doc),
