@@ -130,13 +130,13 @@ class GetExecution(APIView):
 
 
 
-class StudyViewSet(ModelViewSet):
+class StudyViewSet(ReadOnlyModelViewSet):
     http_method_names = ['get', 'head', 'post']
 
     serializer_class = StudySerializer
 
-    def get_queryset(self):
-        return self.request.user.studies
+    def get_queryset(self, **kwargs):
+        return self.request.user.studies.all()
 
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
@@ -260,7 +260,7 @@ class DatasetViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post']
 
     def get_queryset(self):
-        return self.request.user.datasets
+        return self.request.user.datasets.all()
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = DatasetSerializer

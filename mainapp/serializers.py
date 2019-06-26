@@ -27,8 +27,8 @@ class DataSourceSerializer(ModelSerializer):
         fields = '__all__'
 
 class DatasetSerializer(ModelSerializer):
-    tags = ListField(allow_empty=True)
-    users = ListField(allow_empty=True)
+    tags = ListField(allow_empty=True, write_only=True)
+    users = ListField(allow_empty=True, write_only=True)
     # users = UserSerializer(many=True, allow_null=True) #read_only = displaying only when GET and not POST
 
     class Meta:
@@ -36,7 +36,7 @@ class DatasetSerializer(ModelSerializer):
         fields = ('id','name','users', 'tags','readme','description','updated_at','state')
 
 class StudySerializer(ModelSerializer):
-    users = ListField(allow_empty=True)
+    users = ListField(allow_empty=True, write_only=True)
 
     class Meta:
         model = Study
