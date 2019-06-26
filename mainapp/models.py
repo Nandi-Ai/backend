@@ -120,8 +120,7 @@ class Study(models.Model):
         unique_together = (("name", "organization"),)
 
 class Dataset(models.Model):
-
-    name = models.CharField(max_length=32)
+    name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
     readme = models.TextField(blank=True, null=True)
     users = models.ManyToManyField('User', related_name="datasets")

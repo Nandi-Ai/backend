@@ -49,6 +49,7 @@ class StudySerializer(ModelSerializer):
         fields = ('id','name',"datasets",'users')
         extra_kwargs = {
             'users': {'allow_empty': True},
+            'datasets': {'allow_empty': True},
         }
 
 class QuerySerializer(Serializer):

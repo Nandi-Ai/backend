@@ -232,7 +232,7 @@ class GetDatasetSTS(APIView):
             DurationSeconds=43200
         )
 
-        dataset_bucket_name = 'lynx-dataset-' + dataset.name + "-" + str(dataset.id)
+        dataset_bucket_name = 'lynx-dataset-' + str(dataset.id)
 
         config = {}
 
@@ -289,7 +289,7 @@ class DatasetViewSet(ModelViewSet):
 
             dataset.save()
 
-            dataset_bucket_name = 'lynx-dataset-' + dataset.name + "-" + str(dataset.id)
+            dataset_bucket_name = 'lynx-dataset-'+str(dataset.id)
 
             # create the dataset bucket:
             s3 = boto3.client('s3')
