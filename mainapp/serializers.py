@@ -29,15 +29,14 @@ class DataSourceSerializer(ModelSerializer):
 class DatasetSerializer(ModelSerializer):
     tags = TagSerializer(many=True, allow_null=True)
     users = UserSerializer(many=True, allow_null=True) #read_only = displaying only when GET and not POST
-    data_sources = DataSourceSerializer(many=True, allow_null=True)
 
     class Meta:
         model = Dataset
-        fields = ('id','name','users','tags','readme','description','updated_at','state','data_sources')
+        fields = ('id','name','users','tags','readme','description','updated_at','state')
 
 class StudySerializer(ModelSerializer):
     users = UserSerializer(many=True, allow_null=True)
-    datasets =  DatasetSerializer(many=True, allow_null=True) #TODO can a study have no datasets??
+    datasets = DatasetSerializer(many=True, allow_null=True) #TODO can a study have no datasets??
     class Meta:
         model = Study
         fields = ('id','name',"datasets",'users')

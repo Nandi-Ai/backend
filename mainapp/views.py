@@ -210,7 +210,7 @@ class CreateDataSource(GenericAPIView):
         if datasource_serialized.is_valid():
             dataset = datasource_serialized.validated_data['dataset']
             if dataset not in request.user.datasets.all():
-                return Response({"error":"dataset down no exists or not belong to the user"}, status=400)
+                return Response({"error":"dataset doesn't exist or doesn't belong to the user"}, status=400)
             data_source = DataSource.objects.create(name=datasource_serialized.validated_data['name'], dataset=dataset)
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
         else:
@@ -324,7 +324,7 @@ class DatasetUploaded(GenericAPIView):
 
         return Response(status=200)
 
-class GetDataset(GenericAPIView):
+class GetDatasetSTS(GenericAPIView):
     serializer_class = DatasetSerializer
     def get(self, request, dataset_id):
         try:
@@ -373,12 +373,29 @@ class TagViewSet(ReadOnlyModelViewSet):
     serializer_class = TagSerializer
     queryset = Tag.objects.all()
 
+
 class DatasetViewSet(ReadOnlyModelViewSet):
     def get_queryset(self):
         return self.request.user.datasets
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = DatasetSerializer
+
+
+class DataSourceViewSet(ReadOnlyModelViewSet):
+    filter_fields = ('dataset',)
+    def get_queryset(self):
+        data_sources = DataSource.objects.none()
+
+        for dataset in self.request.user.datasets.all():
+            data_sources = data_sources | dataset.data_sources.all()
+        return data_sources
+    serializer_class = DataSourceSerializer
+
+class StudyViewSet(ReadOnlyModelViewSet):
+    def get_queryset(self):
+        return self.request.user.studies
+    serializer_class = StudySerializer
 
 class RunQuery(GenericAPIView):
     serializer_class = QuerySerializer
