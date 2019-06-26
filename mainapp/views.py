@@ -151,7 +151,7 @@ class StudyViewSet(ModelViewSet):
                 return Response({"error": "user must be a part of organization"}, status=400)
 
             try:
-                study = Study.objects.create()
+                study = Study.objects.create(name = study_serialized.validated_data['name'],organization = request.user.organization)
             except IntegrityError:
                 return Response({"error": "a study with the same name is already exists in this organization"}, status=400)
 
@@ -195,115 +195,22 @@ class StudyViewSet(ModelViewSet):
             return Response(self.serializer_class(study, allow_null=True).data, status=201) #llow null, read_only, many
         else:
             return Response({"error": study_serialized.errors}, status=400)
-
-
-class CreateDataSource(GenericAPIView):
-    serializer_class = DataSourceSerializer
-
-    def post(self, request):
-        datasource_serialized = self.serializer_class(data=request.data, allow_null=True)
-        if datasource_serialized.is_valid():
-            dataset = datasource_serialized.validated_data['dataset']
-            if dataset not in request.user.datasets.all():
-                return Response({"error":"dataset doesn't exist or doesn't belong to the user"}, status=400)
-            data_source = DataSource.objects.create()
-            return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
-        else:
-            return Response({"error": datasource_serialized.errors}, status=400)
-
-# class CreateDataset(GenericAPIView):
-#     serializer_class = DatasetSerializer
+#
+#
+# class CreateDataSource(GenericAPIView):
+#     serializer_class = DataSourceSerializer
 #
 #     def post(self, request):
-#         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
-#
-#         if dataset_serialized.is_valid():
-#             #create the dataset insance:
-#             dataset_name = dataset_serialized.validated_data['name']
-#
-#             if dataset_name in [x.name for x in request.user.datasets.all()]:
-#                 return Response({"error":"this dataset already exist for that user"},status=400)
-#
-#             dataset = Dataset.objects.create()
-#             dataset.description = dataset_serialized.validated_data['description']
-#             dataset.readme = dataset_serialized.validated_data['readme']
-#             req_users = dataset_serialized.validated_data['users']
-#             dataset.users.set([request.user]+list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
-#
-#             req_tags = dataset_serialized.validated_data['tags']
-#             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
-#             dataset.user_created = request.user
-#             dataset.state = "private"
-#
-#             dataset.save()
-#
-#             dataset_bucket_name = 'lynx-dataset-'+dataset.name+"-"+str(dataset.id)
-#
-#             #create the dataset bucket:
-#             s3 = boto3.client('s3')
-#
-#             s3.create_bucket(Bucket=dataset_bucket_name,
-#                              CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
-#
-#             #create the dataset policy:
-#             with open('mainapp/s3_base_policy.json') as f:
-#                 policy_json = json.load(f)
-#             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::'+dataset_bucket_name+'*')
-#             client = boto3.client('iam')
-#
-#             policy_name = 'lynx-dataset-'+dataset.name+"-"+str(dataset.id)
-#
-#             response = client.create_policy(
-#                 PolicyName=policy_name,
-#                 PolicyDocument=json.dumps(policy_json)
-#             )
-#
-#             policy_arn = response['Policy']['Arn']
-#
-#             with open('mainapp/trust_relationship_doc.json') as f:
-#                 trust_relationship_doc = json.load(f)
-#
-#             #create the dataset role:
-#             role_name = "lynx-dataset-"+dataset.name+"-"+str(dataset.id)
-#             client.create_role(
-#                 RoleName=role_name,
-#                 AssumeRolePolicyDocument=json.dumps(trust_relationship_doc),
-#                 Description=policy_name,
-#                 MaxSessionDuration = 43200
-#             )
-#
-#             #attach policy to role:
-#             response = client.attach_role_policy(
-#                 RoleName=role_name,
-#                 PolicyArn=policy_arn
-#             )
-#
-#             #generate sts token so the user can upload the dataset to the bucket
-#             sts_default_provider_chain = boto3.client('sts')
-#
-#             role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
-#
-#             time.sleep(8) #the role takes this time to be created!
-#
-#             sts_response = sts_default_provider_chain.assume_role(
-#                 RoleArn=role_to_assume_arn,
-#                 RoleSessionName='session',
-#                 DurationSeconds=43200
-#             )
-#
-#             config = {}
-#             config['bucket'] = dataset_bucket_name
-#             config['aws_sts_creds'] = sts_response['Credentials']
-#
-#             data = self.serializer_class(dataset, allow_null=True).data
-#
-#             #add the sts token and bucket to the dataset response:
-#             data['config'] = config
-#
-#             return Response(data, status=201)
-#             #TODO the frontend needs to notify when done uploading (in another method), and then needs to create a glue database to that dataset
+#         datasource_serialized = self.serializer_class(data=request.data, allow_null=True)
+#         if datasource_serialized.is_valid():
+#             dataset = datasource_serialized.validated_data['dataset']
+#             if dataset not in request.user.datasets.all():
+#                 return Response({"error":"dataset doesn't exist or doesn't belong to the user"}, status=400)
+#             data_source = DataSource.objects.create()
+#             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
 #         else:
-#             return Response({"error": dataset_serialized.errors}, status=400)
+#             return Response({"error": datasource_serialized.errors}, status=400)
+
 class GetDatasetSTS(APIView):
 
     def get(self, request, dataset_id):
@@ -350,7 +257,7 @@ class TagViewSet(ReadOnlyModelViewSet):
 
 
 class DatasetViewSet(ModelViewSet):
-    http_method_names = ['get', 'head','post']
+    http_method_names = ['get', 'head', 'post']
 
     def get_queryset(self):
         return self.request.user.datasets
@@ -368,7 +275,7 @@ class DatasetViewSet(ModelViewSet):
             if dataset_name in [x.name for x in request.user.datasets.all()]:
                 return Response({"error": "this dataset already exist for that user"}, status=400)
 
-            dataset = Dataset.objects.create()
+            dataset = Dataset.objects.create(name = dataset_name)
             dataset.description = dataset_serialized.validated_data['description']
             dataset.readme = dataset_serialized.validated_data['readme']
             req_users = dataset_serialized.validated_data['users']
@@ -464,15 +371,17 @@ class DataSourceViewSet(ModelViewSet):
         return data_sources
 
     def create(self, request, *args, **kwargs):
-        datasource_serialized = self.serializer_class(data=request.data, allow_null=True)
-        if datasource_serialized.is_valid():
-            dataset = datasource_serialized.validated_data['dataset']
+        data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
+        if data_source_serialized.is_valid():
+            dataset = data_source_serialized.validated_data['dataset']
+
             if dataset not in request.user.datasets.all():
                 return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
-            data_source = DataSource.objects.create()
+
+            data_source = DataSource.objects.create(name = data_source_serialized['name'], dataset=dataset)
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
         else:
-            return Response({"error": datasource_serialized.errors}, status=400)
+            return Response({"error": data_source_serialized.errors}, status=400)
 
 
 class RunQuery(GenericAPIView):
