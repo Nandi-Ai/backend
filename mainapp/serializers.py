@@ -5,13 +5,14 @@ from mainapp.models import *
 class ExecutionSerializer(ModelSerializer):
     class Meta:
         model = Execution
-        fields = ('id','identifier','name','studies')
+        fields = ('id', 'identifier', 'name', 'studies')
+
 
 class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id','email','organization','name')
+        fields = ('id', 'email', 'organization', 'name')
 
 class TagSerializer(ModelSerializer):
 

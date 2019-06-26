@@ -59,13 +59,13 @@ class GetSTS(APIView):
         # Create IAM client
         sts_default_provider_chain = boto3.client('sts')
 
-        workspace_bucket_name = "lynx-workspace-"+study.name + "-" + str(study.id)
+        workspace_bucket_name = "lynx-workspace-" + str(study.id)
 
         if service == "athena":
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/athena_access'
 
         elif service == "s3":
-            role_name = "lynx-workspace-"+study.name + "-" + str(study.id)
+            role_name = "lynx-workspace-" + str(study.id)
             if permission =="read":
                 #role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
                 role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
@@ -162,14 +162,14 @@ class StudyViewSet(ReadOnlyModelViewSet):
             study.users.set([request.user] + list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
             study.user_created = request.user
             study.save()
-            workspace_bucket_name ="lynx-workspace-"+study.name + "-" + str(study.id)
+            workspace_bucket_name ="lynx-workspace-"+ str(study.id)
             s3 = boto3.client('s3')
             s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
             with open('mainapp/s3_base_policy.json') as f:
                 policy_json = json.load(f)
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::'+workspace_bucket_name+'*')
             client = boto3.client('iam')
-            policy_name = "lynx-workspace-"+study.name + "-" + str(study.id)
+            policy_name = "lynx-workspace-"+ str(study.id)
 
             response = client.create_policy(
                 PolicyName=policy_name,
@@ -182,7 +182,7 @@ class StudyViewSet(ReadOnlyModelViewSet):
             with open('mainapp/trust_relationship_doc.json') as f:
                 trust_relationship_doc = json.load(f)
 
-            role_name = "lynx-workspace-"+study.name + "-" + str(study.id)
+            role_name = "lynx-workspace-"+ str(study.id)
             client.create_role(
                 RoleName=role_name,
                 AssumeRolePolicyDocument=json.dumps(trust_relationship_doc),
@@ -305,7 +305,7 @@ class DatasetViewSet(ModelViewSet):
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset_bucket_name + '*')
             client = boto3.client('iam')
 
-            policy_name = 'lynx-dataset-' + dataset.name + "-" + str(dataset.id)
+            policy_name = 'lynx-dataset-' + str(dataset.id)
 
             response = client.create_policy(
                 PolicyName=policy_name,
