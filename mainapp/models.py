@@ -71,6 +71,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="users", null=True)
     cognito_id = models.CharField(max_length=255, blank=True, null=True)
+    is_execution = models.BooleanField(default = False)
 
 
     objects = UserManager()

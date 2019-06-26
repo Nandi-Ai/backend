@@ -109,7 +109,9 @@ class GetExecution(APIView):
             # execution.study = study
             execution.user = request.user
             execution.save()
-            User.objects.create_user(email=execution.identifier+"@lynx.md", password=execution.identifier)
+            u = User.objects.create_user(email=execution.identifier+"@lynx.md", password=execution.identifier)
+            u.is_execution = True
+            u.save()
             study.execution = execution
             study.save()
 
@@ -246,7 +248,7 @@ class UserViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = UserSerializer
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_execution = False)
 
 
 class TagViewSet(ReadOnlyModelViewSet):
