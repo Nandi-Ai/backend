@@ -17,7 +17,9 @@ class TagSerializer(ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = ('id','name', 'category',)
+        fields = ('id', 'name', 'category',)
+
+
 
 
 class DataSourceSerializer(ModelSerializer):
@@ -27,20 +29,27 @@ class DataSourceSerializer(ModelSerializer):
         fields = '__all__'
 
 class DatasetSerializer(ModelSerializer):
-    tags = ListField(allow_empty=True, write_only=True)
-    users = ListField(allow_empty=True, write_only=True)
-    # users = UserSerializer(many=True, allow_null=True) #read_only = displaying only when GET and not POST
+    # users = ListField(required=False, write_only=True)
+    # tags = ListField(required=False, write_only=True)
 
     class Meta:
         model = Dataset
         fields = ('id','name','users', 'tags','readme','description','updated_at','state')
+        extra_kwargs = {
+            'tags': {'allow_empty': True},
+            'users': {'allow_empty': True},
+        }
+
 
 class StudySerializer(ModelSerializer):
-    users = ListField(allow_empty=True, write_only=True)
+    # users = ListField(required=False, write_only=True)
 
     class Meta:
         model = Study
         fields = ('id','name',"datasets",'users')
+        extra_kwargs = {
+            'users': {'allow_empty': True},
+        }
 
 class QuerySerializer(Serializer):
     query = CharField(max_length=2048)
