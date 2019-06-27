@@ -38,6 +38,7 @@ class UserManager(BaseUserManager):
 
     def get_or_create_for_cognito(self, payload):
 
+        print(payload)
         cognito_id = payload['sub']
 
         try:
@@ -45,11 +46,17 @@ class UserManager(BaseUserManager):
         except self.model.DoesNotExist:
             pass
 
+        organization_name = payload['organization']
+        organization, _ = Organization.objects.get_or_create(name = organization_name)
+
         try:
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload['email'],
-                is_active=True)
+                is_active=True,
+                organization = organization
+                )
+
         except IntegrityError:
             user = self.get(cognito_id=cognito_id)
 
@@ -110,7 +117,7 @@ class Organization(models.Model):
 
 class Study(models.Model):
     name = models.CharField(max_length=255)
-    organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
+    # organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
     datasets = models.ManyToManyField('Dataset', related_name="studies")
     users = models.ManyToManyField('User', related_name="studies")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="studies_created", null=True)
@@ -118,7 +125,7 @@ class Study(models.Model):
 
     class Meta:
         db_table = 'studies'
-        unique_together = (("name", "organization"),)
+        # unique_together = (("name", "organization"),)
 
 class Dataset(models.Model):
     name = models.CharField(max_length=255)

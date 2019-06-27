@@ -145,17 +145,16 @@ class StudyViewSet(ReadOnlyModelViewSet):
         if study_serialized.is_valid():
 
             req_datasets = study_serialized.validated_data['datasets']
+            study_name = study_serialized.validated_data['name']
+
+            # TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
+            if study_name in [x.name for x in request.user.studies.all()]:
+                return Response({"error": "this dataset already exist for that user"}, status=400)
 
             if not all(rds in request.user.datasets.all() for rds in req_datasets):
                 return Response({"error": "not all datasets are related to the current user"}, status=400)
 
-            if not request.user.organization:
-                return Response({"error": "user must be a part of organization"}, status=400)
-
-            try:
-                study = Study.objects.create(name = study_serialized.validated_data['name'],organization = request.user.organization)
-            except IntegrityError:
-                return Response({"error": "a study with the same name is already exists in this organization"}, status=400)
+            study = Study.objects.create(name = study_name)
 
             req_users = study_serialized.validated_data['users']
             study.datasets.set(Dataset.objects.filter(id__in = [x.id for x in req_datasets]))
@@ -274,6 +273,7 @@ class DatasetViewSet(ModelViewSet):
             # create the dataset insance:
             dataset_name = dataset_serialized.validated_data['name']
 
+            #TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
             if dataset_name in [x.name for x in request.user.datasets.all()]:
                 return Response({"error": "this dataset already exist for that user"}, status=400)
 
