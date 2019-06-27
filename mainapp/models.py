@@ -41,24 +41,34 @@ class UserManager(BaseUserManager):
         print(payload)
         cognito_id = payload['sub']
 
+        #user exists:
         try:
-            return self.get(cognito_id=cognito_id)
+            user = self.get(cognito_id=cognito_id)
+            #update organization from cognito if changed:
+            return user
+
         except self.model.DoesNotExist:
             pass
 
-        organization_name = payload['organization']
-        organization, _ = Organization.objects.get_or_create(name = organization_name)
+
+        #its a new user:
 
         try:
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload['email'],
-                is_active=True,
-                organization = organization
-                )
+                is_active=True
+            )
 
         except IntegrityError:
-            user = self.get(cognito_id=cognito_id)
+            raise
+
+        if 'organization' in payload:
+            organization_name = payload['organization']
+            organization, _ = Organization.objects.get_or_create(name = organization_name)
+
+            user.organization = organization
+            user.save()
 
         return user
 
