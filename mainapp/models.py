@@ -39,38 +39,26 @@ class UserManager(BaseUserManager):
     def get_or_create_for_cognito(self, payload):
 
         print(payload)
-        cognito_id = payload['sub']
 
-        #user exists:
         try:
-            user = self.get(cognito_id=cognito_id)
-            #update organization from cognito if changed:
-            return user
+            u = self.get(email=payload['email'])
+            if not u.cognito_id or u.cognito_id != payload['sub']:
+                u.cognito_id = payload['sub']
+                u.save()
+                return u
 
         except self.model.DoesNotExist:
-            pass
 
+            u = self.create(cognito_id=payload['sub'], email=payload['email'], is_active=True)
 
-        #its a new user:
+            if 'organization' in payload:
+                organization_name = payload['organization']
+                organization, _ = Organization.objects.get_or_create(name = organization_name)
 
-        try:
-            user = self.create(
-                cognito_id=cognito_id,
-                email=payload['email'],
-                is_active=True
-            )
+                u.organization = organization
+                u.save()
 
-        except IntegrityError:
-            raise
-
-        if 'organization' in payload:
-            organization_name = payload['organization']
-            organization, _ = Organization.objects.get_or_create(name = organization_name)
-
-            user.organization = organization
-            user.save()
-
-        return user
+            return u
 
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(
