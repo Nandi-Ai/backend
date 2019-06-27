@@ -45,7 +45,8 @@ class UserManager(BaseUserManager):
             if not u.cognito_id or u.cognito_id != payload['sub']:
                 u.cognito_id = payload['sub']
                 u.save()
-                return u
+
+            return u
 
         except self.model.DoesNotExist:
 
