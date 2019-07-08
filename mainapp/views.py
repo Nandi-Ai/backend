@@ -133,7 +133,7 @@ class GetExecution(APIView):
 
 
 class StudyViewSet(ReadOnlyModelViewSet):
-    http_method_names = ['get', 'head', 'post']
+    http_method_names = ['get', 'head', 'post','put']
 
     serializer_class = StudySerializer
 
@@ -196,21 +196,20 @@ class StudyViewSet(ReadOnlyModelViewSet):
             return Response(self.serializer_class(study, allow_null=True).data, status=201) #llow null, read_only, many
         else:
             return Response({"error": study_serialized.errors}, status=400)
-#
-#
-# class CreateDataSource(GenericAPIView):
-#     serializer_class = DataSourceSerializer
-#
-#     def post(self, request):
-#         datasource_serialized = self.serializer_class(data=request.data, allow_null=True)
-#         if datasource_serialized.is_valid():
-#             dataset = datasource_serialized.validated_data['dataset']
-#             if dataset not in request.user.datasets.all():
-#                 return Response({"error":"dataset doesn't exist or doesn't belong to the user"}, status=400)
-#             data_source = DataSource.objects.create()
-#             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
-#         else:
-#             return Response({"error": datasource_serialized.errors}, status=400)
+
+    def update(self, request, *args, **kwargs):
+        serialized = self.serializer_class(data=request.data, allow_null=True)
+        study_name = serialized.validated_data['name']
+        req_datasets = serialized.validated_data['datasets']
+
+        if serialized.is_valid(): #if not valid super will handle it
+            if study_name in [x.name for x in request.user.studies.all()]:
+                return Response({"error": "this dataset already exist for that user"}, status=400)
+            if not all(rds in request.user.datasets.all() for rds in req_datasets):
+                return Response({"error": "not all datasets are related to the current user"}, status=400)
+
+        return super(self.__class__, self).update(request=self.request)
+
 
 class GetDatasetSTS(APIView):
 
@@ -242,7 +241,6 @@ class GetDatasetSTS(APIView):
 
         return Response(config)
 
-
 class UserViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
@@ -258,7 +256,7 @@ class TagViewSet(ReadOnlyModelViewSet):
 
 
 class DatasetViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post']
+    http_method_names = ['get', 'head', 'post','put']
 
     def get_queryset(self):
         return self.request.user.datasets.all()
@@ -275,7 +273,7 @@ class DatasetViewSet(ModelViewSet):
 
             #TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
             if dataset_name in [x.name for x in request.user.datasets.all()]:
-                return Response({"error": "this dataset already exist for that user"}, status=400)
+                return Response({"error": "this dataset name already exist for that user"}, status=400)
 
             dataset = Dataset.objects.create(name = dataset_name)
             dataset.description = dataset_serialized.validated_data['description']
@@ -359,10 +357,19 @@ class DatasetViewSet(ModelViewSet):
         else:
             return Response({"error": dataset_serialized.errors}, status=400)
 
+    def update(self, request, *args, **kwargs):
+        dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
+        if dataset_serialized.is_valid(): #if not valid super will handle it
+
+            dataset_name = dataset_serialized.validated_data['name']
+            if dataset_name in [x.name for x in request.user.datasets.all()]:
+                return Response({"error": "this dataset name already exist for that user"}, status=400)
+
+        return super(self.__class__, self).update(request=self.request)
 
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
-    http_method_names = ['get', 'head', 'post']
+    http_method_names = ['get', 'head', 'post','put']
     filter_fields = ('dataset',)
 
     def get_queryset(self):
@@ -384,6 +391,16 @@ class DataSourceViewSet(ModelViewSet):
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
         else:
             return Response({"error": data_source_serialized.errors}, status=400)
+
+    def update(self, request, *args, **kwargs):
+        serialized = self.serializer_class(data=request.data, allow_null=True)
+
+        if serialized.is_valid(): #if not valid super will handle it
+            dataset = serialized.validated_data['dataset']
+            if dataset not in request.user.datasets.all():
+                return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
+
+        return super(self.__class__, self).update(request=self.request)
 
 
 class RunQuery(GenericAPIView):

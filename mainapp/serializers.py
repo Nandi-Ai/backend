@@ -47,10 +47,11 @@ class StudySerializer(ModelSerializer):
 
     class Meta:
         model = Study
-        fields = ('id','name',"datasets",'users')
+        fields = ('id','name',"datasets",'users','tags')
         extra_kwargs = {
             'users': {'allow_empty': True},
             'datasets': {'allow_empty': True},
+            'tags': {'allow_empty': True},
         }
 
 class QuerySerializer(Serializer):

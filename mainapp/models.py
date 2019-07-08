@@ -121,6 +121,7 @@ class Study(models.Model):
     users = models.ManyToManyField('User', related_name="studies")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="studies_created", null=True)
     execution = models.ForeignKey("Execution", on_delete=models.DO_NOTHING, related_name="studies", null=True)
+    tags = models.ManyToManyField('Tag', related_name="study_tags")
 
     class Meta:
         db_table = 'studies'
@@ -132,7 +133,7 @@ class Dataset(models.Model):
     readme = models.TextField(blank=True, null=True)
     users = models.ManyToManyField('User', related_name="datasets")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
-    tags = models.ManyToManyField('Tag', related_name="tags")
+    tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(max_length=32, blank=True, null=True)
     override_bucket = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now = True)
