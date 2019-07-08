@@ -197,18 +197,18 @@ class StudyViewSet(ReadOnlyModelViewSet):
         else:
             return Response({"error": study_serialized.errors}, status=400)
 
-    def update(self, request, *args, **kwargs):
-        serialized = self.serializer_class(data=request.data, allow_null=True)
-        study_name = serialized.validated_data['name']
-        req_datasets = serialized.validated_data['datasets']
-
-        if serialized.is_valid(): #if not valid super will handle it
-            if study_name in [x.name for x in request.user.studies.all()]:
-                return Response({"error": "this dataset already exist for that user"}, status=400)
-            if not all(rds in request.user.datasets.all() for rds in req_datasets):
-                return Response({"error": "not all datasets are related to the current user"}, status=400)
-
-        return super(self.__class__, self).update(request=self.request)
+    # def update(self, request, *args, **kwargs):
+    #     serialized = self.serializer_class(data=request.data, allow_null=True)
+    #     study_name = serialized.validated_data['name']
+    #     req_datasets = serialized.validated_data['datasets']
+    #
+    #     if serialized.is_valid(): #if not valid super will handle it
+    #         if study_name in [x.name for x in request.user.studies.all()]:
+    #             return Response({"error": "this dataset already exist for that user"}, status=400)
+    #         if not all(rds in request.user.datasets.all() for rds in req_datasets):
+    #             return Response({"error": "not all datasets are related to the current user"}, status=400)
+    #
+    #     return super(self.__class__, self).update(request=self.request)
 
 
 class GetDatasetSTS(APIView):
@@ -232,19 +232,20 @@ class GetDatasetSTS(APIView):
             DurationSeconds=43200
         )
 
-        dataset_bucket_name = 'lynx-dataset-' + str(dataset.id)
 
         config = {}
 
-        config['bucket'] = dataset_bucket_name
+        config['bucket'] = dataset.bucket
         config['aws_sts_creds'] = sts_response['Credentials']
 
         return Response(config)
+
 
 class CurrentUserView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
+
 
 class UserViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
@@ -274,6 +275,8 @@ class DatasetViewSet(ModelViewSet):
 
         if dataset_serialized.is_valid():
             # create the dataset insance:
+            #TODO maybe use super() as in update instead of completing the all process.
+            #validations:
             dataset_name = dataset_serialized.validated_data['name']
 
             #TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
@@ -283,29 +286,32 @@ class DatasetViewSet(ModelViewSet):
             dataset = Dataset.objects.create(name = dataset_name)
             dataset.description = dataset_serialized.validated_data['description']
             dataset.readme = dataset_serialized.validated_data['readme']
+
+
             req_users = dataset_serialized.validated_data['users']
+
             dataset.users.set(
                 [request.user] + list(User.objects.filter(id__in=[x.id for x in req_users])))  # can user add also..
 
+
             req_tags = dataset_serialized.validated_data['tags']
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
+
             dataset.user_created = request.user
             dataset.state = "private"
-
+            dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.save()
-
-            dataset_bucket_name = 'lynx-dataset-'+str(dataset.id)
 
             # create the dataset bucket:
             s3 = boto3.client('s3')
 
-            s3.create_bucket(Bucket=dataset_bucket_name,
+            s3.create_bucket(Bucket=dataset.bucket,
                              CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
 
             # create the dataset policy:
             with open('mainapp/s3_base_policy.json') as f:
                 policy_json = json.load(f)
-            policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset_bucket_name + '*')
+            policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset.bucket + '*')
             client = boto3.client('iam')
 
             policy_name = 'lynx-dataset-' + str(dataset.id)
@@ -335,42 +341,35 @@ class DatasetViewSet(ModelViewSet):
                 PolicyArn=policy_arn
             )
 
-            # generate sts token so the user can upload the dataset to the bucket
-            sts_default_provider_chain = boto3.client('sts')
-
-            role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
-
-            time.sleep(8)  # the role takes this time to be created!
-
-            sts_response = sts_default_provider_chain.assume_role(
-                RoleArn=role_to_assume_arn,
-                RoleSessionName='session',
-                DurationSeconds=43200
-            )
-
-            config = {}
-            config['bucket'] = dataset_bucket_name
-            config['aws_sts_creds'] = sts_response['Credentials']
-
+            time.sleep(8)  # the role takes this time to be created! it is here in order to prevent calling GetDatasetSTS before creation
             data = self.serializer_class(dataset, allow_null=True).data
 
-            # add the sts token and bucket to the dataset response:
-            data['config'] = config
+            # generate sts token so the user can upload the dataset to the bucket
+            # sts_default_provider_chain = boto3.client('sts')
+            # role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
+            # sts_response = sts_default_provider_chain.assume_role(
+            #     RoleArn=role_to_assume_arn,
+            #     RoleSessionName='session',
+            #     DurationSeconds=43200
+            # )
+            # config = {}
+            # config['bucket'] = dataset_bucket_name
+            # config['aws_sts_creds'] = sts_response['Credentials']
+            # # add the sts token and bucket to the dataset response:
+            # data['config'] = config
 
             return Response(data, status=201)
             # TODO the frontend needs to notify when done uploading (in another method), and then needs to create a glue database to that dataset
         else:
             return Response({"error": dataset_serialized.errors}, status=400)
 
-    def update(self, request, *args, **kwargs):
-        dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
-        if dataset_serialized.is_valid(): #if not valid super will handle it
-
-            dataset_name = dataset_serialized.validated_data['name']
-            if dataset_name in [x.name for x in request.user.datasets.all()]:
-                return Response({"error": "this dataset name already exist for that user"}, status=400)
-
-        return super(self.__class__, self).update(request=self.request)
+    # def update(self, request, *args, **kwargs):
+    #     # dataset_serialized = self.serializer_class(data=request.data, allow_null=True, partial=True)
+    #
+    #     return super(self.__class__, self).update(request=self.request)
+    #
+    # def partial_update(self, request, *args, **kwargs):
+    #     dataset_serialized = self.serializer_class(data=request.data, allow_null=True,partial=True)
 
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
@@ -396,17 +395,16 @@ class DataSourceViewSet(ModelViewSet):
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
         else:
             return Response({"error": data_source_serialized.errors}, status=400)
-
-    def update(self, request, *args, **kwargs):
-        serialized = self.serializer_class(data=request.data, allow_null=True)
-
-        if serialized.is_valid(): #if not valid super will handle it
-            dataset = serialized.validated_data['dataset']
-            if dataset not in request.user.datasets.all():
-                return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
-
-        return super(self.__class__, self).update(request=self.request)
-
+    #
+    # def update(self, request, *args, **kwargs):
+    #     serialized = self.serializer_class(data=request.data, allow_null=True)
+    #
+    #     if serialized.is_valid(): #if not valid super will handle it
+    #         dataset = serialized.validated_data['dataset']
+    #         if dataset not in request.user.datasets.all():
+    #             return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
+    #
+    #     return super(self.__class__, self).update(request=self.request)
 
 class RunQuery(GenericAPIView):
     serializer_class = QuerySerializer

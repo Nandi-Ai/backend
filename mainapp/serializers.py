@@ -21,8 +21,6 @@ class TagSerializer(ModelSerializer):
         fields = ('id', 'name', 'category',)
 
 
-
-
 class DataSourceSerializer(ModelSerializer):
 
     class Meta:
@@ -30,8 +28,6 @@ class DataSourceSerializer(ModelSerializer):
         fields = '__all__'
 
 class DatasetSerializer(ModelSerializer):
-    # users = ListField(required=False, write_only=True)
-    # tags = ListField(required=False, write_only=True)
 
     class Meta:
         model = Dataset
@@ -49,7 +45,7 @@ class StudySerializer(ModelSerializer):
         model = Study
         fields = ('id','name',"datasets",'users','tags')
         extra_kwargs = {
-            'users': {'allow_empty': True},
+            'users': {'allow_empty': True}, #required = False?
             'datasets': {'allow_empty': True},
             'tags': {'allow_empty': True},
         }

@@ -135,12 +135,12 @@ class Dataset(models.Model):
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(max_length=32, blank=True, null=True)
-    override_bucket = models.CharField(max_length=255, blank=True, null=True)
+    bucket = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now = True)
 
-    @property
-    def bucket(self):
-        return self.override_bucket or "lynx-dataset-"+self.name+'-'+str(self.id)
+    # @property
+    # def bucket(self):
+    #     return self.override_bucket or "lynx-dataset-"+self.name+'-'+str(self.id)
 
     class Meta:
         db_table = 'datasets'
