@@ -50,6 +50,7 @@ urlpatterns = [
     url(r'^get_sts/$', views.GetSTS.as_view(), name='get_sts'),
     url(r'^send_sync_signal/$', views.SendSyncSignal.as_view(), name='send_sync_signal'),
     url(r'^run_query/$', views.RunQuery.as_view(), name='run_query'),
+    url(r'^me/$', views.CurrentUserView.as_view(), name='run_query'),
 ]
 
 startup()

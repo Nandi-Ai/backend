@@ -241,6 +241,11 @@ class GetDatasetSTS(APIView):
 
         return Response(config)
 
+class CurrentUserView(APIView):
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+
 class UserViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
