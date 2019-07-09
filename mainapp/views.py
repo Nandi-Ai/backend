@@ -160,6 +160,10 @@ class StudyViewSet(ReadOnlyModelViewSet):
             study.datasets.set(Dataset.objects.filter(id__in = [x.id for x in req_datasets]))
             study.users.set([request.user] + list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
             study.user_created = request.user
+
+            req_tags = study_serialized.validated_data['tags']
+            study.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
+
             study.save()
             workspace_bucket_name ="lynx-workspace-"+ str(study.id)
             s3 = boto3.client('s3')
@@ -292,7 +296,6 @@ class DatasetViewSet(ModelViewSet):
 
             dataset.users.set(
                 [request.user] + list(User.objects.filter(id__in=[x.id for x in req_users])))  # can user add also..
-
 
             req_tags = dataset_serialized.validated_data['tags']
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
@@ -453,3 +456,21 @@ class RunQuery(GenericAPIView):
             print(response)
 
             return Response({"query_execution_id": response['QueryExecutionId']})
+
+class DataSourceUploaded(APIView):
+    def get(self, request, data_source_id):
+
+        try:
+            data_source = request.user.datasources.get(id = data_source_id)
+
+        except DataSource.DoesNotExists:
+            return Response({"error":"datasource not found"},status=400)
+
+        if data_source.type == "images":
+            pass
+        if data_source.type == "csv":
+            pass
+            #TODO create glue catalog with that csv. the file should be in a folder with the same name.
+
+
+        return Response()

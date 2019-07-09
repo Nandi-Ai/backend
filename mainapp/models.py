@@ -79,6 +79,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     cognito_id = models.CharField(max_length=255, blank=True, null=True)
     is_execution = models.BooleanField(default = False)
 
+    @property
+    def data_sources(self):
+        data_srouces = DataSource.objects.none()
+        for dataset in self.datasets.all():
+            data_srouces = data_srouces | dataset.data_sources.all()
+            return data_srouces
+
 
     objects = UserManager()
 
@@ -116,16 +123,19 @@ class Organization(models.Model):
 
 class Study(models.Model):
     name = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True, max_length=255)
     # organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
     datasets = models.ManyToManyField('Dataset', related_name="studies")
     users = models.ManyToManyField('User', related_name="studies")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="studies_created", null=True)
     execution = models.ForeignKey("Execution", on_delete=models.DO_NOTHING, related_name="studies", null=True)
     tags = models.ManyToManyField('Tag', related_name="study_tags")
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'studies'
         # unique_together = (("name", "organization"),)
+
 
 class Dataset(models.Model):
     name = models.CharField(max_length=255)
@@ -144,6 +154,7 @@ class Dataset(models.Model):
 
     class Meta:
         db_table = 'datasets'
+
 
 class DataSource(models.Model):
     name = models.CharField(max_length=255)
