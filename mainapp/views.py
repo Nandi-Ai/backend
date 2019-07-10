@@ -132,7 +132,7 @@ class GetExecution(APIView):
 
 
 
-class StudyViewSet(ReadOnlyModelViewSet):
+class StudyViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post','put']
 
     serializer_class = StudySerializer
@@ -155,7 +155,7 @@ class StudyViewSet(ReadOnlyModelViewSet):
                 return Response({"error": "not all datasets are related to the current user"}, status=400)
 
             study = Study.objects.create(name = study_name)
-
+            study.description = study_serialized.validated_data['description']
             req_users = study_serialized.validated_data['users']
             study.datasets.set(Dataset.objects.filter(id__in = [x.id for x in req_datasets]))
             study.users.set([request.user] + list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
