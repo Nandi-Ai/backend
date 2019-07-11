@@ -61,7 +61,6 @@ def create_catalog(data_source):
 
     # Clients
     glue_client = boto3.client('glue')
-    s3_resource = boto3.resource('s3')
 
     dataset = data_source.dataset
 

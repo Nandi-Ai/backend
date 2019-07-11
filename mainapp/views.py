@@ -408,10 +408,38 @@ class DataSourceViewSet(ModelViewSet):
             if dataset not in request.user.datasets.all():
                 return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
 
-            data_source = DataSource.objects.create(name = data_source_serialized.validated_data['name'], dataset=dataset)
+            data_source = data_source_serialized.save()
+
+            if data_source.type == "structured":
+                path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
+                if ext in ["sav", "zsav"]:
+                    s3_client = boto3.client('s3')
+                    s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/' + file_name)
+                    df, meta = pyreadstat.read_sav("/tmp/" + file_name)
+                    csv_path_and_file = "/tmp/" + file_name_no_ext + ".csv"
+                    df.to_csv(csv_path_and_file)
+                    s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
+                                          path + "/" + file_name_no_ext + ".csv")
+                    data_source.s3_object = path + "/" + file_name_no_ext + ".csv"
+                    data_source.save()
+
+
+                create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[
+                    data_source])  # also setting the data_source state to ready
+                create_catalog_thread.start()
+
+            else:
+                data_source.state = "ready"
+                data_source.save()
+
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
+
         else:
             return Response({"error": data_source_serialized.errors}, status=400)
+
+
+
+
     #
     # def update(self, request, *args, **kwargs):
     #     serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -470,37 +498,4 @@ class RunQuery(GenericAPIView):
             print(response)
 
             return Response({"query_execution_id": response['QueryExecutionId']})
-
-
-class DataSourceUploaded(APIView):
-    def get(self, request, data_source_id):
-        try:
-            data_source = request.user.data_sources.get(id = data_source_id)
-        except DataSource.DoesNotExists:
-            return Response({"error": "data source not found"}, status=400)
-
-
-        #handle preview?
-
-        if data_source.type == "structured":
-            path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
-
-            if ext in ["sav", "zsav"]:
-                s3_client = boto3.client('s3')
-                s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/'+file_name)
-                df, meta = pyreadstat.read_sav("/tmp/"+file_name)
-                csv_path_and_file = "/tmp/"+file_name_no_ext + ".csv"
-                df.to_csv(csv_path_and_file)
-                s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket, path+"/"+file_name_no_ext+".csv")
-                data_source.s3_object = path+"/"+file_name_no_ext+".csv"
-                data_source.save()
-
-            create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source]) #also setting the data_source state to ready
-            create_catalog_thread.start()
-
-        else:
-            data_source.state = "ready"
-            data_source.save()
-
-        return Response(status=202)
 
