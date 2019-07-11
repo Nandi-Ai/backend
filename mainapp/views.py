@@ -322,7 +322,7 @@ class DatasetViewSet(ModelViewSet):
                 }]
             }
 
-            s3.put_bucket_cors(dataset.bucket, cors_configuration)
+            s3.put_bucket_cors(Bucket=dataset.bucket, CORSConfiguration=cors_configuration)
 
             # create the dataset policy:
             with open('mainapp/s3_base_policy.json') as f:
@@ -411,7 +411,9 @@ class DataSourceViewSet(ModelViewSet):
             data_source = data_source_serialized.save()
 
             if data_source.type == "structured":
+
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
+                print(path, file_name, file_name_no_ext, ext)
                 if ext in ["sav", "zsav"]:
                     s3_client = boto3.client('s3')
                     s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/' + file_name)

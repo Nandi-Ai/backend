@@ -64,6 +64,7 @@ def create_catalog(data_source):
 
     dataset = data_source.dataset
 
+
     if not dataset.glue_database:
         dataset.glue_database = "dataset-"+str(data_source.dataset.id)
         glue_client.create_database(
@@ -71,6 +72,7 @@ def create_catalog(data_source):
                 "Name": dataset.glue_database
             }
         )
+        dataset.save()
 
         create_glue_crawler(dataset) #if no dataset no crawler
 
