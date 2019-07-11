@@ -81,10 +81,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def data_sources(self):
-        data_srouces = DataSource.objects.none()
+        data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
-            data_srouces = data_srouces | dataset.data_sources.all()
-            return data_srouces
+            data_sources = data_sources | dataset.data_sources.all()
+            return data_sources
 
 
     objects = UserManager()
@@ -121,6 +121,7 @@ class Organization(models.Model):
     class Meta:
         db_table = 'organizations'
 
+
 class Study(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
@@ -147,6 +148,7 @@ class Dataset(models.Model):
     state = models.CharField(max_length=32, blank=True, null=True)
     bucket = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now = True)
+    glue_database = models.CharField(max_length=255, blank=True, null=True)
 
     # @property
     # def bucket(self):
@@ -158,11 +160,13 @@ class Dataset(models.Model):
 
 class DataSource(models.Model):
     name = models.CharField(max_length=255)
+    s3_object = models.CharField(max_length=255,null=True, blank=True)
     dataset = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="data_sources")
     type = models.CharField(null=True, blank=True, max_length=32)
     about = models.TextField(null=True, blank=True, max_length=2048)
     columns = JSONField(null = True, blank = True, default = None)
     preview = JSONField(null = True, blank = True, default = None)
+    state = models.CharField(null=True, blank=True, max_length=32)
 
     class Meta:
         db_table = 'data_sources'

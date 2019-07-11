@@ -16,6 +16,9 @@ import subprocess
 from django.db.utils import IntegrityError
 import json
 from mainapp.lib import validate_query
+from mainapp import lib
+import pyreadstat
+import threading
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -131,7 +134,6 @@ class GetExecution(APIView):
         return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token})
 
 
-
 class StudyViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post','put']
 
@@ -238,7 +240,7 @@ class GetDatasetSTS(APIView):
 
 
         config = {}
-
+        print(sts_response)
         config['bucket'] = dataset.bucket
         config['aws_sts_creds'] = sts_response['Credentials']
 
@@ -266,7 +268,7 @@ class TagViewSet(ReadOnlyModelViewSet):
 
 
 class DatasetViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post','put']
+    http_method_names = ['get', 'head', 'post', 'put']
 
     def get_queryset(self):
         return self.request.user.datasets.all()
@@ -310,6 +312,17 @@ class DatasetViewSet(ModelViewSet):
 
             s3.create_bucket(Bucket=dataset.bucket,
                              CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
+
+            cors_configuration = {
+                'CORSRules': [{
+                    'AllowedHeaders': ['*'],
+                    'AllowedMethods': ['GET', 'PUT', 'POST', 'DELETE'],
+                    'AllowedOrigins': ['*'],
+                    'MaxAgeSeconds': 3000
+                }]
+            }
+
+            s3.put_bucket_cors(dataset.bucket, cors_configuration)
 
             # create the dataset policy:
             with open('mainapp/s3_base_policy.json') as f:
@@ -374,6 +387,7 @@ class DatasetViewSet(ModelViewSet):
     # def partial_update(self, request, *args, **kwargs):
     #     dataset_serialized = self.serializer_class(data=request.data, allow_null=True,partial=True)
 
+
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ['get', 'head', 'post','put']
@@ -394,7 +408,7 @@ class DataSourceViewSet(ModelViewSet):
             if dataset not in request.user.datasets.all():
                 return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
 
-            data_source = DataSource.objects.create(name = data_source_serialized['name'], dataset=dataset)
+            data_source = DataSource.objects.create(name = data_source_serialized.validated_data['name'], dataset=dataset)
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
         else:
             return Response({"error": data_source_serialized.errors}, status=400)
@@ -457,20 +471,36 @@ class RunQuery(GenericAPIView):
 
             return Response({"query_execution_id": response['QueryExecutionId']})
 
+
 class DataSourceUploaded(APIView):
     def get(self, request, data_source_id):
-
         try:
-            data_source = request.user.datasources.get(id = data_source_id)
-
+            data_source = request.user.data_sources.get(id = data_source_id)
         except DataSource.DoesNotExists:
-            return Response({"error":"datasource not found"},status=400)
-
-        if data_source.type == "images":
-            pass
-        if data_source.type == "csv":
-            pass
-            #TODO create glue catalog with that csv. the file should be in a folder with the same name.
+            return Response({"error": "data source not found"}, status=400)
 
 
-        return Response()
+        #handle preview?
+
+        if data_source.type == "structured":
+            path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
+
+            if ext in ["sav", "zsav"]:
+                s3_client = boto3.client('s3')
+                s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/'+file_name)
+                df, meta = pyreadstat.read_sav("/tmp/"+file_name)
+                csv_path_and_file = "/tmp/"+file_name_no_ext + ".csv"
+                df.to_csv(csv_path_and_file)
+                s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket, path+"/"+file_name_no_ext+".csv")
+                data_source.s3_object = path+"/"+file_name_no_ext+".csv"
+                data_source.save()
+
+            create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source]) #also setting the data_source state to ready
+            create_catalog_thread.start()
+
+        else:
+            data_source.state = "ready"
+            data_source.save()
+
+        return Response(status=202)
+
