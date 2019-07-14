@@ -60,7 +60,7 @@ def create_catalog(data_source):
     #TODO create the catalog
 
     # Clients
-    glue_client = boto3.client('glue', aws_region = settings.aws_region)
+    glue_client = boto3.client('glue', region_name="us-east-2")
 
     dataset = data_source.dataset
 
@@ -97,7 +97,7 @@ def create_catalog(data_source):
     data_source.save()
 
 def create_glue_crawler(dataset):
-    glue_client = boto3.client('glue',aws_region = settings.aws_region)
+    glue_client = boto3.client('glue', region_name="us-east-2")
 
     glue_client.create_crawler(
         Name="dataset-"+str(dataset.id),
