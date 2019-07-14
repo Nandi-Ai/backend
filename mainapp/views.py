@@ -69,15 +69,7 @@ class GetSTS(APIView):
 
         elif service == "s3":
             role_name = "lynx-workspace-" + str(study.id)
-            if permission =="read":
-                #role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3readbucket'
-                role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
-            elif permission == "write":
-                # role_to_assume_arn = 'arn:aws:iam::858916640373:role/s3buckets2'
-                role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
-
-            else:
-                return Response({"error":"must set permission to read or write"}, status=400)
+            role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
 
         else:
             return Response({"error": "no service or service is not supported"}, status=400)
@@ -104,7 +96,7 @@ class GetExecution(APIView):
         try:
             study = request.user.studies.get(id=study_id)
         except Study.DoesNotExist:
-            return Response({"error":"study does not exists"}, 400)
+            return Response({"error": "study does not exists"}, 400)
 
         if not study.execution:
             execution = Execution.objects.create()
@@ -129,7 +121,7 @@ class GetExecution(APIView):
 
             res = requests.post(settings.jh_url + "/hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                return Response({"error":"error creating execution: "+str(res.text)})
+                return Response({"error": "error creating execution: "+str(res.text)})
 
         return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token})
 
@@ -425,9 +417,7 @@ class DataSourceViewSet(ModelViewSet):
                     data_source.s3_object = path + "/" + file_name_no_ext + ".csv"
                     data_source.save()
 
-
-                create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[
-                    data_source])  # also setting the data_source state to ready
+                create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready
                 create_catalog_thread.start()
 
             else:
@@ -440,9 +430,6 @@ class DataSourceViewSet(ModelViewSet):
             return Response({"error": data_source_serialized.errors}, status=400)
 
 
-
-
-    #
     # def update(self, request, *args, **kwargs):
     #     serialized = self.serializer_class(data=request.data, allow_null=True)
     #
