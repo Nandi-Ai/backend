@@ -10,10 +10,10 @@ from time import sleep
 
 
 def break_s3_object(obj):
-    file_name = obj
-    file_name_no_ext = obj
-    ext = obj
-    path = obj
+    file_name = obj.split("/")[-1]
+    file_name_no_ext = ".".join(file_name.split(".")[:-1])
+    ext = file_name.split(".")[-1]
+    path = "/".join(obj.split("/")[:-1])
 
     return path, file_name, file_name_no_ext, ext
 

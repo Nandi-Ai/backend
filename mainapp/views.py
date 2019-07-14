@@ -175,7 +175,7 @@ class StudyViewSet(ModelViewSet):
 
             policy_arn = response['Policy']['Arn']
 
-            print(response)
+
             with open('mainapp/trust_relationship_doc.json') as f:
                 trust_relationship_doc = json.load(f)
 
@@ -232,7 +232,7 @@ class GetDatasetSTS(APIView):
 
 
         config = {}
-        print(sts_response)
+
         config['bucket'] = dataset.bucket
         config['aws_sts_creds'] = sts_response['Credentials']
 
@@ -404,7 +404,6 @@ class DataSourceViewSet(ModelViewSet):
 
             if data_source.s3_object:
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
-                print(path, file_name, file_name_no_ext, ext)
 
                 if ext in ["sav", "zsav", "csv"]:
 
@@ -486,7 +485,7 @@ class RunQuery(GenericAPIView):
                     'OutputLocation': "s3://lynx-workspace-"+study.name+"-"+str(study.id),
                 }
             )
-            print(response)
+
 
             return Response({"query_execution_id": response['QueryExecutionId']})
 
