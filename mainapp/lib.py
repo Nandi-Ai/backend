@@ -60,12 +60,13 @@ def create_catalog(data_source):
     #TODO create the catalog
 
     # Clients
-    glue_client = boto3.client('glue',aws_region = settings.aws_region)
+    glue_client = boto3.client('glue', aws_region = settings.aws_region)
 
     dataset = data_source.dataset
 
 
     if not dataset.glue_database:
+        print("creating glue database")
         dataset.glue_database = "dataset-"+str(data_source.dataset.id)
         glue_client.create_database(
             DatabaseInput={
@@ -74,19 +75,24 @@ def create_catalog(data_source):
         )
         dataset.save()
 
+        print("creating database crawler")
         create_glue_crawler(dataset) #if no dataset no crawler
 
+    print('staring the database crawler')
     glue_client.start_crawler(Name="dataset-"+str(dataset.id))
 
     crawler_ready = False
+    retries = 40
 
-    while not crawler_ready:
+    while not crawler_ready and retries>=0:
         res = glue_client.get_crawler(
             Name="dataset-"+str(dataset.id)
         )
         crawler_ready = True if res['Crawler']['State'] == 'READY' else False
-        sleep(2)
+        sleep(3)
+        retries-=1
 
+    print("crawler finished: ", crawler_ready)
     data_source.state = "ready"
     data_source.save()
 
