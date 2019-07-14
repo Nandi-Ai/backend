@@ -402,23 +402,25 @@ class DataSourceViewSet(ModelViewSet):
 
             data_source = data_source_serialized.save()
 
-            if data_source.type == "structured":
-
+            if data_source.s3_object:
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
                 print(path, file_name, file_name_no_ext, ext)
-                if ext in ["sav", "zsav"]:
-                    s3_client = boto3.client('s3')
-                    s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/' + file_name)
-                    df, meta = pyreadstat.read_sav("/tmp/" + file_name)
-                    csv_path_and_file = "/tmp/" + file_name_no_ext + ".csv"
-                    df.to_csv(csv_path_and_file)
-                    s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
-                                          path + "/" + file_name_no_ext + ".csv")
-                    data_source.s3_object = path + "/" + file_name_no_ext + ".csv"
-                    data_source.save()
 
-                create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready
-                create_catalog_thread.start()
+                if ext in ["sav", "zsav", "csv"]:
+
+                    if ext in ["sav", "zsav"]: #convert to csv
+                        s3_client = boto3.client('s3')
+                        s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/' + file_name)
+                        df, meta = pyreadstat.read_sav("/tmp/" + file_name)
+                        csv_path_and_file = "/tmp/" + file_name_no_ext + ".csv"
+                        df.to_csv(csv_path_and_file)
+                        s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
+                                              path + "/" + file_name_no_ext + ".csv")
+                        data_source.s3_object = path + "/" + file_name_no_ext + ".csv"
+                        data_source.save()
+
+                    create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
+                    create_catalog_thread.start()
 
             else:
                 data_source.state = "ready"
