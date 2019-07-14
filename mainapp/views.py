@@ -127,7 +127,7 @@ class GetExecution(APIView):
 
 
 class StudyViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post','put']
+    http_method_names = ['get', 'head', 'post','put','delete']
 
     serializer_class = StudySerializer
 
@@ -260,7 +260,7 @@ class TagViewSet(ReadOnlyModelViewSet):
 
 
 class DatasetViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post', 'put']
+    http_method_names = ['get', 'head', 'post', 'put','delete']
 
     def get_queryset(self):
         return self.request.user.datasets.all()
@@ -382,7 +382,7 @@ class DatasetViewSet(ModelViewSet):
 
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
-    http_method_names = ['get', 'head', 'post','put']
+    http_method_names = ['get', 'head', 'post','put','delete']
     filter_fields = ('dataset',)
 
     def get_queryset(self):
