@@ -46,7 +46,6 @@ class GetSTS(APIView):
 
         #execution_identifier = request.query_params.get('execution_identifier')
         ei = request.user.email.split('@')[0]
-        permission = request.query_params.get('permission')
         service = request.query_params.get('service')
 
         try:
@@ -72,7 +71,7 @@ class GetSTS(APIView):
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
 
         else:
-            return Response({"error": "no service or service is not supported"}, status=400)
+            return Response({"error": "please mention an aws service in a query string param"}, status=400)
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -393,33 +392,48 @@ class DataSourceViewSet(ModelViewSet):
         return data_sources
 
     def create(self, request, *args, **kwargs):
+        ds_types = ['structured','images']
         data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
         if data_source_serialized.is_valid():
-            dataset = data_source_serialized.validated_data['dataset']
+            ds_data = data_source_serialized.validated_data
+            dataset = ds_data['dataset']
 
             if dataset not in request.user.datasets.all():
                 return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
 
+            if ds_data['type'] not in ds_types:
+                return Response({"error": "data source type must be one of: "+str(ds_types)}, status=400)
+
+            if not isinstance(ds_data['s3_objects'], list):
+                return Response({"error": "s3 objects must be a (json) list"}, status=400)
+
+            if ds_data['type'] == ["structured"] and len(ds_data['s3_objects']) > 1:
+                return Response({"error": "data source of type structured must include exactly one item"}, status=400)
+
             data_source = data_source_serialized.save()
 
-            if data_source.s3_object:
-                path, file_name, file_name_no_ext, ext = lib.break_s3_object(data_source.s3_object)
+            if data_source.type == "structured":
+                s3_obj = data_source.s3_objects[0]
+                path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
                 if ext in ["sav", "zsav", "csv"]:
 
                     if ext in ["sav", "zsav"]: #convert to csv
                         s3_client = boto3.client('s3')
-                        s3_client.download_file(data_source.dataset.bucket, data_source.s3_object, '/tmp/' + file_name)
+                        s3_client.download_file(data_source.dataset.bucket, s3_obj, '/tmp/' + file_name)
                         df, meta = pyreadstat.read_sav("/tmp/" + file_name)
                         csv_path_and_file = "/tmp/" + file_name_no_ext + ".csv"
                         df.to_csv(csv_path_and_file)
                         s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
                                               path + "/" + file_name_no_ext + ".csv")
-                        data_source.s3_object = path + "/" + file_name_no_ext + ".csv"
+                        data_source.s3_objects.pop()
+                        data_source.s3_objects.append(path + "/" + file_name_no_ext + ".csv")
+
                         data_source.save()
 
                     create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
                     create_catalog_thread.start()
+
 
             else:
                 data_source.state = "ready"

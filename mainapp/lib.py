@@ -56,14 +56,12 @@ class MyTokenAuthentication(TokenAuthentication):
 
         return token.user, token
 
+
 def create_catalog(data_source):
-    #TODO create the catalog
 
     # Clients
     glue_client = boto3.client('glue', region_name="us-east-2")
-
     dataset = data_source.dataset
-
 
     if not dataset.glue_database:
         print("creating glue database")
@@ -75,39 +73,43 @@ def create_catalog(data_source):
         )
         dataset.save()
 
-        print("creating database crawler")
-        create_glue_crawler(dataset) #if no dataset no crawler
+    print("creating database crawler")
+    create_glue_crawler(data_source) #if no dataset no crawler
 
-    print('staring the database crawler')
-    glue_client.start_crawler(Name="dataset-"+str(dataset.id))
+    print('starting the database crawler')
+    glue_client.start_crawler(Name="data_source-"+str(data_source.id))
 
     crawler_ready = False
-    retries = 40
+    retries = 50
 
     while not crawler_ready and retries>=0:
         res = glue_client.get_crawler(
-            Name="dataset-"+str(dataset.id)
+            Name="data_source-"+str(data_source.id)
         )
         crawler_ready = True if res['Crawler']['State'] == 'READY' else False
-        sleep(3)
+        sleep(5)
         retries-=1
 
-    print("crawler finished: ", crawler_ready)
-    data_source.state = "ready"
+    print("is crawler finished: ", crawler_ready)
+    if not crawler_ready:
+        data_source.state = "crawling error"
+    else:
+        data_source.state = "ready"
     data_source.save()
 
-def create_glue_crawler(dataset):
+def create_glue_crawler(data_source):
     glue_client = boto3.client('glue', region_name="us-east-2")
 
+    path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0])
     glue_client.create_crawler(
-        Name="dataset-"+str(dataset.id),
-        Role='AWSGlueServiceRoleDefault',
-        DatabaseName="dataset-"+str(dataset.id),
+        Name="data_source-"+str(data_source.id),
+        Role='service-role/AWSGlueServiceRole-mvp',
+        DatabaseName="dataset-"+str(data_source.dataset.id),
         Description='',
         Targets={
             'S3Targets': [
                 {
-                    'Path': 's3://' + dataset.bucket+"/structured",
+                    'Path': 's3://' + data_source.dataset.bucket+"/"+path+"/",
                     'Exclusions': []
                 },
             ]

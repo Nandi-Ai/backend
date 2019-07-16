@@ -38,7 +38,7 @@ class UserManager(BaseUserManager):
 
     def get_or_create_for_cognito(self, payload):
 
-        print(payload)
+        # print(payload)
 
         try:
             u = self.get(email=payload['email'])
@@ -160,7 +160,7 @@ class Dataset(models.Model):
 
 class DataSource(models.Model):
     name = models.CharField(max_length=255)
-    s3_object = models.CharField(max_length=255,null=True, blank=True)
+    s3_objects = JSONField(null = True, blank = True, default = None)
     dataset = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="data_sources")
     type = models.CharField(null=True, blank=True, max_length=32)
     about = models.TextField(null=True, blank=True, max_length=2048)
