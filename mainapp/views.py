@@ -19,6 +19,9 @@ from mainapp.lib import validate_query
 from mainapp import lib
 import pyreadstat
 import threading
+import zipfile
+import os
+import shutil
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -392,8 +395,9 @@ class DataSourceViewSet(ModelViewSet):
         return data_sources
 
     def create(self, request, *args, **kwargs):
-        ds_types = ['structured','images']
+        ds_types = ['structured', 'images', 'zip']
         data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
+
         if data_source_serialized.is_valid():
             ds_data = data_source_serialized.validated_data
             dataset = ds_data['dataset']
@@ -407,8 +411,8 @@ class DataSourceViewSet(ModelViewSet):
             if not isinstance(ds_data['s3_objects'], list):
                 return Response({"error": "s3 objects must be a (json) list"}, status=400)
 
-            if ds_data['type'] == ["structured"] and len(ds_data['s3_objects']) > 1:
-                return Response({"error": "data source of type structured must include exactly one item"}, status=400)
+            if ds_data['type'] in ["zip", "structured"] and len(ds_data['s3_objects']) > 1:
+                return Response({"error": "data source of type structured and zip must include exactly one item in s3_objects json array"}, status=400)
 
             data_source = data_source_serialized.save()
 
@@ -420,25 +424,47 @@ class DataSourceViewSet(ModelViewSet):
 
                     if ext in ["sav", "zsav"]: #convert to csv
                         s3_client = boto3.client('s3')
-                        s3_client.download_file(data_source.dataset.bucket, s3_obj, '/tmp/' + file_name)
-                        df, meta = pyreadstat.read_sav("/tmp/" + file_name)
-                        csv_path_and_file = "/tmp/" + file_name_no_ext + ".csv"
+                        workdir = "/tmp/" + str(data_source.id)
+                        os.makedirs(workdir)
+                        s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
+                        df, meta = pyreadstat.read_sav(workdir +"/"+ file_name)
+                        csv_path_and_file = workdir+"/" + file_name_no_ext + ".csv"
                         df.to_csv(csv_path_and_file)
                         s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
                                               path + "/" + file_name_no_ext + ".csv")
                         data_source.s3_objects.pop()
                         data_source.s3_objects.append(path + "/" + file_name_no_ext + ".csv")
-
-                        data_source.save()
+                        shutil.rmtree(workdir)
 
                     create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
                     create_catalog_thread.start()
 
+                else:
+                    return Response({"error": "structured file type is not supported"},status=400)
+
+            elif data_source.type == "zip":
+                s3_obj = data_source.s3_objects[0]
+                path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
+                if ext != "zip":
+                    return Response({"error": "not a zip file"}, status=400)
+                s3_client = boto3.client('s3')
+                workdir = "/tmp/" + str(data_source.id) + "/" + file_name_no_ext
+                os.makedirs(workdir+"/extracted")
+                s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
+                zip_ref = zipfile.ZipFile(workdir+"/"+file_name, 'r')
+                try:
+                    zip_ref.extractall(workdir+"/extracted")
+                except:
+                    return Response({"error": "can't unzip file"}, status=400)
+                zip_ref.close()
+                subprocess.check_output(["aws", "s3", "sync", workdir+"/extracted", "s3://"+dataset.bucket+"/"+file_name_no_ext])
+                shutil.rmtree("/tmp/" + str(data_source.id))
+                data_source.state = "ready"
 
             else:
                 data_source.state = "ready"
-                data_source.save()
 
+            data_source.save()
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
 
         else:
