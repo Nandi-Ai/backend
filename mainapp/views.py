@@ -440,26 +440,11 @@ class DataSourceViewSet(ModelViewSet):
                     create_catalog_thread.start()
 
                 else:
-                    return Response({"error": "structured file type is not supported"},status=400)
+                    return Response({"error": "structured file type is not supported"}, status=400)
 
             elif data_source.type == "zip":
-                s3_obj = data_source.s3_objects[0]
-                path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
-                if ext != "zip":
-                    return Response({"error": "not a zip file"}, status=400)
-                s3_client = boto3.client('s3')
-                workdir = "/tmp/" + str(data_source.id) + "/" + file_name_no_ext
-                os.makedirs(workdir+"/extracted")
-                s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
-                zip_ref = zipfile.ZipFile(workdir+"/"+file_name, 'r')
-                try:
-                    zip_ref.extractall(workdir+"/extracted")
-                except:
-                    return Response({"error": "can't unzip file"}, status=400)
-                zip_ref.close()
-                subprocess.check_output(["aws", "s3", "sync", workdir+"/extracted", "s3://"+dataset.bucket+"/"+file_name_no_ext])
-                shutil.rmtree("/tmp/" + str(data_source.id))
-                data_source.state = "ready"
+                handle_zip_thread = threading.Thread(target=lib.handle_zipped_data_source, args=[data_source])
+                handle_zip_thread.start()
 
             else:
                 data_source.state = "ready"

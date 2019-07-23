@@ -173,6 +173,7 @@ class DataSource(models.Model):
         db_table = 'data_sources'
         unique_together = (("name", "dataset"),)
 
+
 class Tag(models.Model):
     name = models.CharField(max_length=32)
     category = models.CharField(max_length=32, null=True, blank=True)

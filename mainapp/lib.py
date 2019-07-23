@@ -7,6 +7,9 @@ from datetime import datetime as dt,timedelta as td
 import sqlparse
 import boto3
 from time import sleep
+import zipfile
+import subprocess
+import shutil
 
 
 def break_s3_object(obj):
@@ -82,7 +85,7 @@ def create_catalog(data_source):
     crawler_ready = False
     retries = 50
 
-    while not crawler_ready and retries>=0:
+    while not crawler_ready and retries >= 0:
         res = glue_client.get_crawler(
             Name="data_source-"+str(data_source.id)
         )
@@ -119,3 +122,23 @@ def create_glue_crawler(data_source):
             'DeleteBehavior': 'DELETE_FROM_DATABASE'
         })
 
+
+def handle_zipped_data_source(data_source):
+    s3_obj = data_source.s3_objects[0]
+    path, file_name, file_name_no_ext, ext = break_s3_object(s3_obj)
+
+    s3_client = boto3.client('s3')
+    workdir = "/tmp/" + str(data_source.id) + "/" + file_name_no_ext
+    os.makedirs(workdir + "/extracted")
+    s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir + "/" + file_name)
+    zip_ref = zipfile.ZipFile(workdir + "/" + file_name, 'r')
+    try:
+        zip_ref.extractall(workdir + "/extracted")
+    except:
+        data_source.state = "error: failed to extract zip file"
+    zip_ref.close()
+    subprocess.check_output(
+        ["aws", "s3", "sync", workdir + "/extracted", "s3://" + data_source.dataset.bucket + "/" + path+"/"+file_name_no_ext])
+    shutil.rmtree("/tmp/" + str(data_source.id))
+    data_source.state = "ready"
+    data_source.save()
