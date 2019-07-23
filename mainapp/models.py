@@ -86,13 +86,17 @@ class User(AbstractBaseUser, PermissionsMixin):
             data_sources = data_sources | dataset.data_sources.all()
             return data_sources
 
+    @property
+    def datasets(self):
+        datasets = (self.aggregated_datasets.exclude(state = "archived") | self.admin_datasets.all() | self.full_access_datasets.exclude(state = "archived")).distinct()
+        return datasets
 
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
     #REQUIRED_FIELDS = []
 
-    def __str__(self):              # __unicode__ on Python 2
+    def __str__(self):
         return self.email
 
     def has_perm(self, perm, obj=None):
@@ -139,26 +143,40 @@ class Study(models.Model):
 
 
 class Dataset(models.Model):
+
+    states = (
+        ("public", "public"),
+        ("private", "private"),
+        ("archived", "archived")
+    )
+
+    possible_default_user_permissions_for_private_dataset = (
+        ("none", "none"),
+        ("aggregated", "aggregated"),
+    )
+
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
     readme = models.TextField(blank=True, null=True)
-    users = models.ManyToManyField('User', related_name="datasets")
+    admin_users = models.ManyToManyField('User', related_name="admin_datasets")
+    aggregated_users = models.ManyToManyField('User', related_name="aggregated_datasets")
+    full_access_users = models.ManyToManyField('User', related_name="full_access_datasets")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
+    users_requested_full_access = models.ManyToManyField('User', related_name="requested_full_access_for_datasets")
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
-    state = models.CharField(max_length=32, blank=True, null=True)
+    state = models.CharField(choices=states, max_length=32)
+    default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset, max_length=32, null=True)
     bucket = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now = True)
     glue_database = models.CharField(max_length=255, blank=True, null=True)
-
-    # @property
-    # def bucket(self):
-    #     return self.override_bucket or "lynx-dataset-"+self.name+'-'+str(self.id)
 
     class Meta:
         db_table = 'datasets'
 
 
 class DataSource(models.Model):
+
+
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
     s3_objects = JSONField(null = True, blank = True, default = None)

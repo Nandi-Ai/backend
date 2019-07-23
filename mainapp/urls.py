@@ -44,6 +44,7 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
     url(r'^docs/$', schema_view),
+    url(r'^me/$', views.CurrentUserView.as_view(), name='me'),
     url(r'^get_dataset_sts/(?P<dataset_id>[^/]+)$', views.GetDatasetSTS.as_view(), name='get_dataset_sts'),
     url(r'^get_execution/$', views.GetExecution.as_view(), name='get_execution'),
     url(r'^dummy/$', views.Dummy.as_view(), name='dummy'),
@@ -51,6 +52,9 @@ urlpatterns = [
     url(r'^send_sync_signal/$', views.SendSyncSignal.as_view(), name='send_sync_signal'),
     url(r'^run_query/$', views.RunQuery.as_view(), name='run_query'),
     url(r'^me/$', views.CurrentUserView.as_view(), name='run_query'),
+    url(r'^access_requests/request_full_access_for_dataset/(?P<dataset_id>[^/]+)$', views.RequestFullAccessForDataset.as_view(), name='request_full_access_for_dataset'),
+    url(r'^access_requests/response_full_access_request_for_dataset/(?P<dataset_id>[^/]+)$', views.HandleDatasetFullAccessRequest.as_view(), name='response_full_access_request_for_dataset'),
+    url(r'^access_requests/list/$', views.GetDatasetAccessRequestList.as_view(), name='access_requests_list'),
 ]
 
 startup()

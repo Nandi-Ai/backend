@@ -31,10 +31,14 @@ class DatasetSerializer(ModelSerializer):
 
     class Meta:
         model = Dataset
-        fields = ('id','name','users', 'tags','readme','description','updated_at','state')
+        fields = ('id', 'name', 'admin_users', 'aggregated_users', 'full_access_users','default_user_permission','users_requested_full_access' ,'user_created', 'tags', 'readme', 'description', 'updated_at', 'state')
+
         extra_kwargs = {
             'tags': {'allow_empty': True},
-            'users': {'allow_empty': True},
+            'admin_users': {'allow_empty': True},
+            'aggregated_users': {'allow_empty': True},
+            'full_access_users': {'allow_empty': True},
+            'user_created': {'read_only': True},
         }
 
 

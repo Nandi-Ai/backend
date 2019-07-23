@@ -241,6 +241,68 @@ class GetDatasetSTS(APIView):
         return Response(config)
 
 
+class HandleDatasetFullAccessRequest(APIView):
+    def get(self, request, dataset_id):
+        response = request.query_params.get('response')
+        if not response or response not in ["approve","deny"]:
+            return Response({"error": "please provide a response as query string param - approve or deny"}, status=400)
+
+        try:
+            dataset = request.user.admin_datasets.get(id=dataset_id)
+        except Dataset.DoesNotExist:
+            return Response({"error": "dataset not exist or you don't admin it"}, status=400)
+
+        try:
+            user_requested = dataset.users_requested_full_access.get(id = request.query_params.get('user'))
+        except User.DoesNotExist:
+            return Response({"error": "the user does not exist, did not requested full access for that dataset or you didn't mention a user as a query string param"}, status=400)
+
+        dataset.users_requested_full_access.remove(user_requested)
+
+        if response == "approve":
+            dataset.aggregated_users.remove(user_requested)
+            dataset.full_access_users.add(user_requested)
+
+        #if response is deny nothing to do since the request removed
+
+        dataset.save()
+
+        return Response()
+
+
+class GetDatasetAccessRequestList(APIView):
+    def get(self, request):
+        datasets = request.user.admin_datasets.all()
+        requests  = []
+        for dataset in datasets:
+            for user in dataset.users_requested_full_access.all():
+                req = {}
+                req['user'] = UserSerializer(user).data
+                req['dataset'] = DatasetSerializer(dataset).data
+                requests.append(req)
+
+        return Response(requests)
+
+
+class RequestFullAccessForDataset(APIView):
+    def get(self, request, dataset_id):
+        try:
+            dataset = request.user.datasets.get(id=dataset_id)
+        except Dataset.DoesNotExist:
+            return Response({"error": "dataset with that id not exists"}, status=400)
+
+        if request.user in dataset.users_requested_full_access.all():
+            return Response({"error": "you already requested full access"}, status=400)
+
+        if request.user not in dataset.aggregated_users.all():
+            return Response({"error": "you must be an aggregated user in order to request full access"}, status=400)
+
+        dataset.users_requested_full_access.add(request.user)
+
+        dataset.save()
+
+        return Response()
+
 class CurrentUserView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
@@ -262,7 +324,12 @@ class TagViewSet(ReadOnlyModelViewSet):
 
 
 class DatasetViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post', 'put','delete']
+    http_method_names = ['get', 'head', 'post', 'put', 'delete']
+
+    def logic_validate(self, request, dataset_data): #only common validations for create and update!
+
+        if dataset_data['state'] == "private" and not dataset_data['default_user_permission']:
+            return Response({"error": "default_user_permission must be set"}, status=400)
 
     def get_queryset(self):
         return self.request.user.datasets.all()
@@ -276,34 +343,41 @@ class DatasetViewSet(ModelViewSet):
         if dataset_serialized.is_valid():
             # create the dataset insance:
             #TODO maybe use super() as in update instead of completing the all process.
-            #validations:
-            dataset_name = dataset_serialized.validated_data['name']
 
-            #TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
-            if dataset_name in [x.name for x in request.user.datasets.all()]:
-                return Response({"error": "this dataset name already exist for that user"}, status=400)
+            dataset_data = dataset_serialized.validated_data
 
-            dataset = Dataset.objects.create(name = dataset_name)
-            dataset.description = dataset_serialized.validated_data['description']
-            dataset.readme = dataset_serialized.validated_data['readme']
+            #validations common for create and update:
+            error_response = self.logic_validate(request, dataset_data)
+            if error_response:
+                return error_response
 
+            #additional validation only for create:
+            if dataset_data['state'] == "public" and dataset_data['aggregated_users']:
+                return Response({"error": "dataset with public state can't have aggregated users"}, status=400)
 
-            req_users = dataset_serialized.validated_data['users']
+            if dataset_data['state'] == "archived":
+                return Response({"error": "can't create new dataset with status archived"}, status=400)
 
-            dataset.users.set(
-                [request.user] + list(User.objects.filter(id__in=[x.id for x in req_users])))  # can user add also..
+            dataset = Dataset.objects.create(name = dataset_data['name'])
 
-            req_tags = dataset_serialized.validated_data['tags']
+            dataset.description = dataset_data['description']
+            dataset.readme = dataset_data['readme']
+            req_admin_users = dataset_data['admin_users']
+            dataset.admin_users.set([request.user] + list(User.objects.filter(id__in=[x.id for x in req_admin_users])))
+            req_aggregated_users = dataset_data['aggregated_users']
+            dataset.aggregated_users.set(list(User.objects.filter(id__in=[x.id for x in req_aggregated_users])))
+            req_full_access_users = dataset_data['full_access_users']
+            dataset.full_access_users.set(list(User.objects.filter(id__in=[x.id for x in req_full_access_users])))
+            dataset.state = dataset_data['state']
+            dataset.default_user_permission = dataset_data['default_user_permission']
+            req_tags = dataset_data['tags']
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
-
             dataset.user_created = request.user
-            dataset.state = "private"
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.save()
 
             # create the dataset bucket:
             s3 = boto3.client('s3')
-
             s3.create_bucket(Bucket=dataset.bucket,
                              CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
 
@@ -345,8 +419,7 @@ class DatasetViewSet(ModelViewSet):
                 MaxSessionDuration=43200
             )
 
-            # attach policy to role:
-            response = client.attach_role_policy(
+            client.attach_role_policy(
                 RoleName=role_name,
                 PolicyArn=policy_arn
             )
@@ -354,29 +427,27 @@ class DatasetViewSet(ModelViewSet):
             time.sleep(8)  # the role takes this time to be created! it is here in order to prevent calling GetDatasetSTS before creation
             data = self.serializer_class(dataset, allow_null=True).data
 
-            # generate sts token so the user can upload the dataset to the bucket
-            # sts_default_provider_chain = boto3.client('sts')
-            # role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
-            # sts_response = sts_default_provider_chain.assume_role(
-            #     RoleArn=role_to_assume_arn,
-            #     RoleSessionName='session',
-            #     DurationSeconds=43200
-            # )
-            # config = {}
-            # config['bucket'] = dataset_bucket_name
-            # config['aws_sts_creds'] = sts_response['Credentials']
-            # # add the sts token and bucket to the dataset response:
-            # data['config'] = config
-
             return Response(data, status=201)
-            # TODO the frontend needs to notify when done uploading (in another method), and then needs to create a glue database to that dataset
         else:
             return Response({"error": dataset_serialized.errors}, status=400)
 
     # def update(self, request, *args, **kwargs):
-    #     # dataset_serialized = self.serializer_class(data=request.data, allow_null=True, partial=True)
-    #
-    #     return super(self.__class__, self).update(request=self.request)
+        # dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
+        #
+        # if dataset_serialized.is_valid():
+        #     dataset_data = dataset_serialized.validated_data
+        #
+        #     error_response = self.logic_validate(request, dataset_data)
+        #     if error_response:
+        #         return error_response
+        #
+        #     #additional validations only for update:
+        #
+        #     dataset = Dataset.objects.get(id=self.request._data['id'])
+        #     if request.user not in dataset.admin_users.all():
+        #         return Response({"error": "this user can't update the dataset"}, status=400)
+
+        # return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
     #
     # def partial_update(self, request, *args, **kwargs):
     #     dataset_serialized = self.serializer_class(data=request.data, allow_null=True,partial=True)
@@ -388,30 +459,26 @@ class DataSourceViewSet(ModelViewSet):
     filter_fields = ('dataset',)
 
     def get_queryset(self):
-        data_sources = DataSource.objects.none()
-
-        for dataset in self.request.user.datasets.all():
-            data_sources = data_sources | dataset.data_sources.all()
-        return data_sources
+        return self.request.user.data_sources
 
     def create(self, request, *args, **kwargs):
         ds_types = ['structured', 'images', 'zip']
         data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if data_source_serialized.is_valid():
-            ds_data = data_source_serialized.validated_data
-            dataset = ds_data['dataset']
+            data_source_data= data_source_serialized.validated_data
+            dataset = data_source_data['dataset']
 
             if dataset not in request.user.datasets.all():
                 return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
 
-            if ds_data['type'] not in ds_types:
+            if data_source_data['type'] not in ds_types:
                 return Response({"error": "data source type must be one of: "+str(ds_types)}, status=400)
 
-            if not isinstance(ds_data['s3_objects'], list):
+            if not isinstance(data_source_data['s3_objects'], list):
                 return Response({"error": "s3 objects must be a (json) list"}, status=400)
 
-            if ds_data['type'] in ["zip", "structured"] and len(ds_data['s3_objects']) > 1:
+            if data_source_data['type'] in ["zip", "structured"] and len(data_source_data['s3_objects']) > 1:
                 return Response({"error": "data source of type structured and zip must include exactly one item in s3_objects json array"}, status=400)
 
             data_source = data_source_serialized.save()
@@ -454,7 +521,6 @@ class DataSourceViewSet(ModelViewSet):
 
         else:
             return Response({"error": data_source_serialized.errors}, status=400)
-
 
     # def update(self, request, *args, **kwargs):
     #     serialized = self.serializer_class(data=request.data, allow_null=True)
