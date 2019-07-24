@@ -23,7 +23,15 @@ import zipfile
 import os
 import shutil
 
+
 schema_view = get_swagger_view(title='Lynx API')
+
+class Error(Response):
+
+    def __init__(self, error_text, status=400):
+        super().__init__()
+        self.status = status
+        self.data = {"error":error_text}
 
 class SendSyncSignal(APIView):
     def get(self, request):
@@ -37,7 +45,7 @@ class SendSyncSignal(APIView):
         try:
             execution = Execution.objects.get(identifier=ei)
         except Execution.DoesNotExist:
-            return Response({"error": "execution does not exists"}, 400)
+            return Error("execution does not exists")
 
         p = Process(target=send_sync_signal, args=(execution.identifier,))
         p.start()
@@ -54,12 +62,12 @@ class GetSTS(APIView):
         try:
             execution = Execution.objects.get(identifier=ei)
         except Execution.DoesNotExist:
-            return Response({"error": "execution does not exists"}, 400)
+            return Error("execution does not exists")
 
         try:
             study = Study.objects.get(execution = execution)
         except Study.DoesNotExist:
-            return Response({"error": "this is not the execution of any study"}, 400)
+            return Error("this is not the execution of any study")
 
         # Create IAM client
         sts_default_provider_chain = boto3.client('sts')
@@ -74,7 +82,7 @@ class GetSTS(APIView):
             role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
 
         else:
-            return Response({"error": "please mention an aws service in a query string param"}, status=400)
+            return Error("please mention an aws service in a query string param")
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -89,7 +97,7 @@ class GetSTS(APIView):
 
 class Dummy(APIView):
     def get(self, request):
-        return Response()
+        return Error("the error")
 
 class GetExecution(APIView):
     def get(self, request):
@@ -98,7 +106,7 @@ class GetExecution(APIView):
         try:
             study = request.user.studies.get(id=study_id)
         except Study.DoesNotExist:
-            return Response({"error": "study does not exists"}, 400)
+            return Error("study does not exists")
 
         if not study.execution:
             execution = Execution.objects.create()
@@ -123,7 +131,7 @@ class GetExecution(APIView):
 
             res = requests.post(settings.jh_url + "/hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                return Response({"error": "error creating execution: "+str(res.text)})
+                return Error("error creating execution")
 
         return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token})
 
@@ -145,10 +153,10 @@ class StudyViewSet(ModelViewSet):
 
             # TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
             if study_name in [x.name for x in request.user.studies.all()]:
-                return Response({"error": "this dataset already exist for that user"}, status=400)
+                return Error("this dataset already exist for that user")
 
             if not all(rds in request.user.datasets.all() for rds in req_datasets):
-                return Response({"error": "not all datasets are related to the current user"}, status=400)
+                return Error("not all datasets are related to the current user")
 
             study = Study.objects.create(name = study_name)
             study.description = study_serialized.validated_data['description']
@@ -195,7 +203,7 @@ class StudyViewSet(ModelViewSet):
 
             return Response(self.serializer_class(study, allow_null=True).data, status=201) #llow null, read_only, many
         else:
-            return Response({"error": study_serialized.errors}, status=400)
+            return Error(study_serialized.errors)
 
     # def update(self, request, *args, **kwargs):
     #     serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -218,7 +226,7 @@ class GetDatasetSTS(APIView):
             dataset = request.user.datasets.get(id=dataset_id)
 
         except Dataset.DoesNotExist:
-            return Response({"error": "dataset with that id not exists"}, status=400)
+            return Error("dataset with that id not exists")
 
         # generate sts token so the user can upload the dataset to the bucket
         sts_default_provider_chain = boto3.client('sts')
@@ -241,31 +249,32 @@ class GetDatasetSTS(APIView):
         return Response(config)
 
 
-class HandleDatasetFullAccessRequest(APIView):
+class HandleDatasetAccessRequest(APIView):
     def get(self, request, dataset_id):
         response = request.query_params.get('response')
-        if not response or response not in ["approve","deny"]:
-            return Response({"error": "please provide a response as query string param - approve or deny"}, status=400)
+        user_requested_id = request.query_params.get('user')
+        if response not in ["approve", "deny"]:
+            return Error("please provide a response as query string param - approve or deny")
 
         try:
             dataset = request.user.admin_datasets.get(id=dataset_id)
         except Dataset.DoesNotExist:
-            return Response({"error": "dataset not exist or you don't admin it"}, status=400)
+            return Error("dataset not exist or you don't admin it")
 
         try:
-            user_requested = dataset.users_requested_full_access.get(id = request.query_params.get('user'))
+            user_requested = (dataset.users_requested_full_access.all() | dataset.users_requested_aggregated_access).extinct().get(id = user_requested_id)
         except User.DoesNotExist:
-            return Response({"error": "the user does not exist, did not requested full access for that dataset or you didn't mention a user as a query string param"}, status=400)
+            return Error("the user does not exist, did not requested full access for that dataset or you didn't mention a user as a query string param")
 
-        dataset.users_requested_full_access.remove(user_requested)
+        if user_requested in dataset.users_requested_full_access:
+            dataset.users_requested_full_access.remove(user_requested)
+            if response == "approve":
+                dataset.users_requested_full_access.add(user_requested)
 
-        if response == "approve":
-            dataset.aggregated_users.remove(user_requested)
-            dataset.full_access_users.add(user_requested)
-
-        #if response is deny nothing to do since the request removed
-
-        dataset.save()
+        if user_requested in dataset.users_requested_aggregated_access:
+            dataset.users_requested_aggregated_access.remove(user_requested)
+            if response == "approve":
+                dataset.users_requested_aggregated_access.add(user_requested)
 
         return Response()
 
@@ -275,8 +284,16 @@ class GetDatasetAccessRequestList(APIView):
         datasets = request.user.admin_datasets.all()
         requests  = []
         for dataset in datasets:
+            for user in dataset.users_requested_aggregated_access.all():
+                req = {}
+                req['permission'] = "aggregated"
+                req['user'] = UserSerializer(user).data
+                req['dataset'] = DatasetSerializer(dataset).data
+                requests.append(req)
+
             for user in dataset.users_requested_full_access.all():
                 req = {}
+                req['permission'] = "full"
                 req['user'] = UserSerializer(user).data
                 req['dataset'] = DatasetSerializer(dataset).data
                 requests.append(req)
@@ -284,24 +301,45 @@ class GetDatasetAccessRequestList(APIView):
         return Response(requests)
 
 
-class RequestFullAccessForDataset(APIView):
+class RequestAccessForDataset(APIView):
     def get(self, request, dataset_id):
+        permission_request_types = ["aggregated, full"]
+        requested_permission = request.query_params.get('permission')
         try:
-            dataset = request.user.datasets.get(id=dataset_id)
+            dataset = request.user.datasets.filter(state="private").get(id=dataset_id)
         except Dataset.DoesNotExist:
-            return Response({"error": "dataset with that id not exists"}, status=400)
+            return Error("can't request access for this dataset")
+
+        if requested_permission not in permission_request_types.all():
+            return Error("permission must be one of: "+str(permission_request_types))
+
+        if request.user in dataset.full_access_users.all():
+            return Error("you already have full access for this dataset")
+
+        if request.user in dataset.aggregated_users.all() and requested_permission == "aggregated":
+                return Error("you already have aggregated access for this dataset")
+
+        # a user with aggregated access can request full access
 
         if request.user in dataset.users_requested_full_access.all():
-            return Response({"error": "you already requested full access"}, status=400)
+            if requested_permission == "aggregated":
+                return Error("you have full acess to that dataset so you don't need aggregated access")
+            if requested_permission == "full":
+                return Error("you have already requested full access for that dataset")
 
-        if request.user not in dataset.aggregated_users.all():
-            return Response({"error": "you must be an aggregated user in order to request full access"}, status=400)
+        if request.user in dataset.users_requested_aggregated_access.all():
+            if requested_permission == "aggregated":
+                return Error("you  already requested aggregated access for this dataset")
+            if requested_permission == "full":
+                return Error("you have already requested aggregated access for this dataset. you have to wait for an admin to response your current request before requesting full access")
 
-        dataset.users_requested_full_access.add(request.user)
-
-        dataset.save()
+        if requested_permission == "aggregated":
+            dataset.users_requested_aggregated_access.add(request.user)
+        if requested_permission == "full":
+            dataset.users_requested_full_access.add(request.user)
 
         return Response()
+
 
 class CurrentUserView(APIView):
     def get(self, request):
@@ -326,15 +364,17 @@ class TagViewSet(ReadOnlyModelViewSet):
 class DatasetViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post', 'put', 'delete']
 
-    def logic_validate(self, request, dataset_data): #only common validations for create and update!
+    def logic_validate(self, request, dataset_data): #only common validations for create and update! #
 
-        if dataset_data['state'] == "private" and not dataset_data['default_user_permission']:
-            return Response({"error": "default_user_permission must be set"}, status=400)
+        if dataset_data['state'] == "private":
+            if not 'default_user_permission' in dataset_data:
+                return Error("default_user_permission must be set sice the state is private")
+
+            if not dataset_data['default_user_permission']:
+                return Error("default_user_permission must be none or aggregated")
 
     def get_queryset(self):
         return self.request.user.datasets.all()
-    # def get_queryset(self):
-    #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = DatasetSerializer
 
     def create(self, request, **kwargs):
@@ -353,10 +393,10 @@ class DatasetViewSet(ModelViewSet):
 
             #additional validation only for create:
             if dataset_data['state'] == "public" and dataset_data['aggregated_users']:
-                return Response({"error": "dataset with public state can't have aggregated users"}, status=400)
+                return Error("dataset with public state can't have aggregated users")
 
             if dataset_data['state'] == "archived":
-                return Response({"error": "can't create new dataset with status archived"}, status=400)
+                return Error("can't create new dataset with status archived")
 
             dataset = Dataset.objects.create(name = dataset_data['name'])
 
@@ -429,23 +469,24 @@ class DatasetViewSet(ModelViewSet):
 
             return Response(data, status=201)
         else:
-            return Response({"error": dataset_serialized.errors}, status=400)
+            return Error(dataset_serialized.errors)
 
-    # def update(self, request, *args, **kwargs):
-        # dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
-        #
-        # if dataset_serialized.is_valid():
-        #     dataset_data = dataset_serialized.validated_data
-        #
-        #     error_response = self.logic_validate(request, dataset_data)
-        #     if error_response:
-        #         return error_response
-        #
-        #     #additional validations only for update:
-        #
-        #     dataset = Dataset.objects.get(id=self.request._data['id'])
-        #     if request.user not in dataset.admin_users.all():
-        #         return Response({"error": "this user can't update the dataset"}, status=400)
+    def update(self, request, *args, **kwargs):
+        dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
+
+        if dataset_serialized.is_valid():
+            dataset_data = dataset_serialized.validated_data
+
+            error_response = self.logic_validate(request, dataset_data)
+            if error_response:
+                return error_response
+
+            #additional validations only for update:
+
+            dataset = Dataset.objects.get(id=self.request._data['id'])
+
+            if request.user not in dataset.admin_users.all():
+                return Error("this user can't update the dataset")
 
         # return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
     #
@@ -470,16 +511,16 @@ class DataSourceViewSet(ModelViewSet):
             dataset = data_source_data['dataset']
 
             if dataset not in request.user.datasets.all():
-                return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
+                return Error("dataset doesn't exist or doesn't belong to the user")
 
             if data_source_data['type'] not in ds_types:
-                return Response({"error": "data source type must be one of: "+str(ds_types)}, status=400)
+                return Error("data source type must be one of: " + str(ds_types))
 
             if not isinstance(data_source_data['s3_objects'], list):
-                return Response({"error": "s3 objects must be a (json) list"}, status=400)
+                return Error("s3 objects must be a (json) list")
 
             if data_source_data['type'] in ["zip", "structured"] and len(data_source_data['s3_objects']) > 1:
-                return Response({"error": "data source of type structured and zip must include exactly one item in s3_objects json array"}, status=400)
+                return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
 
             data_source = data_source_serialized.save()
 
@@ -507,7 +548,7 @@ class DataSourceViewSet(ModelViewSet):
                     create_catalog_thread.start()
 
                 else:
-                    return Response({"error": "structured file type is not supported"}, status=400)
+                    return Error("structured file type is not supported")
 
             elif data_source.type == "zip":
                 handle_zip_thread = threading.Thread(target=lib.handle_zipped_data_source, args=[data_source])
@@ -520,17 +561,18 @@ class DataSourceViewSet(ModelViewSet):
             return Response(self.serializer_class(data_source, allow_null=True).data, status=201)
 
         else:
-            return Response({"error": data_source_serialized.errors}, status=400)
+            return Error(data_source_serialized.errors)
 
-    # def update(self, request, *args, **kwargs):
-    #     serialized = self.serializer_class(data=request.data, allow_null=True)
-    #
-    #     if serialized.is_valid(): #if not valid super will handle it
-    #         dataset = serialized.validated_data['dataset']
-    #         if dataset not in request.user.datasets.all():
-    #             return Response({"error": "dataset doesn't exist or doesn't belong to the user"}, status=400)
-    #
-    #     return super(self.__class__, self).update(request=self.request)
+    def update(self, request, *args, **kwargs):
+        serialized = self.serializer_class(data=request.data, allow_null=True)
+
+        if serialized.is_valid(): #if not valid super will handle it
+            dataset = serialized.validated_data['dataset']
+            if dataset not in request.user.datasets.all():
+                return Error("dataset doesn't exist or doesn't belong to the user")
+
+        return super(self.__class__, self).update(request=self.request)
+
 
 class RunQuery(GenericAPIView):
     serializer_class = QuerySerializer
@@ -543,40 +585,38 @@ class RunQuery(GenericAPIView):
             try:
                 execution = Execution.objects.get(identifier=ei)
             except Execution.DoesNotExist:
-                return Response({"error": "execution does not exists"}, 400)
+                return Error("execution does not exists")
 
             try:
                 study = Study.objects.get(execution=execution)
             except Study.DoesNotExist:
-                return Response({"error": "this is not the execution of any study"}, 400)
+                return Error("this is not the execution of any study")
 
-            req_dataset_name = query_serialized.validated_data['dataset']
+            req_dataset_name=query_serialized.validated_data['dataset']
 
             try:
-                dataset = study.datasets.get(name = req_dataset_name) #TODO need to make sure name of dataset is unique in study
+                dataset = study.datasets.get(name=req_dataset_name) #TODO need to make sure name of dataset is unique in study
             except Dataset.DoesNotExist:
-                return Response({"error": "no permission to this dataset. make sure it is exists, yours or shared with you, and under that study"}, 400)
-
+                return Error("no permission to this dataset. make sure it is exists, yours or shared with you, and under that study")
 
             client = boto3.client('athena')
 
             query = query_serialized.validated_data['query']
 
-            validated, reason = validate_query(query = query, dataset = dataset)
+            validated, reason = validate_query(query=query, dataset=dataset)
 
             if not validated:
-                return Response({"error": reason}, 400)
+                return Error(reason)
 
             response = client.start_query_execution(
                 QueryString=query,
                 QueryExecutionContext={
-                    'Database': dataset.name #the name of the database in glue/athena
+                    'Database': dataset.name  # the name of the database in glue/athena
                 },
                 ResultConfiguration={
                     'OutputLocation': "s3://lynx-workspace-"+study.name+"-"+str(study.id),
                 }
             )
-
 
             return Response({"query_execution_id": response['QueryExecutionId']})
 

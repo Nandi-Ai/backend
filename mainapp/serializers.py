@@ -39,6 +39,8 @@ class DatasetSerializer(ModelSerializer):
             'aggregated_users': {'allow_empty': True},
             'full_access_users': {'allow_empty': True},
             'user_created': {'read_only': True},
+            'users_requested_full_access':{'read_only': True},
+            'users_requested_aggregated_access':{'read_only': True}
         }
 
 

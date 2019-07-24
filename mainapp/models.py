@@ -61,6 +61,7 @@ class UserManager(BaseUserManager):
 
             return u
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(
         verbose_name='email address',
@@ -77,7 +78,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="users", null=True)
     cognito_id = models.CharField(max_length=255, blank=True, null=True)
-    is_execution = models.BooleanField(default = False)
+    is_execution = models.BooleanField(default=False)
 
     @property
     def data_sources(self):
@@ -88,7 +89,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def datasets(self):
-        datasets = (self.aggregated_datasets.exclude(state = "archived") | self.admin_datasets.all() | self.full_access_datasets.exclude(state = "archived")).distinct()
+        #all public datasets, datasets that the user have aggregated access accept archived, datasets that the user has admin access, datasets that the user have full access permission accept archived.
+        datasets = (Dataset.objects.filter(state__in=["public", "private"]) | self.admin_datasets.filter(state = "archived").distinct())
         return datasets
 
     objects = UserManager()
@@ -143,7 +145,6 @@ class Study(models.Model):
 
 
 class Dataset(models.Model):
-
     states = (
         ("public", "public"),
         ("private", "private"),
@@ -163,6 +164,7 @@ class Dataset(models.Model):
     full_access_users = models.ManyToManyField('User', related_name="full_access_datasets")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
     users_requested_full_access = models.ManyToManyField('User', related_name="requested_full_access_for_datasets")
+    users_requested_aggregated_access = models.ManyToManyField('User', related_name="requested_aggregated_access_for_datasets")
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
     default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset, max_length=32, null=True)
@@ -175,8 +177,6 @@ class Dataset(models.Model):
 
 
 class DataSource(models.Model):
-
-
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
     s3_objects = JSONField(null = True, blank = True, default = None)
@@ -198,6 +198,7 @@ class Tag(models.Model):
 
     class Meta:
         db_table = 'tags'
+
 
 class Execution(models.Model):
     identifier = models.CharField(max_length=255, null=True)
