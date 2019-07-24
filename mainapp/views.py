@@ -43,11 +43,11 @@ class SendSyncSignal(APIView):
 
         ei = request.user.email.split('@')[0]
         try:
-            execution = Execution.objects.get(identifier=ei)
+            execution = Execution.objects.get(id=ei)
         except Execution.DoesNotExist:
             return Error("execution does not exists")
 
-        p = Process(target=send_sync_signal, args=(execution.identifier,))
+        p = Process(target=send_sync_signal, args=(execution.id,))
         p.start()
 
         return Response()
@@ -60,7 +60,7 @@ class GetSTS(APIView):
         service = request.query_params.get('service')
 
         try:
-            execution = Execution.objects.get(identifier=ei)
+            execution = Execution.objects.get(id=ei)
         except Execution.DoesNotExist:
             return Error("execution does not exists")
 
@@ -110,11 +110,11 @@ class GetExecution(APIView):
 
         if not study.execution:
             execution = Execution.objects.create()
-            execution.identifier = uuid.uuid4().hex
+
             # execution.study = study
             execution.user = request.user
             execution.save()
-            u = User.objects.create_user(email=execution.identifier+"@lynx.md", password=execution.identifier)
+            u = User.objects.create_user(email=execution.id+"@lynx.md", password=execution.id)
             u.is_execution = True
             u.save()
             study.execution = execution
@@ -124,7 +124,7 @@ class GetExecution(APIView):
 
             data = {
                 "usernames": [
-                    execution.identifier
+                    execution.id
                 ],
                 "admin": False
             }
@@ -133,7 +133,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Error("error creating execution")
 
-        return Response({'execution_identifier': study.execution.identifier, 'token': settings.jh_api_user_token})
+        return Response({'execution_identifier': study.execution.id, 'token': settings.jh_api_user_token})
 
 
 class StudyViewSet(ModelViewSet):
@@ -583,7 +583,7 @@ class RunQuery(GenericAPIView):
             ei = request.user.email.split('@')[0]
 
             try:
-                execution = Execution.objects.get(identifier=ei)
+                execution = Execution.objects.get(id=ei)
             except Execution.DoesNotExist:
                 return Error("execution does not exists")
 

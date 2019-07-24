@@ -3,6 +3,7 @@ from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.db.utils import IntegrityError
 from django.contrib.postgres.fields import JSONField
+import uuid
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
@@ -63,6 +64,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(
         verbose_name='email address',
         max_length=255,
@@ -122,13 +124,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = 'users'
 
 class Organization(models.Model):
-    name = models.CharField(max_length=255, primary_key = True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
 
     class Meta:
         db_table = 'organizations'
 
 
 class Study(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
     # organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
@@ -155,7 +159,7 @@ class Dataset(models.Model):
         ("none", "none"),
         ("aggregated", "aggregated"),
     )
-
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
     readme = models.TextField(blank=True, null=True)
@@ -177,6 +181,7 @@ class Dataset(models.Model):
 
 
 class DataSource(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
     s3_objects = JSONField(null = True, blank = True, default = None)
@@ -193,6 +198,7 @@ class DataSource(models.Model):
 
 
 class Tag(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=32)
     category = models.CharField(max_length=32, null=True, blank=True)
 
@@ -201,7 +207,8 @@ class Tag(models.Model):
 
 
 class Execution(models.Model):
-    identifier = models.CharField(max_length=255, null=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # identifier = models.CharField(max_length=255, null=True)
     user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="executions", null=True)
     # study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="executions", null=True)
 

@@ -5,7 +5,7 @@ from mainapp.models import *
 class ExecutionSerializer(ModelSerializer):
     class Meta:
         model = Execution
-        fields = ('id', 'identifier', 'name', 'studies')
+        fields = ('id', 'name', 'studies')
 
 
 class UserSerializer(ModelSerializer):
