@@ -92,7 +92,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def datasets(self):
         #all public datasets, datasets that the user have aggregated access accept archived, datasets that the user has admin access, datasets that the user have full access permission accept archived.
-        datasets = (Dataset.objects.filter(state__in=["public", "private"]) | self.admin_datasets.filter(state = "archived")).distinct()
+        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived")).distinct()
         return datasets
 
     objects = UserManager()
@@ -214,3 +214,18 @@ class Execution(models.Model):
 
     class Meta:
         db_table = 'executions'
+
+
+class Activity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    ts = models.DateTimeField()
+    user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="activities", null=True)
+    dataset = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="activities", null=True)
+    study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="activities", null=True)
+    type = models.CharField(null=True, blank=True, max_length=32)
+    action = models.CharField(null=True, blank=True, max_length=1024)
+    note = models.CharField(null=True, blank=True, max_length=2048)
+
+    class Meta:
+        db_table = 'activities'
+        #in future it is possible to optimize this table by creating primary_key=(ts,user) while removing the id and the unique_togheter constraint. (for now django not supports combined primary key but it can be achieved manually with adding to the migration: # migrations.RunSQL("ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)

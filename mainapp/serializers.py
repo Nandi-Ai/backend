@@ -27,6 +27,13 @@ class DataSourceSerializer(ModelSerializer):
         model = DataSource
         fields = '__all__'
 
+
+class ActivitySerializer(ModelSerializer):
+
+    class Meta:
+        model = Activity
+        fields = '__all__'
+
 class DatasetSerializer(ModelSerializer):
 
     class Meta:

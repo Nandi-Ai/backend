@@ -22,7 +22,10 @@ import threading
 import zipfile
 import os
 import shutil
-
+import dateparser
+from django.core import exceptions
+# from rest_framework.filters import BaseFilterBackend
+# import coreapi
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -620,3 +623,44 @@ class RunQuery(GenericAPIView):
 
             return Response({"query_execution_id": response['QueryExecutionId']})
 
+
+class ActivityViewSet(ModelViewSet):
+    serializer_class = ActivitySerializer
+    http_method_names = ['get', 'head', 'post','put','delete']
+    filter_fields = ('user', 'dataset', 'study')
+    #
+    # class StartFilter(BaseFilterBackend):
+    #     def get_schema_fields(self, view):
+    #         return [coreapi.Field(name='start', location='query', required=True,
+    #                               description="date in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format (time is optional)",
+    #                               type='string')]
+    #
+    # class EndFilter(BaseFilterBackend):
+    #     def get_schema_fields(self, view):
+    #         return [coreapi.Field(name='start', location='query', required=True,
+    #                               description="datetime in any format",
+    #                               type='string')]
+
+    # filter_backends = (StartFilter, EndFilter)
+
+    def get_queryset(self):
+        #all activity for all datasets that the user admins
+        return Activity.objects.filter(dataset_id__in=[x.id for x in self.request.user.admin_datasets.all()])
+
+    def list(self, request, *args, **kwargs):
+        start_raw = request.GET.get('start')
+        end_raw = request.GET.get('end')
+
+        if not all([start_raw, end_raw]):
+            return Error("please provide start and end as query string params in some datetime format")
+        try:
+            start = dateparser.parse(start_raw)
+            end = dateparser.parse(end_raw)
+        except exceptions.ValidationError as e:
+            return Error("cannot parse this format: "+str(e))
+
+        queryset = self.get_queryset().filter(ts__range = (start, end)).order_by("-ts")
+        serializer = self.serializer_class(data=queryset,  allow_null = True, many=True)
+        serializer.is_valid()
+
+        return Response(serializer.data)

@@ -37,6 +37,7 @@ router.register(r'tags', views.TagViewSet, 'tags')
 router.register(r'datasets', views.DatasetViewSet, 'datasets')
 router.register(r'data_sources', views.DataSourceViewSet, 'data_sources')
 router.register(r'studies', views.StudyViewSet, 'studies')
+router.register(r'activities', views.ActivityViewSet, 'activities')
 
 
 urlpatterns = [
