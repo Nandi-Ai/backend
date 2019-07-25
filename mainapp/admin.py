@@ -5,7 +5,6 @@ from django.contrib.auth.models import Group as authgroup
 admin.site.unregister(authgroup)
 
 
-
 class TagAdmin(admin.ModelAdmin):
     pass
 

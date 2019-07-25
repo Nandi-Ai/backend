@@ -117,7 +117,7 @@ class GetExecution(APIView):
             # execution.study = study
             execution.user = request.user
             execution.save()
-            u = User.objects.create_user(email=execution.id+"@lynx.md", password=execution.id)
+            u = User.objects.create_user(email=str(execution.id)+"@lynx.md", password=execution.id)
             u.is_execution = True
             u.save()
             study.execution = execution
@@ -127,7 +127,7 @@ class GetExecution(APIView):
 
             data = {
                 "usernames": [
-                    execution.id
+                    str(execution.id)
                 ],
                 "admin": False
             }
@@ -136,7 +136,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Error("error creating execution")
 
-        return Response({'execution_identifier': study.execution.id, 'token': settings.jh_api_user_token})
+        return Response({'execution_identifier': str(study.execution.id), 'token': settings.jh_api_user_token})
 
 
 class StudyViewSet(ModelViewSet):
@@ -664,3 +664,14 @@ class ActivityViewSet(ModelViewSet):
         serializer.is_valid()
 
         return Response(serializer.data)
+
+
+class GetExecutionConfig(APIView):
+    def get(self, request):
+
+        execution = Execution.objects.get(id = request.user.email.split("@")[0])
+        real_user = execution.user
+
+        config = {}
+        config['datasets'] = DatasetSerializer(real_user.datasets, many=True)
+        return config
