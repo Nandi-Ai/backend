@@ -117,7 +117,8 @@ class GetExecution(APIView):
             # execution.study = study
             execution.user = request.user
             execution.save()
-            u = User.objects.create_user(email=str(execution.id)+"@lynx.md", password=execution.id)
+            u = User.objects.create_user(email=str(execution.id)+"@lynx.md")
+            u.set_password(str(execution.id))
             u.is_execution = True
             u.save()
             study.execution = execution
