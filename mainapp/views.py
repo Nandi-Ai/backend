@@ -137,7 +137,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Error("error creating execution")
 
-        return Response({'execution_identifier': identifier, 'token': settings.jh_api_user_token})
+        return Response({'execution_identifier': str(study.execution.id).split("-")[-1], 'token': settings.jh_api_user_token})
 
 
 class StudyViewSet(ModelViewSet):
