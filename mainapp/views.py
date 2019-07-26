@@ -47,7 +47,8 @@ class SendSyncSignal(APIView):
 
         execution = request.user.the_execution.last()
 
-        p = Process(target=send_sync_signal, args=(execution.id.split("-")[-1],))
+        identifier = str(execution.id).split("-")[-1]
+        p = Process(target=send_sync_signal, args=(identifier,))
         p.start()
 
         return Response()
