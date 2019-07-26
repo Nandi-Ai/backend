@@ -100,7 +100,7 @@ class GetSTS(APIView):
 
 class Dummy(APIView):
     def get(self, request):
-        return Error("the error")
+        return Response()
 
 class GetExecution(APIView):
     def get(self, request):
