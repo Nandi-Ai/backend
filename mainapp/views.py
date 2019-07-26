@@ -44,13 +44,10 @@ class SendSyncSignal(APIView):
             command = "kubectl exec jupyter-" + ei + " -- python /usr/local/bin/sync_to_s3.py &"
             subprocess.check_output(command.split(" "))
 
-        ei = request.user.email.split('@')[0]
-        try:
-            execution = Execution.objects.get(id=ei)
-        except Execution.DoesNotExist:
-            return Error("execution does not exists")
 
-        p = Process(target=send_sync_signal, args=(execution.id,))
+        execution = request.user.the_execution
+
+        p = Process(target=send_sync_signal, args=(execution.id.split("-")[-1],))
         p.start()
 
         return Response()
@@ -59,13 +56,13 @@ class GetSTS(APIView):
     def get(self, request):
 
         #execution_identifier = request.query_params.get('execution_identifier')
-        ei = request.user.email.split('@')[0]
+        execution = request.user.the_execution
         service = request.query_params.get('service')
-
-        try:
-            execution = Execution.objects.get(id=ei)
-        except Execution.DoesNotExist:
-            return Error("execution does not exists")
+        #
+        # try:
+        #     execution = Execution.objects.get(id=ei)
+        # except Execution.DoesNotExist:
+        #     return Error("execution does not exists")
 
         try:
             study = Study.objects.get(execution = execution)
@@ -586,12 +583,12 @@ class RunQuery(GenericAPIView):
     def post(self, request):
         query_serialized = self.serializer_class(data=request.data)
         if query_serialized.is_valid():
-            ei = request.user.email.split('@')[0]
-
-            try:
-                execution = Execution.objects.get(id=ei)
-            except Execution.DoesNotExist:
-                return Error("execution does not exists")
+            execution = request.user.the_execution
+            #
+            # try:
+            #     execution = Execution.objects.get(id=ei)
+            # except Execution.DoesNotExist:
+            #     return Error("execution does not exists")
 
             try:
                 study = Study.objects.get(execution=execution)

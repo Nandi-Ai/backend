@@ -210,7 +210,7 @@ class Execution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # identifier = models.CharField(max_length=255, null=True)
     real_user = models.ForeignKey('User', on_delete=models.DO_NOTHING, null=True)
-    execution_user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="execution_user", null=True)
+    execution_user = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="the_execution", null=True)
     # study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="executions", null=True)
 
     class Meta:
