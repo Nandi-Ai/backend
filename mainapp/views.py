@@ -45,7 +45,7 @@ class SendSyncSignal(APIView):
             subprocess.check_output(command.split(" "))
 
 
-        execution = request.user.the_execution
+        execution = request.user.the_execution.last()
 
         p = Process(target=send_sync_signal, args=(execution.id.split("-")[-1],))
         p.start()
@@ -56,7 +56,7 @@ class GetSTS(APIView):
     def get(self, request):
 
         #execution_identifier = request.query_params.get('execution_identifier')
-        execution = request.user.the_execution
+        execution = request.user.the_execution.last()
         service = request.query_params.get('service')
         #
         # try:
@@ -583,7 +583,7 @@ class RunQuery(GenericAPIView):
     def post(self, request):
         query_serialized = self.serializer_class(data=request.data)
         if query_serialized.is_valid():
-            execution = request.user.the_execution
+            execution = request.user.the_execution.last()
             #
             # try:
             #     execution = Execution.objects.get(id=ei)
