@@ -489,10 +489,12 @@ class DatasetViewSet(ModelViewSet):
 
             dataset = Dataset.objects.get(id=self.request._data['id'])
 
+
+
             if request.user not in dataset.admin_users.all():
                 return Error("this user can't update the dataset")
 
-        # return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
+        return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
     #
     # def partial_update(self, request, *args, **kwargs):
     #     dataset_serialized = self.serializer_class(data=request.data, allow_null=True,partial=True)
