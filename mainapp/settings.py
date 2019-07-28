@@ -136,14 +136,8 @@ REST_FRAMEWORK = {
     )
 }
 
-STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles/')
 CORS_ORIGIN_ALLOW_ALL=True
 token_valid_hours = 48
-
-#COGNITO_USER_MODEL = "mainapp.User"
-COGNITO_AWS_REGION = 'us-east-2' # 'eu-central-1'
-COGNITO_USER_POOL = 'us-east-2_kUJ9AIF9j'
-COGNITO_AUDIENCE = '1c1deujhq47qac5q00uc6rs0p7'
 
 from .local_settings import *

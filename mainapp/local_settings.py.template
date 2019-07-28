@@ -1,0 +1,26 @@
+DATABASES = {
+            'default': {
+                  'ENGINE': 'django.db.backends.postgresql',
+                  'NAME': 'lynx',
+                  'USER': 'lynx',
+                  'PASSWORD': '<postgres password>',
+                  'HOST': '<postgres endpoint>'
+            }
+}
+
+SECRET_KEY="<can be generated with: tr -dc 'a-z0-9!@#$%^&*(-_=+)' < /dev/urandom | head -c50>"
+
+jh_api_user_token = "<md5(random uuid)>"
+jh_api_admin_token = "<md5(random uuid)>"
+
+jh_url = "<the JH link. example: https://msc.app.lynx.md/jh/>"
+
+aws_access_key_id="<the access key. can also be derived from os.environ("xxxx")>"
+aws_secret_access_key="<the access key. can also be derived from os.environ("yyyy")>"
+aws_region = "<example: us-east-2>"
+aws_account_number = "<aws_account_number>"
+
+COGNITO_AWS_REGION = aws_region
+COGNITO_USER_POOL = '<user_pool_id>'
+COGNITO_AUDIENCE = '<app_client_id>'
+HTTP_SCHEME = "https"

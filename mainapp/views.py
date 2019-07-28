@@ -2,30 +2,24 @@ from rest_framework.generics import GenericAPIView, CreateAPIView
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.response import Response
-from mainapp.models import *
 from mainapp.serializers import *
 from rest_framework_swagger.views import get_swagger_view
 from mainapp import settings
 import boto3
-#from botocore.vendored import requests #if using requests in a lambda fucntion
 import requests
-import uuid
 from multiprocessing import Process
 import time
 import subprocess
-from django.db.utils import IntegrityError
 import json
 from mainapp.lib import validate_query
 from mainapp import lib
 import pyreadstat
 import threading
-import zipfile
 import os
 import shutil
 import dateparser
 from django.core import exceptions
-# from rest_framework.filters import BaseFilterBackend
-# import coreapi
+from mainapp import resources
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -76,11 +70,11 @@ class GetSTS(APIView):
         workspace_bucket_name = "lynx-workspace-" + str(study.id)
 
         if service == "athena":
-            role_to_assume_arn = 'arn:aws:iam::858916640373:role/athena_access'
+            role_to_assume_arn = 'arn:aws:iam::'+settings.aws_account_number+':role/athena_access'
 
         elif service == "s3":
             role_name = "lynx-workspace-" + str(study.id)
-            role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
+            role_to_assume_arn = 'arn:aws:iam::'+settings.aws_account_number+':role/' + role_name
 
         else:
             return Error("please mention an aws service in a query string param")
@@ -176,8 +170,10 @@ class StudyViewSet(ModelViewSet):
             workspace_bucket_name ="lynx-workspace-"+ str(study.id)
             s3 = boto3.client('s3')
             s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
-            with open('mainapp/s3_base_policy.json') as f:
-                policy_json = json.load(f)
+
+
+            policy_json = resources.base_s3_policy
+
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::'+workspace_bucket_name+'*')
             client = boto3.client('iam')
             policy_name = "lynx-workspace-"+ str(study.id)
@@ -189,14 +185,10 @@ class StudyViewSet(ModelViewSet):
 
             policy_arn = response['Policy']['Arn']
 
-
-            with open('mainapp/trust_relationship_doc.json') as f:
-                trust_relationship_doc = json.load(f)
-
             role_name = "lynx-workspace-"+ str(study.id)
             client.create_role(
                 RoleName=role_name,
-                AssumeRolePolicyDocument=json.dumps(trust_relationship_doc),
+                AssumeRolePolicyDocument=json.dumps(resources.base_trust_relationship_doc),
                 Description=policy_name
             )
 
@@ -236,7 +228,7 @@ class GetDatasetSTS(APIView):
         sts_default_provider_chain = boto3.client('sts')
 
         role_name = "lynx-dataset-"+str(dataset.id)
-        role_to_assume_arn = 'arn:aws:iam::858916640373:role/' + role_name
+        role_to_assume_arn = 'arn:aws:iam::'+settings.aws_account_number+':role/' + role_name
 
         sts_response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -446,8 +438,8 @@ class DatasetViewSet(ModelViewSet):
             s3.put_bucket_cors(Bucket=dataset.bucket, CORSConfiguration=cors_configuration)
 
             # create the dataset policy:
-            with open('mainapp/s3_base_policy.json') as f:
-                policy_json = json.load(f)
+
+            policy_json = resources.base_s3_policy
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset.bucket + '*')
             client = boto3.client('iam')
 
@@ -460,14 +452,12 @@ class DatasetViewSet(ModelViewSet):
 
             policy_arn = response['Policy']['Arn']
 
-            with open('mainapp/trust_relationship_doc.json') as f:
-                trust_relationship_doc = json.load(f)
 
             # create the dataset role:
             role_name = "lynx-dataset-" + str(dataset.id)
             client.create_role(
                 RoleName=role_name,
-                AssumeRolePolicyDocument=json.dumps(trust_relationship_doc),
+                AssumeRolePolicyDocument=json.dumps(resources.base_trust_relationship_doc),
                 Description=policy_name,
                 MaxSessionDuration=43200
             )

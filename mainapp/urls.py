@@ -53,9 +53,7 @@ urlpatterns = [
     url(r'^send_sync_signal/$', views.SendSyncSignal.as_view(), name='send_sync_signal'),
     url(r'^run_query/$', views.RunQuery.as_view(), name='run_query'),
     url(r'^me/$', views.CurrentUserView.as_view(), name='run_query'),
-    # url(r'^access_requests/request_access_for_dataset/(?P<dataset_id>[^/]+)$', views.RequestAccessForDataset.as_view(), name='request_full_access_for_dataset'),
     url(r'^requests/respond/(?P<user_request_id>[^/]+)$', views.HandleDatasetAccessRequest.as_view(), name='respond_request'),
-    # url(r'^access_requests/list/$', views.GetDatasetAccessRequestList.as_view(), name='access_requests_list'),
 ]
 
 startup()

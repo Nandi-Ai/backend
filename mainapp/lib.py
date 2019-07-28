@@ -63,7 +63,7 @@ class MyTokenAuthentication(TokenAuthentication):
 def create_catalog(data_source):
 
     # Clients
-    glue_client = boto3.client('glue', region_name="us-east-2")
+    glue_client = boto3.client('glue', region_name=settings.aws_region)
     dataset = data_source.dataset
 
     if not dataset.glue_database:
@@ -101,7 +101,7 @@ def create_catalog(data_source):
     data_source.save()
 
 def create_glue_crawler(data_source):
-    glue_client = boto3.client('glue', region_name="us-east-2")
+    glue_client = boto3.client('glue', region_name=settings.aws_region)
 
     path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0])
     glue_client.create_crawler(
