@@ -597,6 +597,8 @@ class RunQuery(GenericAPIView):
             except Study.DoesNotExist:
                 return Error("this is not the execution of any study")
 
+
+
             req_dataset_name=query_serialized.validated_data['dataset']
 
             try:
@@ -604,14 +606,28 @@ class RunQuery(GenericAPIView):
             except Dataset.DoesNotExist:
                 return Error("no permission to this dataset. make sure it is exists, yours or shared with you, and under that study")
 
-            client = boto3.client('athena')
-
             query = query_serialized.validated_data['query']
 
-            validated, reason = validate_query(query=query, dataset=dataset)
+            if dataset.state == "private":
+                if execution.real_user in dataset.aggregated_users and not lib.is_aggregated(query):
+                    return Error("this is not an aggregated query")
+                elif execution.real_user in dataset.full_access_users:
+                    pass
+                else: #user not aggregated and not full
+                    if dataset.default_user_permission == "aggregated":
+                        lib.is_aggregated(query)
+                    elif dataset.default_user_permission == "none":
+                        return Error("cannot query this dataset since its default permission in none and you have no permission for this dataset")
 
-            if not validated:
-                return Error(reason)
+            elif dataset.state == "archived":
+                return Error("no one can query an archived dataset")
+
+            client = boto3.client('athena')
+
+            # validated, reason = validate_query(query=query, dataset=dataset)
+
+            # if not validated:
+            #     return Error(reason)
 
             response = client.start_query_execution(
                 QueryString=query,
@@ -671,7 +687,7 @@ class ActivityViewSet(ModelViewSet):
 class GetExecutionConfig(APIView):
     def get(self, request):
 
-        execution = Execution.objects.get(execution_user = request.user)
+        execution = Execution.objects.get(execution_user=request.user)
         real_user = execution.real_user
 
         config = {}

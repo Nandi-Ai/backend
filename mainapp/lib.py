@@ -34,6 +34,16 @@ def validate_query(query, dataset):
 
     return True, False #validated, no reason..
 
+
+def is_aggregated(query):
+    query_parsed = sqlparse(query)
+    statement = query_parsed[0]
+
+    if statement.get_type() == "SELECT":
+        pass
+
+    return True #TODO as for now no diffrential privacy. considering any query as aggregated even if not.
+
 class MyTokenAuthentication(TokenAuthentication):
     keyword = "Bearer"
 
