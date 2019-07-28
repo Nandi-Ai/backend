@@ -287,68 +287,6 @@ class HandleDatasetAccessRequest(APIView):
 
         return Response()
 
-#
-# class GetDatasetAccessRequestList(APIView):
-#     def get(self, request):
-#         datasets = request.user.admin_datasets.all()
-#         requests  = []
-#         for dataset in datasets:
-#             for user in dataset.users_requested_aggregated_access.all():
-#                 req = {}
-#                 req['permission'] = "aggregated"
-#                 req['user'] = UserSerializer(user).data
-#                 req['dataset'] = DatasetSerializer(dataset).data
-#                 requests.append(req)
-#
-#             for user in dataset.users_requested_full_access.all():
-#                 req = {}
-#                 req['permission'] = "full"
-#                 req['user'] = UserSerializer(user).data
-#                 req['dataset'] = DatasetSerializer(dataset).data
-#                 requests.append(req)
-#
-#         return Response(requests)
-
-#
-# class RequestAccessForDataset(APIView):
-#     def get(self, request, dataset_id):
-#         permission_request_types = ["aggregated, full"]
-#         requested_permission = request.query_params.get('permission')
-#         try:
-#             dataset = request.user.datasets.filter(state="private").get(id=dataset_id)
-#         except Dataset.DoesNotExist:
-#             return Error("can't request access for this dataset")
-#
-#         if requested_permission not in permission_request_types.all():
-#             return Error("permission must be one of: "+str(permission_request_types))
-#
-#         if request.user in dataset.full_access_users.all():
-#             return Error("you already have full access for this dataset")
-#
-#         if request.user in dataset.aggregated_users.all() and requested_permission == "aggregated":
-#                 return Error("you already have aggregated access for this dataset")
-#
-#         # a user with aggregated access can request full access
-#
-#         if request.user in dataset.users_requested_full_access.all():
-#             if requested_permission == "aggregated":
-#                 return Error("you have full acess to that dataset so you don't need aggregated access")
-#             if requested_permission == "full":
-#                 return Error("you have already requested full access for that dataset")
-#
-#         if request.user in dataset.users_requested_aggregated_access.all():
-#             if requested_permission == "aggregated":
-#                 return Error("you  already requested aggregated access for this dataset")
-#             if requested_permission == "full":
-#                 return Error("you have already requested aggregated access for this dataset. you have to wait for an admin to response your current request before requesting full access")
-#
-#         if requested_permission == "aggregated":
-#             dataset.users_requested_aggregated_access.add(request.user)
-#         if requested_permission == "full":
-#             dataset.users_requested_full_access.add(request.user)
-#
-#         return Response()
-
 
 class RequestViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post']

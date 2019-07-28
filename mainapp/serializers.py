@@ -45,7 +45,7 @@ class DatasetSerializer(ModelSerializer):
 
     class Meta:
         model = Dataset
-        fields = ('id', 'name', 'admin_users', 'aggregated_users', 'full_access_users','default_user_permission','users_requested_full_access' ,'user_created', 'tags', 'readme', 'description', 'updated_at', 'state')
+        fields = ('id', 'name', 'admin_users', 'aggregated_users', 'full_access_users','default_user_permission','user_created', 'tags', 'readme', 'description', 'updated_at', 'state')
 
         extra_kwargs = {
             'tags': {'allow_empty': True},
@@ -53,8 +53,6 @@ class DatasetSerializer(ModelSerializer):
             'aggregated_users': {'allow_empty': True},
             'full_access_users': {'allow_empty': True},
             'user_created': {'read_only': True},
-            'users_requested_full_access':{'read_only': True},
-            'users_requested_aggregated_access':{'read_only': True}
         }
 
 

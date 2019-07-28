@@ -180,8 +180,6 @@ class Dataset(models.Model):
     aggregated_users = models.ManyToManyField('User', related_name="aggregated_datasets")
     full_access_users = models.ManyToManyField('User', related_name="full_access_datasets")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
-    # users_requested_full_access = models.ManyToManyField('User', related_name="requested_full_access_for_datasets")
-    # users_requested_aggregated_access = models.ManyToManyField('User', related_name="requested_aggregated_access_for_datasets")
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
     default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset, max_length=32, null=True)
