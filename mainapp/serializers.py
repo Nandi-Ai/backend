@@ -34,6 +34,13 @@ class ActivitySerializer(ModelSerializer):
         model = Activity
         fields = '__all__'
 
+
+class RequestSerializer(ModelSerializer):
+
+    class Meta:
+        model = Request
+        fields = '__all__'
+
 class DatasetSerializer(ModelSerializer):
 
     class Meta:

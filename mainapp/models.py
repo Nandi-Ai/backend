@@ -95,6 +95,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived")).distinct()
         return datasets
 
+    @property
+    def requests_for_me(self):
+        requests = Request.objects.none()
+        for dataset in self.admin_datasets.all():
+            requests = requests | dataset.requests.all()
+
+        return requests
+
+    def my_requests(self):
+        requests= Request.objects.filter(user_requested=self)
+
+        return requests
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
@@ -167,8 +180,8 @@ class Dataset(models.Model):
     aggregated_users = models.ManyToManyField('User', related_name="aggregated_datasets")
     full_access_users = models.ManyToManyField('User', related_name="full_access_datasets")
     user_created = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="datasets_created", null=True)
-    users_requested_full_access = models.ManyToManyField('User', related_name="requested_full_access_for_datasets")
-    users_requested_aggregated_access = models.ManyToManyField('User', related_name="requested_aggregated_access_for_datasets")
+    # users_requested_full_access = models.ManyToManyField('User', related_name="requested_full_access_for_datasets")
+    # users_requested_aggregated_access = models.ManyToManyField('User', related_name="requested_aggregated_access_for_datasets")
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
     default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset, max_length=32, null=True)
@@ -230,3 +243,26 @@ class Activity(models.Model):
     class Meta:
         db_table = 'activities'
         #in future it is possible to optimize this table by creating primary_key=(ts,user) while removing the id and the unique_togheter constraint. (for now django not supports combined primary key but it can be achieved manually with adding to the migration: # migrations.RunSQL("ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)
+
+
+class Request(models.Model):
+    types = (
+        ("dataset_access", "dataset_access"),
+    )
+
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    user_requested = models.ForeignKey('User', on_delete=models.DO_NOTHING, related_name="requests", null=True)
+    dataset = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="requests", null=True)
+    study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="requests", null=True)
+    type = models.CharField(choices=types,max_length=32)
+    note = models.CharField(null=True, blank=True, max_length=2048)
+    permission = models.CharField(null=True, blank=True, max_length=32)
+    state = models.CharField(null=True, blank=True,default = "pending", max_length=32)
+
+    class Meta:
+        db_table = 'requests'
+
+        # in future it is possible to optimize this table by creating primary_key=(ts,user) while removing the id and the unique_togheter constraint. (for now django not supports combined primary key but it can be achieved manually with adding to the migration: # migrations.RunSQL("ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)
