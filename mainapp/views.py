@@ -691,5 +691,5 @@ class GetExecutionConfig(APIView):
         real_user = execution.real_user
 
         config = {}
-        config['datasets'] = DatasetSerializer(real_user.datasets, many=True)
+        config['datasets'] = DatasetSerializer(real_user.datasets, many=True).data
         return Response(config)
