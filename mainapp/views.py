@@ -599,7 +599,7 @@ class RunQuery(GenericAPIView):
             except Study.DoesNotExist:
                 return Error("this is not the execution of any study")
 
-            req_dataset_id=query_serialized.validated_data['dataset']
+            req_dataset_id=query_serialized.validated_data['dataset_id']
 
             try:
                 dataset = study.datasets.get(id = req_dataset_id)
@@ -686,10 +686,12 @@ class GetExecutionConfig(APIView):
 
         execution = Execution.objects.get(execution_user=request.user)
         real_user = execution.real_user
+        study = Study.objects.get(execution = execution)
 
         config = {}
+        config['study'] = StudySerializer(study).data
         config['datasets'] = []
-        for dataset in real_user.datasets:
+        for dataset in real_user.datasets & study.datasets.all(): #intersection of study datasets and user datasets
             dataset_ser = DatasetSerializer(dataset).data
             dataset_ser['permission'] = lib.calc_permission_for_dataset(real_user, dataset)
             dataset_ser['data_sources'] = []

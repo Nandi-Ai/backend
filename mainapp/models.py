@@ -92,7 +92,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def datasets(self):
         #all public datasets, datasets that the user have aggregated access accept archived, datasets that the user has admin access, datasets that the user have full access permission accept archived.
-        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived")).distinct()
+        datasets = Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived") #make sure the query is distinct!
         return datasets
 
     @property
