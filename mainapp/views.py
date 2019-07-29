@@ -20,6 +20,7 @@ import shutil
 import dateparser
 from django.core import exceptions
 from mainapp import resources
+import botocore
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -624,15 +625,21 @@ class RunQuery(GenericAPIView):
             # if not validated:
             #     return Error(reason)
 
-            response = client.start_query_execution(
-                QueryString=query_string,
-                QueryExecutionContext={
-                    'Database': dataset.glue_database  # the name of the database in glue/athena
-                },
-                ResultConfiguration={
-                    'OutputLocation': "s3://lynx-workspace-"+str(study.id),
-                }
-            )
+            try:
+                response = client.start_query_execution(
+                    QueryString=query_string,
+                    QueryExecutionContext={
+                        'Database': dataset.glue_database  # the name of the database in glue/athena
+                    },
+                    ResultConfiguration={
+                        'OutputLocation': "s3://lynx-workspace-"+str(study.id),
+                    }
+                )
+            except botocore.errorfactory.InvalidRequestException as e:
+                if "Only one sql statement is allowed" in str(e):
+                    return Error("only one sql statement is possible in one query string")
+                else:
+                    raise
 
             return Response({"query_execution_id": response['QueryExecutionId']})
         else:
