@@ -197,7 +197,7 @@ class DataSource(models.Model):
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
     s3_objects = JSONField(null = True, blank = True, default = None)
-    dataset = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="data_sources")
+    dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="data_sources")
     type = models.CharField(null=True, blank=True, max_length=32)
     about = models.TextField(null=True, blank=True, max_length=2048)
     columns = JSONField(null = True, blank = True, default = None)
