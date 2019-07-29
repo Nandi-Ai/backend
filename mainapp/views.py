@@ -25,9 +25,9 @@ schema_view = get_swagger_view(title='Lynx API')
 
 class Error(Response):
 
-    def __init__(self, error_text, status=400):
+    def __init__(self, error_text, status_code=400):
         super().__init__()
-        self.status = status
+        self.status_code = status_code
         self.data = {"error":error_text}
 
 class SendSyncSignal(APIView):
