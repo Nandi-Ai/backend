@@ -25,24 +25,19 @@ def startup():
     os.environ["AWS_SECRET_ACCESS_KEY"] = settings.aws_secret_access_key
     os.environ["AWS_REGION"] = settings.aws_region
 
-def validate_query(query, dataset):
-    query_parsed = sqlparse(query)
-    statement = query_parsed[0]
-
-    if statement.get_type() == "SELECT":
-        pass
-
-    return True, False #validated, no reason..
-
 
 def is_aggregated(query):
-    query_parsed = sqlparse(query)
-    statement = query_parsed[0]
+    # aggregated_tokens = {"AVG","SUM", "GROUPBY"}
+    # res  = sqlparse.parse(query)
+    # stmt = res[0]
+    #
+    # tokens = set([str(t) for t in stmt.tokens])
+    #
+    # if aggregated_tokens.intersection(tokens):
+    #     return True #TODO as for now no diffrential privacy. considering any query as aggregated even if not.
+    # return False
 
-    if statement.get_type() == "SELECT":
-        pass
-
-    return True #TODO as for now no diffrential privacy. considering any query as aggregated even if not.
+    return True
 
 class MyTokenAuthentication(TokenAuthentication):
     keyword = "Bearer"

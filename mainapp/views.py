@@ -11,7 +11,6 @@ from multiprocessing import Process
 import time
 import subprocess
 import json
-from mainapp.lib import validate_query
 from mainapp import lib
 import pyreadstat
 import threading
