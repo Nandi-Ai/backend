@@ -186,6 +186,7 @@ class Dataset(models.Model):
     bucket = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now = True)
     glue_database = models.CharField(max_length=255, blank=True, null=True)
+    programmatic_name = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'datasets'

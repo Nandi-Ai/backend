@@ -419,6 +419,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
+            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")
             dataset.save()
 
             # create the dataset bucket:
@@ -597,30 +598,23 @@ class RunQuery(GenericAPIView):
             except Study.DoesNotExist:
                 return Error("this is not the execution of any study")
 
-
-
-            req_dataset_name=query_serialized.validated_data['dataset']
+            req_dataset_id=query_serialized.validated_data['dataset']
 
             try:
-                dataset = study.datasets.get(name=req_dataset_name) #TODO need to make sure name of dataset is unique in study
+                dataset = study.datasets.get(id = req_dataset_id)
             except Dataset.DoesNotExist:
-                return Error("no permission to this dataset. make sure it is exists, yours or shared with you, and under that study")
+                return Error("no permission to this dataset. make sure it is exists, it's yours or shared with you, and under that study")
 
-            query = query_serialized.validated_data['query']
+            query_string = query_serialized.validated_data['query_string']
 
-            if dataset.state == "private":
-                if execution.real_user in dataset.aggregated_users and not lib.is_aggregated(query):
-                    return Error("this is not an aggregated query")
-                elif execution.real_user in dataset.full_access_users:
-                    pass
-                else: #user not aggregated and not full
-                    if dataset.default_user_permission == "aggregated":
-                        lib.is_aggregated(query)
-                    elif dataset.default_user_permission == "none":
-                        return Error("cannot query this dataset since its default permission in none and you have no permission for this dataset")
+            permission = lib.calc_permission_for_dataset(execution.real_user,dataset)
 
-            elif dataset.state == "archived":
-                return Error("no one can query an archived dataset")
+            if permission == "aggregated":
+                if not lib.is_aggregated(query_string):
+                    return Error("this is not an aggregated query. only aggregated queries are allowed")
+
+            if permission == "no permission":
+                return Error("no permission to query this dataset")
 
             client = boto3.client('athena')
 
@@ -630,7 +624,7 @@ class RunQuery(GenericAPIView):
             #     return Error(reason)
 
             response = client.start_query_execution(
-                QueryString=query,
+                QueryString=query_string,
                 QueryExecutionContext={
                     'Database': dataset.name  # the name of the database in glue/athena
                 },
@@ -644,7 +638,7 @@ class RunQuery(GenericAPIView):
 
 class ActivityViewSet(ModelViewSet):
     serializer_class = ActivitySerializer
-    http_method_names = ['get', 'head', 'post','put','delete']
+    http_method_names = ['get', 'head', 'post', 'put', 'delete']
     filter_fields = ('user', 'dataset', 'study')
     #
     # class StartFilter(BaseFilterBackend):
@@ -691,5 +685,10 @@ class GetExecutionConfig(APIView):
         real_user = execution.real_user
 
         config = {}
-        config['datasets'] = DatasetSerializer(real_user.datasets, many=True).data
+        config['datasets'] = []
+        for dataset in real_user.datasets:
+            dataset_ser = DatasetSerializer(dataset).data
+            dataset_ser['permission'] = lib.calc_permission_for_dataset(real_user, dataset)
+            config['datasets'].append(dataset_ser)
+
         return Response(config)

@@ -152,3 +152,20 @@ def handle_zipped_data_source(data_source):
     shutil.rmtree("/tmp/" + str(data_source.id))
     data_source.state = "ready"
     data_source.save()
+
+
+def calc_permission_for_dataset(user, dataset):
+    if dataset.state == "private":
+        if user in dataset.aggregated_users.all():
+            return "aggregated"
+        elif user in dataset.full_access_users.all() or user in dataset.admin_users.all():
+            return "full"
+        else:  # user not aggregated and not full or admin
+            if dataset.default_user_permission == "aggregated":
+                return "aggregated"
+            elif dataset.default_user_permission == "none":
+                return "no permission"
+    elif dataset.state == "public":
+        return "full"
+
+    return "no permission"  # safe. includes archived dataset

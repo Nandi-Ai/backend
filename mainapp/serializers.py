@@ -45,7 +45,7 @@ class DatasetSerializer(ModelSerializer):
 
     class Meta:
         model = Dataset
-        fields = ('id', 'name', 'admin_users', 'aggregated_users', 'full_access_users','default_user_permission','user_created', 'tags', 'readme', 'description', 'updated_at', 'state')
+        fields = ('id', 'name', 'admin_users', 'aggregated_users', 'full_access_users','default_user_permission','user_created', 'tags', 'readme', 'description', 'updated_at', 'state','programmatic_name')
 
         extra_kwargs = {
             'tags': {'allow_empty': True},
@@ -69,7 +69,7 @@ class StudySerializer(ModelSerializer):
         }
 
 class QuerySerializer(Serializer):
-    query = CharField(max_length=2048)
+    query_string = CharField(max_length=2048)
     dataset = CharField(max_length=255)
 
 class DatasetUploadedSerializer(Serializer):
