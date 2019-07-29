@@ -630,7 +630,7 @@ class RunQuery(GenericAPIView):
                     'Database': dataset.glue_database  # the name of the database in glue/athena
                 },
                 ResultConfiguration={
-                    'OutputLocation': "s3://lynx-workspace-"+study.name+"-"+str(study.id),
+                    'OutputLocation': "s3://lynx-workspace-"+str(study.id),
                 }
             )
 
