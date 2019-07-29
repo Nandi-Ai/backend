@@ -617,7 +617,7 @@ class RunQuery(GenericAPIView):
             if permission == "no permission":
                 return Error("no permission to query this dataset")
 
-            client = boto3.client('athena')
+            client = boto3.client('athena',region_name = settings.aws_region)
 
             # validated, reason = validate_query(query=query, dataset=dataset)
 
@@ -627,7 +627,7 @@ class RunQuery(GenericAPIView):
             response = client.start_query_execution(
                 QueryString=query_string,
                 QueryExecutionContext={
-                    'Database': dataset.name  # the name of the database in glue/athena
+                    'Database': dataset.glue_database  # the name of the database in glue/athena
                 },
                 ResultConfiguration={
                     'OutputLocation': "s3://lynx-workspace-"+study.name+"-"+str(study.id),
