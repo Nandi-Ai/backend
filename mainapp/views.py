@@ -20,7 +20,6 @@ import shutil
 import dateparser
 from django.core import exceptions
 from mainapp import resources
-import botocore
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -635,7 +634,7 @@ class RunQuery(GenericAPIView):
                         'OutputLocation': "s3://lynx-workspace-"+str(study.id),
                     }
                 )
-            except botocore.errorfactory.InvalidRequestException as e:
+            except Exception as e:
                 if "Only one sql statement is allowed" in str(e):
                     return Error("only one sql statement is possible in one query string")
                 else:
