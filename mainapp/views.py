@@ -691,7 +691,7 @@ class GetExecutionConfig(APIView):
             dataset_ser = DatasetSerializer(dataset).data
             dataset_ser['permission'] = lib.calc_permission_for_dataset(real_user, dataset)
             dataset_ser['data_sources'] = []
-            for data_source in dataset.data_sources:
+            for data_source in dataset.data_sources.all():
                 data_source_ser = DataSourceSerializer(data_source).data
                 dataset_ser['data_sources'].append(data_source_ser)
 
