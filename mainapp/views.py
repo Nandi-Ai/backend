@@ -419,7 +419,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+dataset.id.split("-")[0]
+            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+str(dataset.id).split("-")[0]
             dataset.save()
 
             # create the dataset bucket:
