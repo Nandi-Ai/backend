@@ -327,7 +327,7 @@ class RequestViewSet(ModelViewSet):
                 if request.user in dataset.aggregated_users.all() and request_data["permission"] == "aggregated":
                     return Error("you already have aggregated access for that dataset")
 
-                existing_requests = Request.objects.filter(type="dataset_access", user_requested=request.user)
+                existing_requests = Request.objects.filter(type="dataset_access", user_requested=request.user, state = "pending")
 
                 if existing_requests.filter(permission="aggregated"):
                     if request_data["permission"] == "aggregated":
@@ -419,7 +419,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")
+            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+dataset.id.split("-")[0]
             dataset.save()
 
             # create the dataset bucket:
@@ -489,8 +489,6 @@ class DatasetViewSet(ModelViewSet):
 
             dataset = Dataset.objects.get(id=self.request._data['id'])
 
-
-
             if request.user not in dataset.admin_users.all():
                 return Error("this user can't update the dataset")
 
@@ -513,7 +511,7 @@ class DataSourceViewSet(ModelViewSet):
         data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if data_source_serialized.is_valid():
-            data_source_data= data_source_serialized.validated_data
+            data_source_data = data_source_serialized.validated_data
             dataset = data_source_data['dataset']
 
             if dataset not in request.user.datasets.all():
@@ -528,7 +526,10 @@ class DataSourceViewSet(ModelViewSet):
             if data_source_data['type'] in ["zip", "structured"] and len(data_source_data['s3_objects']) > 1:
                 return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
 
+
             data_source = data_source_serialized.save()
+            # data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+data_source.id.split("-")[0]
+            # data_source.save()
 
             if data_source.type == "structured":
                 s3_obj = data_source.s3_objects[0]
@@ -554,7 +555,7 @@ class DataSourceViewSet(ModelViewSet):
                     create_catalog_thread.start()
 
                 else:
-                    return Error("structured file type is not supported")
+                    return Error("file type is not supported as a structured data source")
 
             elif data_source.type == "zip":
                 handle_zip_thread = threading.Thread(target=lib.handle_zipped_data_source, args=[data_source])
@@ -689,6 +690,11 @@ class GetExecutionConfig(APIView):
         for dataset in real_user.datasets:
             dataset_ser = DatasetSerializer(dataset).data
             dataset_ser['permission'] = lib.calc_permission_for_dataset(real_user, dataset)
+            dataset_ser['data_sources'] = []
+            for data_source in dataset.data_sources:
+                data_source_ser = DataSourceSerializer(data_source).data
+                dataset_ser['data_sources'].append(data_source_ser)
+
             config['datasets'].append(dataset_ser)
 
         return Response(config)

@@ -203,6 +203,7 @@ class DataSource(models.Model):
     columns = JSONField(null = True, blank = True, default = None)
     preview = JSONField(null = True, blank = True, default = None)
     state = models.CharField(null=True, blank=True, max_length=32)
+    # programmatic_name = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'data_sources'
