@@ -70,7 +70,7 @@ class StudySerializer(ModelSerializer):
 
 class QuerySerializer(Serializer):
     query_string = CharField(max_length=2048)
-    dataset = CharField(max_length=255)
+    dataset_id = CharField(max_length=255)
 
 class DatasetUploadedSerializer(Serializer):
     query = IntegerField()
