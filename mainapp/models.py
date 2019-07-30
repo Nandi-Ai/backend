@@ -86,20 +86,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     def data_sources(self):
         data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
-            data_sources = data_sources | dataset.data_sources.all()
+            data_sources.union(dataset.data_sources.all())
             return data_sources
 
     @property
     def datasets(self):
         #all public datasets, datasets that the user have aggregated access accept archived, datasets that the user has admin access, datasets that the user have full access permission accept archived.
-        datasets = Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived") #make sure the query is distinct!
+
+        # datasets = Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived") #this method seems to return duplicate items because somethig related to the admin_datasets(many to many)
+        datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
         return datasets
 
     @property
     def requests_for_me(self):
         requests = Request.objects.none()
         for dataset in self.admin_datasets.all():
-            requests = requests | dataset.requests.all()
+            requests.union(dataset.requests.all())
 
         return requests
 
