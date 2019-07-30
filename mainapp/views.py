@@ -282,6 +282,7 @@ class HandleDatasetAccessRequest(APIView):
 class RequestViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post']
     serializer_class = RequestSerializer
+    filter_fields = ('user_requested', 'dataset', 'study', 'type', 'state', 'permission')
 
     def get_queryset(self):
         return self.request.user.requests_for_me
@@ -526,7 +527,7 @@ class DataSourceViewSet(ModelViewSet):
 
 
             data_source = data_source_serialized.save()
-            data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+str(data_source.id).split("-")[0]
+            data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+"-"+str(data_source.id).split("-")[0]
             data_source.save()
 
             if data_source.type == "structured":
