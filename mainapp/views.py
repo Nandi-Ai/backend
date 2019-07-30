@@ -170,10 +170,22 @@ class StudyViewSet(ModelViewSet):
             s3 = boto3.client('s3')
             s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
 
-
-            policy_json = resources.base_s3_policy
+            policy_json = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "s3:*",
+                        "Resource": []
+                    }
+                ]
+            }
 
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::'+workspace_bucket_name+'*')
+
+            for dataset in study.datasets.all():
+                policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset.bucket + '*')
+
             client = boto3.client('iam')
             policy_name = "lynx-workspace-"+ str(study.id)
 
@@ -191,7 +203,7 @@ class StudyViewSet(ModelViewSet):
                 Description=policy_name
             )
 
-            response = client.attach_role_policy(
+            client.attach_role_policy(
                 RoleName=role_name,
                 PolicyArn=policy_arn
             )
@@ -200,18 +212,64 @@ class StudyViewSet(ModelViewSet):
         else:
             return Error(study_serialized.errors)
 
-    # def update(self, request, *args, **kwargs):
-    #     serialized = self.serializer_class(data=request.data, allow_null=True)
-    #     study_name = serialized.validated_data['name']
-    #     req_datasets = serialized.validated_data['datasets']
-    #
-    #     if serialized.is_valid(): #if not valid super will handle it
-    #         if study_name in [x.name for x in request.user.studies.all()]:
-    #             return Response({"error": "this dataset already exist for that user"}, status=400)
-    #         if not all(rds in request.user.datasets.all() for rds in req_datasets):
-    #             return Response({"error": "not all datasets are related to the current user"}, status=400)
-    #
-    #     return super(self.__class__, self).update(request=self.request)
+    def update(self, request, *args, **kwargs):
+        serialized = self.serializer_class(data=request.data, allow_null=True)
+
+        if serialized.is_valid():  # if not valid super will handle it
+            study_updated = serialized.validated_data
+
+            study_id = self.request.parser_context['kwargs']['pk']
+            study = Study.objects.get(id=study_id)
+
+            client = boto3.client('iam')
+            policy_arn = "arn:aws:iam::"+settings.aws_account_number+":policy/lynx-workspace-"+str(study.id)
+
+            role_name = "lynx-workspace-"+ str(study.id)
+
+            client.detach_role_policy(
+                RoleName=role_name,
+                PolicyArn=policy_arn
+            )
+
+
+            client.delete_policy(
+                PolicyArn=policy_arn,
+            )
+
+            policy_json = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "s3:*",
+                        "Resource": []
+                    }
+                ]
+            }
+
+
+            policy_name = "lynx-workspace-" + str(study.id)
+            workspace_bucket_name = "lynx-workspace-" + str(study.id)
+            policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + workspace_bucket_name + '*')
+
+            for dataset in study_updated['datasets']:
+                policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset.bucket + '*')
+
+            response = client.create_policy(
+                PolicyName=policy_name,
+                PolicyDocument=json.dumps(policy_json)
+            )
+
+            policy_arn = response['Policy']['Arn']
+
+            role_name = "lynx-workspace-" + str(study.id)
+
+            client.attach_role_policy(
+                RoleName=role_name,
+                PolicyArn=policy_arn
+            )
+
+        return super(self.__class__, self).update(request=self.request)
 
 
 class GetDatasetSTS(APIView):
@@ -439,7 +497,17 @@ class DatasetViewSet(ModelViewSet):
 
             # create the dataset policy:
 
-            policy_json = resources.base_s3_policy
+            policy_json = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": "s3:*",
+                        "Resource": []
+                    }
+                ]
+            }
+
             policy_json['Statement'][0]['Resource'].append('arn:aws:s3:::' + dataset.bucket + '*')
             client = boto3.client('iam')
 
@@ -485,8 +553,8 @@ class DatasetViewSet(ModelViewSet):
                 return error_response
 
             #additional validations only for update:
-
-            dataset = Dataset.objects.get(id=self.request._data['id'])
+            dataset_id  = self.request.parser_context['kwargs']['pk']
+            dataset = Dataset.objects.get(id=dataset_id)
 
             if request.user not in dataset.admin_users.all():
                 return Error("this user can't update the dataset")
