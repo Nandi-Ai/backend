@@ -702,10 +702,7 @@ class RunQuery(GenericAPIView):
                     }
                 )
             except Exception as e:
-                if "Only one sql statement is allowed" in str(e):
-                    return Error("only one sql statement is possible in one query string")
-                else:
-                    raise
+                    return Error(str(e))
 
             return Response({"query_execution_id": response['QueryExecutionId']})
         else:
