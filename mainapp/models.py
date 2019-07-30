@@ -93,8 +93,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     def datasets(self):
         #all public datasets, datasets that the user have aggregated access accept archived, datasets that the user has admin access, datasets that the user have full access permission accept archived.
 
-        # datasets = Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived") #this method seems to return duplicate items because somethig related to the admin_datasets(many to many)
-        datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
+        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived")).distinct() #this method seems to return duplicate items because somethig related to the admin_datasets(many to many)
+        # datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
         return datasets
 
     @property

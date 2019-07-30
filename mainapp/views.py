@@ -367,7 +367,7 @@ class TagViewSet(ReadOnlyModelViewSet):
 
 class DatasetViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post', 'put', 'delete']
-
+    serializer_class = DatasetSerializer
     def logic_validate(self, request, dataset_data): #only common validations for create and update! #
 
         if dataset_data['state'] == "private":
@@ -378,8 +378,7 @@ class DatasetViewSet(ModelViewSet):
                 return Error("default_user_permission must be none or aggregated")
 
     def get_queryset(self):
-        return self.request.user.datasets.all()
-    serializer_class = DatasetSerializer
+        return self.request.user.datasets
 
     def create(self, request, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -696,7 +695,7 @@ class GetExecutionConfig(APIView):
         config = {}
         config['study'] = StudySerializer(study).data
         config['datasets'] = []
-        for dataset in real_user.datasets & study.datasets.all(): #intersection of study datasets and user datasets
+        for dataset in real_user.datasets & study.datasets.all().distinct():
             dataset_ser = DatasetSerializer(dataset).data
             dataset_ser['permission'] = lib.calc_permission_for_dataset(real_user, dataset)
             dataset_ser['data_sources'] = []
