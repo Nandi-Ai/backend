@@ -108,7 +108,7 @@ def create_catalog(data_source):
 def create_glue_crawler(data_source):
     glue_client = boto3.client('glue', region_name=settings.aws_region)
 
-    path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0])
+    path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0]['key'])
     glue_client.create_crawler(
         Name="data_source-"+str(data_source.id),
         Role='service-role/AWSGlueServiceRole-mvp',
@@ -129,7 +129,7 @@ def create_glue_crawler(data_source):
 
 
 def handle_zipped_data_source(data_source):
-    s3_obj = data_source.s3_objects[0]
+    s3_obj = data_source.s3_objects[0]['key']
     path, file_name, file_name_no_ext, ext = break_s3_object(s3_obj)
 
     s3_client = boto3.client('s3')

@@ -530,7 +530,7 @@ class DataSourceViewSet(ModelViewSet):
             # data_source.save()
 
             if data_source.type == "structured":
-                s3_obj = data_source.s3_objects[0]
+                s3_obj = data_source.s3_objects[0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
                 if ext in ["sav", "zsav", "csv"]:
@@ -546,7 +546,7 @@ class DataSourceViewSet(ModelViewSet):
                         s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
                                               path + "/" + file_name_no_ext + ".csv")
                         data_source.s3_objects.pop()
-                        data_source.s3_objects.append(path + "/" + file_name_no_ext + ".csv")
+                        data_source.s3_objects.append({'key':path + '/' + file_name_no_ext + ".csv", 'size': os.path.getsize(csv_path_and_file)})
                         shutil.rmtree(workdir)
 
                     create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
