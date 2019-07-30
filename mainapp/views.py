@@ -526,8 +526,8 @@ class DataSourceViewSet(ModelViewSet):
 
 
             data_source = data_source_serialized.save()
-            # data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+data_source.id.split("-")[0]
-            # data_source.save()
+            data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+str(data_source.id).split("-")[0]
+            data_source.save()
 
             if data_source.type == "structured":
                 s3_obj = data_source.s3_objects[0]["key"]
