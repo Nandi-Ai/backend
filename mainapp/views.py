@@ -318,17 +318,23 @@ class HandleDatasetAccessRequest(APIView):
 
         if user_request.type == "dataset_access":
 
+            dataset = user_request.dataset
+            user_requested = user_request.user_requested
+
+
             if user_request.permission == "full":
                 if response == "approve":
                     user_request.state="approved"
-                    user_request.dataset.full_access_users.add(user_request.user_requested)
+                    dataset.full_access_users.add(user_requested)
+                    if user_requested in dataset.aggregated_users:
+                        dataset.aggregated_users.remove(user_requested)
                 if response == "deny":
                     user_request.state = "denied"
 
             if user_request.permission == "aggregated":
                 if response == "approve":
                     user_request.state = "approved"
-                    user_request.dataset.aggregated_users.add(user_request.user_requested)
+                    dataset.aggregated_users.add(user_requested)
                 if response == "deny":
                     user_request.state = "denied"
 
