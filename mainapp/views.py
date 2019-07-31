@@ -391,7 +391,7 @@ class RequestViewSet(ModelViewSet):
                 if request.user in dataset.aggregated_users.all() and request_data["permission"] == "aggregated":
                     return Error("you already have aggregated access for that dataset")
 
-                existing_requests = Request.objects.filter(type="dataset_access", user_requested=request.user, state = "pending")
+                existing_requests = Request.objects.filter(dataset=dataset, type="dataset_access", user_requested=request.user, state = "pending")
 
                 if existing_requests.filter(permission="aggregated"):
                     if request_data["permission"] == "aggregated":
