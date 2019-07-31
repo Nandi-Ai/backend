@@ -417,6 +417,13 @@ class UserViewSet(ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_execution = False)
 
 
+class MyRequestsViewSet(ReadOnlyModelViewSet):
+
+    serializer_class = RequestSerializer
+    def get_queryset(self):
+        return self.request.user.my_requests
+
+
 class TagViewSet(ReadOnlyModelViewSet):
     # def get_queryset(self):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.

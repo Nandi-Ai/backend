@@ -86,7 +86,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def data_sources(self):
         data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
-            data_sources.union(dataset.data_sources.all())
+            data_sources  = data_sources | dataset.data_sources.all()
             return data_sources
 
     @property
@@ -101,12 +101,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     def requests_for_me(self):
         requests = Request.objects.none()
         for dataset in self.admin_datasets.all():
-            requests.union(dataset.requests.all())
+            requests = requests | dataset.requests.all()
 
         return requests
 
+    @property
     def my_requests(self):
-        requests= Request.objects.filter(user_requested=self)
+        requests = Request.objects.filter(user_requested=self)
 
         return requests
 
