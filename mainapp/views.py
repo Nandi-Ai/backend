@@ -149,8 +149,8 @@ class StudyViewSet(ModelViewSet):
             study_name = study_serialized.validated_data['name']
 
             # TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
-            if study_name in [x.name for x in request.user.studies.all()]:
-                return Error("this dataset already exist for that user")
+            # if study_name in [x.name for x in request.user.studies.all()]:
+            #     return Error("this study already exist for that user")
 
             if not all(rds in request.user.datasets.all() for rds in req_datasets):
                 return Error("not all datasets are related to the current user")
@@ -158,7 +158,7 @@ class StudyViewSet(ModelViewSet):
             study = Study.objects.create(name = study_name)
             study.description = study_serialized.validated_data['description']
             req_users = study_serialized.validated_data['users']
-            study.datasets.set(Dataset.objects.filter(id__in = [x.id for x in req_datasets]))
+            study.datasets.set(req_datasets)
             study.users.set([request.user] + list(User.objects.filter(id__in = [x.id for x in req_users]))) #can user add also..
             study.user_created = request.user
 
