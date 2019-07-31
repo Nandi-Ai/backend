@@ -597,8 +597,9 @@ class DataSourceViewSet(ModelViewSet):
             if data_source_data['type'] not in ds_types:
                 return Error("data source type must be one of: " + str(ds_types))
 
-            if not isinstance(data_source_data['s3_objects'], list):
-                return Error("s3 objects must be a (json) list")
+            if 's3_objects' in data_source_data:
+                if not isinstance(data_source_data['s3_objects'], list):
+                    return Error("s3 objects must be a (json) list")
 
             if data_source_data['type'] in ["zip", "structured"] and len(data_source_data['s3_objects']) > 1:
                 return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
