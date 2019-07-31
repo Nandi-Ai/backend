@@ -404,6 +404,14 @@ class RequestViewSet(ModelViewSet):
             return Error(request_serialized.errors)
 
 
+class MyRequestsViewSet(ReadOnlyModelViewSet):
+    filter_fields = ('dataset', 'study', 'type', 'state', 'permission')
+    serializer_class = RequestSerializer
+
+    def get_queryset(self):
+        return self.request.user.my_requests
+
+
 class CurrentUserView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
@@ -417,11 +425,6 @@ class UserViewSet(ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_execution = False)
 
 
-class MyRequestsViewSet(ReadOnlyModelViewSet):
-
-    serializer_class = RequestSerializer
-    def get_queryset(self):
-        return self.request.user.my_requests
 
 
 class TagViewSet(ReadOnlyModelViewSet):
