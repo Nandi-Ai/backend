@@ -139,6 +139,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         # need to manualy edit the primary key and change it from timestamp to [patient_id,timestamp] in that order
         db_table = 'users'
 
+    @property
+    def permission(self,dataset):
+        if self in dataset.admin_users.all():
+            return "admin"
+        if self in dataset.full_access_users.all():
+            return "full"
+        if self in dataset.aggregated_users.all():
+            return "aggregated"
+        #this function can also return None.....
+
+
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)

@@ -149,18 +149,18 @@ def handle_zipped_data_source(data_source):
     data_source.save()
 
 
-def calc_permission_for_dataset(user, dataset):
+def calc_access_to_database(user, dataset):
     if dataset.state == "private":
-        if user in dataset.aggregated_users.all():
-            return "aggregated"
-        elif user in dataset.full_access_users.all() or user in dataset.admin_users.all():
-            return "full"
+        if user.permission(dataset) == "aggregated":
+            return "aggregated access"
+        elif user.permission(dataset) in ["admin", "full"]:
+            return "full access"
         else:  # user not aggregated and not full or admin
             if dataset.default_user_permission == "aggregated":
-                return "aggregated"
-            elif dataset.default_user_permission == "none":
-                return "no permission"
+                return "aggregated access"
+            elif dataset.default_user_permission == "no access":
+                return "no access"
     elif dataset.state == "public":
-        return "full"
+        return "full access"
 
     return "no permission"  # safe. includes archived dataset

@@ -304,7 +304,7 @@ class GetDatasetSTS(APIView):
 
 class HandleDatasetAccessRequest(APIView):
     def get(self, request, user_request_id):
-        possible_responses = ["approve","deny"]
+        possible_responses = ["approve", "deny"]
         response = request.query_params.get('response')
         print(response)
 
@@ -316,29 +316,30 @@ class HandleDatasetAccessRequest(APIView):
         except Request.DoesNotExist:
             return Error("request not found")
 
-        if user_request.type == "dataset_access":
-
-            dataset = user_request.dataset
-            user_requested = user_request.user_requested
-
-
-            if user_request.permission == "full":
-                if response == "approve":
-                    user_request.state="approved"
-                    dataset.full_access_users.add(user_requested)
-                    if user_requested in dataset.aggregated_users.all():
-                        dataset.aggregated_users.remove(user_requested)
-                if response == "deny":
-                    user_request.state = "denied"
-
-            if user_request.permission == "aggregated":
-                if response == "approve":
-                    user_request.state = "approved"
-                    dataset.aggregated_users.add(user_requested)
-                if response == "deny":
-                    user_request.state = "denied"
-
+        user_request.state = "approved" if response is "approve" else "denied"
         user_request.save()
+
+        # if user_request.type == "dataset_access":
+        #
+        #     dataset = user_request.dataset
+        #     user_requested = user_request.user_requested
+        #
+        #
+        #     if user_request.permission == "full":
+        #         if response == "approve":
+        #             user_request.state="approved"
+        #             dataset.full_access_users.add(user_requested)
+        #
+        #         if response == "deny":
+        #             user_request.state = "denied"
+        #
+        #     if user_request.permission == "aggregated":
+        #         if response == "approve":
+        #             user_request.state = "approved"
+        #             dataset.aggregated_users.add(user_requested)
+        #         if response == "deny":
+        #             user_request.state = "denied"
+        # user_request.save()
 
         return Response()
 
@@ -359,12 +360,12 @@ class RequestViewSet(ModelViewSet):
 
             if request_data["type"] == "dataset_access":
                 permission_request_types = ["aggregated", "full"]
-
+h
                 if not "dataset" in request_data:
                     return Error("please mention dataset if type is dataset_access")
 
                 if request_data["dataset"] not in request.user.datasets.filter(state="private"):
-                    return Error("can't request access for this dataset")
+                    return Error("can't request access for a dataset that is not private")
 
                 dataset = request_data["dataset"]
 
@@ -374,22 +375,15 @@ class RequestViewSet(ModelViewSet):
                 if request_data["permission"] not in permission_request_types:
                     return Error("permission must be one of: "+str(permission_request_types))
 
-                if request.user in dataset.full_access_users.all():
-                    return Error("you already have full access for this dataset")
+                #the logic validations:
+                if request.user.permission(dataset) == request_data["permission"]:
+                    return Error("you already have " + request_data["permission"] + " access for that dataset")
 
-                if request.user in dataset.aggregated_users.all() and request_data["permission"] == "aggregated":
-                        return Error("you already have aggregated access for this dataset")
-
-                # a user with aggregated access can request full access
-
-                if request.user in dataset.full_access_users.all():
-                    if request_data["permission"] == "aggregated":
-                        return Error("you already have full access for that dataset so you don't need an aggregated access")
-                    if request_data["permission"] == "full":
-                        return Error("you already have full access for that dataset")
-
-                if request.user in dataset.aggregated_users.all() and request_data["permission"] == "aggregated":
+                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated":
                     return Error("you already have aggregated access for that dataset")
+
+                if request.user.permission(dataset) is "admin":
+                    return Error("you are already an admin of this dataset so you have full permission")
 
                 existing_requests = Request.objects.filter(dataset=dataset, type="dataset_access", user_requested=request.user, state = "pending")
 
@@ -429,8 +423,6 @@ class UserViewSet(ReadOnlyModelViewSet):
     #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = UserSerializer
     queryset = User.objects.filter(is_execution = False)
-
-
 
 
 class TagViewSet(ReadOnlyModelViewSet):
@@ -572,7 +564,7 @@ class DatasetViewSet(ModelViewSet):
             dataset_id  = self.request.parser_context['kwargs']['pk']
             dataset = Dataset.objects.get(id=dataset_id)
 
-            if request.user not in dataset.admin_users.all():
+            if request.user.permission(dataset) is not "admin":
                 return Error("this user can't update the dataset")
 
         return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
@@ -692,13 +684,13 @@ class RunQuery(GenericAPIView):
 
             query_string = query_serialized.validated_data['query_string']
 
-            permission = lib.calc_permission_for_dataset(execution.real_user,dataset)
+            access = lib.calc_access_to_database(execution.real_user, dataset)
 
-            if permission == "aggregated":
+            if access == "aggregated access":
                 if not lib.is_aggregated(query_string):
                     return Error("this is not an aggregated query. only aggregated queries are allowed")
 
-            if permission == "no permission":
+            if access == "no access":
                 return Error("no permission to query this dataset")
 
             client = boto3.client('athena',region_name = settings.aws_region)
@@ -780,7 +772,7 @@ class GetExecutionConfig(APIView):
         config['datasets'] = []
         for dataset in real_user.datasets & study.datasets.all().distinct():
             dataset_ser = DatasetSerializer(dataset).data
-            dataset_ser['permission'] = lib.calc_permission_for_dataset(real_user, dataset)
+            dataset_ser['permission'] = lib.calc_access_to_database(real_user, dataset)
             dataset_ser['data_sources'] = []
             for data_source in dataset.data_sources.all():
                 data_source_ser = DataSourceSerializer(data_source).data
