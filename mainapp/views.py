@@ -419,15 +419,11 @@ class CurrentUserView(APIView):
 
 
 class UserViewSet(ReadOnlyModelViewSet):
-    # def get_queryset(self):
-    #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = UserSerializer
     queryset = User.objects.filter(is_execution = False)
 
 
 class TagViewSet(ReadOnlyModelViewSet):
-    # def get_queryset(self):
-    #     return User.objects.filter(patient__in = self.request.user.related_patients).order_by("-created_at") #TODO check if it is needed to consider other doctors that gave a patient recommendation in generate recommendation.
     serializer_class = TagSerializer
     queryset = Tag.objects.all()
 
@@ -562,17 +558,12 @@ class DatasetViewSet(ModelViewSet):
 
             #additional validations only for update:
             dataset_id  = self.request.parser_context['kwargs']['pk']
-            print(dataset_id)
             dataset = Dataset.objects.get(id=dataset_id)
-            print(dataset)
 
-            if request.user.permission(dataset=dataset) is not "admin":
+            if request.user.permission(dataset) is not "admin":
                 return Error("this user can't update the dataset")
 
         return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
-    #
-    # def partial_update(self, request, *args, **kwargs):
-    #     dataset_serialized = self.serializer_class(data=request.data, allow_null=True,partial=True)
 
 
 class DataSourceViewSet(ModelViewSet):
@@ -666,11 +657,6 @@ class RunQuery(GenericAPIView):
         query_serialized = self.serializer_class(data=request.data)
         if query_serialized.is_valid():
             execution = request.user.the_execution.last()
-            #
-            # try:
-            #     execution = Execution.objects.get(id=ei)
-            # except Execution.DoesNotExist:
-            #     return Error("execution does not exists")
 
             try:
                 study = Study.objects.get(execution=execution)
@@ -697,10 +683,6 @@ class RunQuery(GenericAPIView):
 
             client = boto3.client('athena',region_name = settings.aws_region)
 
-            # validated, reason = validate_query(query=query, dataset=dataset)
-
-            # if not validated:
-            #     return Error(reason)
 
             try:
                 response = client.start_query_execution(
@@ -724,20 +706,7 @@ class ActivityViewSet(ModelViewSet):
     serializer_class = ActivitySerializer
     http_method_names = ['get', 'head', 'post', 'put', 'delete']
     filter_fields = ('user', 'dataset', 'study')
-    #
-    # class StartFilter(BaseFilterBackend):
-    #     def get_schema_fields(self, view):
-    #         return [coreapi.Field(name='start', location='query', required=True,
-    #                               description="date in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format (time is optional)",
-    #                               type='string')]
-    #
-    # class EndFilter(BaseFilterBackend):
-    #     def get_schema_fields(self, view):
-    #         return [coreapi.Field(name='start', location='query', required=True,
-    #                               description="datetime in any format",
-    #                               type='string')]
 
-    # filter_backends = (StartFilter, EndFilter)
 
     def get_queryset(self):
         #all activity for all datasets that the user admins
