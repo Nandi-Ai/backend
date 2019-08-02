@@ -139,8 +139,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         # need to manualy edit the primary key and change it from timestamp to [patient_id,timestamp] in that order
         db_table = 'users'
 
-    @property
-    def permission(self,dataset):
+
+    def permission(self, dataset):
         if self in dataset.admin_users.all():
             return "admin"
         if self in dataset.full_access_users.all():

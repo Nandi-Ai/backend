@@ -562,9 +562,11 @@ class DatasetViewSet(ModelViewSet):
 
             #additional validations only for update:
             dataset_id  = self.request.parser_context['kwargs']['pk']
+            print(dataset_id)
             dataset = Dataset.objects.get(id=dataset_id)
+            print(dataset)
 
-            if request.user.permission(dataset) is not "admin":
+            if request.user.permission(dataset=dataset) is not "admin":
                 return Error("this user can't update the dataset")
 
         return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
