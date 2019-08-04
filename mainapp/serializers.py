@@ -35,6 +35,9 @@ class ActivitySerializer(ModelSerializer):
     class Meta:
         model = Activity
         fields = '__all__'
+        extra_kwargs = {
+            'user': {'read_only': True}
+        }
 
 
 class RequestSerializer(ModelSerializer):

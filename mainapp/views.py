@@ -626,7 +626,7 @@ class DatasetViewSet(ModelViewSet):
             for u in all_removed_users:
                 if u not in (updated_admin | updated_agg | updated_full):
                     Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
-                                            meta={"user_affected": str(user.id),"action":"remove","permission": "none"}, note="removed all permissions for dataset")
+                                            meta={"user_affected": str(user.id), "action": "remove", "permission": "all"})
 
         return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
 
@@ -771,7 +771,7 @@ class RunQuery(GenericAPIView):
 
 class ActivityViewSet(ModelViewSet):
     serializer_class = ActivitySerializer
-    http_method_names = ['get', 'head', 'post', 'put', 'delete']
+    http_method_names = ['get', 'head', 'post', 'delete']
     filter_fields = ('user', 'dataset', 'study')
 
 
@@ -796,6 +796,24 @@ class ActivityViewSet(ModelViewSet):
         serializer.is_valid()
 
         return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        if request.user.is_execution:
+            #replace execution user with real one
+            execution = Execution.objects.get(execution_user=request.user)
+            request.user = execution.real_user
+
+        activity_serialized = self.serializer_class(data=request.data, allow_null=True)
+
+        if activity_serialized.is_valid():
+            # activity_data = activity_serialized.validated_data
+            activity = activity_serialized.save()
+            activity.user = request.user
+            activity.save()
+            return Response(self.serializer_class(activity, allow_null=True).data, status=201)
+
+        else:
+            return Error(activity_serialized.errors)
 
 
 class GetExecutionConfig(APIView):
