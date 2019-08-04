@@ -25,7 +25,7 @@ class DataSourceSerializer(ModelSerializer):
 
     class Meta:
         model = DataSource
-        fields = ('id','name','dir','s3_objects','type','about','programmatic_name','dataset')
+        fields = ('id','name','dir','s3_objects','type','about','programmatic_name','dataset','state')
         extra_kwargs = {
             'state': {'read_only': True},
             'programmatic_name': {'read_only': True}

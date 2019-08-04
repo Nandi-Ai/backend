@@ -87,7 +87,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
             data_sources  = data_sources | dataset.data_sources.all()
-            return data_sources
+            
+        return data_sources
 
     @property
     def datasets(self):
@@ -95,6 +96,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived")).distinct() #this method seems to return duplicate items because somethig related to the admin_datasets(many to many)
         # datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
+        print(datasets)
         return datasets
 
     @property
