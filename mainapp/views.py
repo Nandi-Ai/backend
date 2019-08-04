@@ -315,7 +315,7 @@ class HandleDatasetAccessRequest(APIView):
     def get(self, request, user_request_id):
         possible_responses = ["approve", "deny"]
         response = request.query_params.get('response')
-        print(response)
+
 
         if response not in possible_responses:
             return Error("please response with query string param: "+str(possible_responses))
@@ -589,7 +589,7 @@ class DatasetViewSet(ModelViewSet):
             diff = updated_admin ^ existing
             new = diff & updated_admin
             removed_admins = diff & existing
-            print(removed_admins)
+
 
             for user in new:
                 Activity.objects.create(type="dataset permission",  dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"admin"})
@@ -623,8 +623,8 @@ class DatasetViewSet(ModelViewSet):
             #                             meta={"user_affected": str(user.id), "permission": "full"})
 
             all_removed_users = removed_admins | removed_agg | removed_full
-            for u in all_removed_users:
-                if u not in (updated_admin | updated_agg | updated_full):
+            for user in all_removed_users:
+                if user not in (updated_admin | updated_agg | updated_full):
                     Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
                                             meta={"user_affected": str(user.id), "action": "remove", "permission": "all"})
 

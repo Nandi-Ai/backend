@@ -25,9 +25,10 @@ class DataSourceSerializer(ModelSerializer):
 
     class Meta:
         model = DataSource
-        fields = '__all__'
+        fields = ('name','dir','s3_objects','type','about','programmatic_name','dataset')
         extra_kwargs = {
-            'state': {'read_only': True}
+            'state': {'read_only': True},
+            'programmatic_name': {'read_only': True}
         }
 
 class ActivitySerializer(ModelSerializer):
