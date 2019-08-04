@@ -592,9 +592,11 @@ class DataSourceViewSet(ModelViewSet):
                 if not isinstance(data_source_data['s3_objects'], list):
                     return Error("s3 objects must be a (json) list")
 
-            if data_source_data['type'] in ["zip", "structured"] and len(data_source_data['s3_objects']) > 1:
-                return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
-
+            if data_source_data['type'] in ["zip", "structured"]:
+                if not 's3_objects' in data_source_data:
+                    return ("s3_objects field must be included")
+                if len(data_source_data['s3_objects']) != 1:
+                    return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
 
             data_source = data_source_serialized.save()
             data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+"-"+str(data_source.id).split("-")[0]
@@ -605,7 +607,6 @@ class DataSourceViewSet(ModelViewSet):
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
                 if ext in ["sav", "zsav", "csv"]:
-
                     if ext in ["sav", "zsav"]: #convert to csv
                         s3_client = boto3.client('s3')
                         workdir = "/tmp/" + str(data_source.id)
