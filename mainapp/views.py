@@ -772,7 +772,7 @@ class RunQuery(GenericAPIView):
 class ActivityViewSet(ModelViewSet):
     serializer_class = ActivitySerializer
     http_method_names = ['get', 'head', 'post', 'delete']
-    filter_fields = ('user', 'dataset', 'study')
+    filter_fields = ('user', 'dataset', 'study','type')
 
 
     def get_queryset(self):
