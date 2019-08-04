@@ -26,7 +26,9 @@ class DataSourceSerializer(ModelSerializer):
     class Meta:
         model = DataSource
         fields = '__all__'
-
+        extra_kwargs = {
+            'state': {'read_only': True}
+        }
 
 class ActivitySerializer(ModelSerializer):
 
@@ -53,6 +55,8 @@ class DatasetSerializer(ModelSerializer):
             'aggregated_users': {'allow_empty': True},
             'full_access_users': {'allow_empty': True},
             'user_created': {'read_only': True},
+            'bucket': {'read_only': True},
+            'programmatic_name': {'read_only': True},
         }
 
 

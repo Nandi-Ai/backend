@@ -208,6 +208,9 @@ class StudyViewSet(ModelViewSet):
                 PolicyArn=policy_arn
             )
 
+            for dataset in study.datasets.all():
+                Activity.objects.create(dataset=dataset, study=study, user=request.user, type="dataset assignment")
+
             return Response(self.serializer_class(study, allow_null=True).data, status=201) #llow null, read_only, many
         else:
             return Error(study_serialized.errors)
@@ -268,6 +271,12 @@ class StudyViewSet(ModelViewSet):
                 RoleName=role_name,
                 PolicyArn=policy_arn
             )
+
+            updated_datasets = set(study_updated['datasets'])
+            existing_datasets = set(study.datasets.all())
+            diff_datasets = updated_datasets ^ existing_datasets
+            for d in diff_datasets & updated_datasets:
+                Activity.objects.create(type = "dataset assignment", study = study, dataset = d,user = request.user)
 
         return super(self.__class__, self).update(request=self.request)
 
@@ -542,6 +551,14 @@ class DatasetViewSet(ModelViewSet):
             time.sleep(8)  # the role takes this time to be created! it is here in order to prevent calling GetDatasetSTS before creation
             data = self.serializer_class(dataset, allow_null=True).data
 
+            #activity:
+            for user in dataset.admin_users.all():
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"admin"})
+            for user in dataset.aggregated_users.all():
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"aggregated"})
+            for user in dataset.full_access_users.all():
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"full"})
+
             return Response(data, status=201)
         else:
             return Error(dataset_serialized.errors)
@@ -556,12 +573,60 @@ class DatasetViewSet(ModelViewSet):
             if error_response:
                 return error_response
 
+
             #additional validations only for update:
             dataset_id  = self.request.parser_context['kwargs']['pk']
             dataset = Dataset.objects.get(id=dataset_id)
 
+
+
             if request.user.permission(dataset) is not "admin":
                 return Error("this user can't update the dataset")
+
+            #activity
+            updated_admin = set(dataset_data['admin_users'])
+            existing = set(dataset.admin_users.all())
+            diff = updated_admin ^ existing
+            new = diff & updated_admin
+            removed_admins = diff & existing
+            print(removed_admins)
+
+            for user in new:
+                Activity.objects.create(type="dataset permission",  dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"admin"})
+            for user in removed_admins:
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"remove","permission":"admin"})
+
+            updated_agg = set(dataset_data['aggregated_users'])
+            existing = set(dataset.aggregated_users.all())
+            diff = updated_agg ^ existing
+            new = diff & updated_agg
+            removed_agg = diff & existing
+
+            for user in new:
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
+                                        meta={"user_affected": str(user.id),"action":"grant", "permission":"aggregated"})
+            # for user in removed_agg:
+            #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
+            #                             meta={"user_affected":  str(user.id),"permission":"aggregated"})
+
+            updated_full = set(dataset_data['full_access_users'])
+            existing = set(dataset.full_access_users.all())
+            diff = updated_full ^ existing
+            new = diff & updated_full
+            removed_full = diff & existing
+
+            for user in new:
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
+                                        meta={"user_affected": str(user.id),"action":"grant", "permission": "full"})
+            # for user in removed_full:
+            #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
+            #                             meta={"user_affected": str(user.id), "permission": "full"})
+
+            all_removed_users = removed_admins | removed_agg | removed_full
+            for u in all_removed_users:
+                if u not in (updated_admin | updated_agg | updated_full):
+                    Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
+                                            meta={"user_affected": str(user.id),"action":"remove","permission": "none"}, note="removed all permissions for dataset")
 
         return super(self.__class__, self).update(request=self.request) #will handle the case where serializer is not valid
 
@@ -698,6 +763,7 @@ class RunQuery(GenericAPIView):
             except Exception as e:
                     return Error(str(e))
 
+            Activity.objects.create(user = execution.real_user,dataset = dataset,study = study,action = query_string,type = "query")
             return Response({"query_execution_id": response['QueryExecutionId']})
         else:
             return (query_serialized.errors)
