@@ -256,7 +256,7 @@ class Activity(models.Model):
     dataset = models.ForeignKey('Dataset', on_delete=models.SET_NULL, related_name="activities", null=True)
     study = models.ForeignKey('Study', on_delete=models.SET_NULL, related_name="activities", null=True)
     type = models.CharField(null=True, blank=True, max_length=32)
-    action = models.CharField(null=True, blank=True, max_length=1024)
+    # action = models.CharField(null=True, blank=True, max_length=1024)
     note = models.CharField(null=True, blank=True, max_length=2048)
     meta = JSONField(null=True, blank=True, default=None)
 

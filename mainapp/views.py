@@ -764,7 +764,7 @@ class RunQuery(GenericAPIView):
             except Exception as e:
                     return Error(str(e))
 
-            Activity.objects.create(user = execution.real_user,dataset = dataset,study = study,action = query_string,type = "query")
+            Activity.objects.create(user = execution.real_user,dataset = dataset, study = study, meta = {"query_string":query_string} ,type = "query")
             return Response({"query_execution_id": response['QueryExecutionId']})
         else:
             return (query_serialized.errors)
