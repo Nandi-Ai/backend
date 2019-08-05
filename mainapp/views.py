@@ -19,6 +19,7 @@ import shutil
 import dateparser
 from django.core import exceptions
 from mainapp import resources
+from slugify import slugify
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -368,7 +369,7 @@ class RequestViewSet(ModelViewSet):
             request_data = request_serialized.validated_data
 
             if request_data["type"] == "dataset_access":
-                permission_request_types = ["aggregated", "full"]
+                permission_request_types = ["aggregated_access", "full_access"]
 
                 if not "dataset" in request_data:
                     return Error("please mention dataset if type is dataset_access")
@@ -385,10 +386,10 @@ class RequestViewSet(ModelViewSet):
                     return Error("permission must be one of: "+str(permission_request_types))
 
                 #the logic validations:
-                if request.user.permission(dataset) == request_data["permission"]:
+                if request.user.permission(dataset) =="full" and request_data["permission"] == "full_access":
                     return Error("you already have " + request_data["permission"] + " access for that dataset")
 
-                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated":
+                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated_access":
                     return Error("you already have aggregated access for that dataset")
 
                 if request.user.permission(dataset) is "admin":
@@ -396,13 +397,13 @@ class RequestViewSet(ModelViewSet):
 
                 existing_requests = Request.objects.filter(dataset=dataset, type="dataset_access", user_requested=request.user, state = "pending")
 
-                if existing_requests.filter(permission="aggregated"):
-                    if request_data["permission"] == "aggregated":
+                if existing_requests.filter(permission="aggregated_access"):
+                    if request_data["permission"] == "aggregated_access":
                         return Error("you already requested aggregated access for this dataset")
-                    if request_data["permission"] == "full":
+                    if request_data["permission"] == "full_access":
                         return Error("you have already requested aggregated access for this dataset. you have to wait for an admin to response your current request before requesting full access")
 
-                if existing_requests.filter(permission="full"):
+                if existing_requests.filter(permission="full_access"):
                     return Error("you have already requested full access for that dataset")
 
                 request_data['user_requested'] = request.user
@@ -489,7 +490,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = lib.clean(dataset.name)+"-"+str(dataset.id).split("-")[0]
+            dataset.programmatic_name = slugify(dataset.name)+"-"+str(dataset.id).split("-")[0]
             dataset.save()
 
             # create the dataset bucket:
@@ -664,7 +665,7 @@ class DataSourceViewSet(ModelViewSet):
                     return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
 
             data_source = data_source_serialized.save()
-            data_source.programmatic_name = lib.clean(data_source.name)+"-"+str(data_source.id).split("-")[0]
+            data_source.programmatic_name = slugify(data_source.name)+"-"+str(data_source.id).split("-")[0]
             data_source.save()
 
             if data_source.type == "structured":

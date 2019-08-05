@@ -147,9 +147,9 @@ def handle_zipped_data_source(data_source):
     shutil.rmtree("/tmp/" + str(data_source.id))
     data_source.state = "ready"
     data_source.save()
-
-def clean(string):
-    return ''.join(e for e in string.replace("-", " ").replace(" ", "c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5", "-")
+#
+# def clean(string):
+#     return ''.join(e for e in string.replace("-", " ").replace(" ", "c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5", "-")
 
 def calc_access_to_database(user, dataset):
     if dataset.state == "private":
