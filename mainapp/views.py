@@ -489,7 +489,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+"-"+str(dataset.id).split("-")[0]
+            dataset.programmatic_name = lib.clean(dataset.name)+"-"+str(dataset.id).split("-")[0]
             dataset.save()
 
             # create the dataset bucket:
@@ -664,7 +664,7 @@ class DataSourceViewSet(ModelViewSet):
                     return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
 
             data_source = data_source_serialized.save()
-            data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+"-"+str(data_source.id).split("-")[0]
+            data_source.programmatic_name = lib.clean(data_source.name)+"-"+str(data_source.id).split("-")[0]
             data_source.save()
 
             if data_source.type == "structured":
