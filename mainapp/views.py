@@ -556,9 +556,9 @@ class DatasetViewSet(ModelViewSet):
             for user in dataset.admin_users.all():
                 Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"admin"})
             for user in dataset.aggregated_users.all():
-                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"aggregated"})
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"aggregated_access"})
             for user in dataset.full_access_users.all():
-                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"full"})
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"full_access"})
 
             return Response(data, status=201)
         else:
@@ -605,7 +605,7 @@ class DatasetViewSet(ModelViewSet):
 
             for user in new:
                 Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
-                                        meta={"user_affected": str(user.id),"action":"grant", "permission":"aggregated"})
+                                        meta={"user_affected": str(user.id),"action":"grant", "permission":"aggregated_access"})
             # for user in removed_agg:
             #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
             #                             meta={"user_affected":  str(user.id),"permission":"aggregated"})
@@ -618,7 +618,7 @@ class DatasetViewSet(ModelViewSet):
 
             for user in new:
                 Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
-                                        meta={"user_affected": str(user.id),"action":"grant", "permission": "full"})
+                                        meta={"user_affected": str(user.id),"action":"grant", "permission": "full_access"})
             # for user in removed_full:
             #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
             #                             meta={"user_affected": str(user.id), "permission": "full"})
