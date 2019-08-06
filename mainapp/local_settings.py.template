@@ -24,3 +24,4 @@ COGNITO_AWS_REGION = aws_region
 COGNITO_USER_POOL = '<user_pool_id>'
 COGNITO_AUDIENCE = '<app_client_id>'
 HTTP_SCHEME = "https"
+aws_glue_service_role = "<example: service-role/AWSGlueServiceRole-mvp>"

@@ -115,7 +115,7 @@ def create_glue_crawler(data_source):
     path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0]['key'])
     glue_client.create_crawler(
         Name="data_source-"+str(data_source.id),
-        Role='service-role/AWSGlueServiceRole-mvp',
+        Role=settings.aws_glue_service_role,
         DatabaseName="dataset-"+str(data_source.dataset.id),
         Description='',
         Targets={
