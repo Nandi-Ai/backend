@@ -661,8 +661,14 @@ class DataSourceViewSet(ModelViewSet):
             if data_source_data['type'] in ["zip", "structured"]:
                 if not 's3_objects' in data_source_data:
                     return ("s3_objects field must be included")
+
                 if len(data_source_data['s3_objects']) != 1:
                     return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
+
+                s3_obj = data_source_data['s3_objects'][0]["key"]
+                path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
+                if ext not in ["sav", "zsav", "csv"]:
+                    return Error("file type is not supported as a structured data source")
 
             data_source = data_source_serialized.save()
             data_source.programmatic_name = slugify(data_source.name)+"-"+str(data_source.id).split("-")[0]
@@ -672,28 +678,28 @@ class DataSourceViewSet(ModelViewSet):
                 s3_obj = data_source.s3_objects[0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
-                if ext in ["sav", "zsav", "csv"]:
-                    if ext in ["sav", "zsav"]: #convert to csv
-                        s3_client = boto3.client('s3')
-                        workdir = "/tmp/" + str(data_source.id)
-                        os.makedirs(workdir)
-                        s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
-                        df, meta = pyreadstat.read_sav(workdir +"/"+ file_name)
-                        csv_path_and_file = workdir+"/" + file_name_no_ext + ".csv"
-                        df.to_csv(csv_path_and_file)
-                        s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
-                                              path + "/" + file_name_no_ext + ".csv")
-                        data_source.s3_objects.pop()
-                        data_source.s3_objects.append({'key':path + '/' + file_name_no_ext + ".csv", 'size': os.path.getsize(csv_path_and_file)})
-                        shutil.rmtree(workdir)
+                if ext in ["sav", "zsav"]: #convert to csv
+                    s3_client = boto3.client('s3')
+                    workdir = "/tmp/" + str(data_source.id)
+                    os.makedirs(workdir)
+                    s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
+                    df, meta = pyreadstat.read_sav(workdir +"/"+ file_name)
+                    csv_path_and_file = workdir+"/" + file_name_no_ext + ".csv"
+                    df.to_csv(csv_path_and_file)
+                    s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
+                                          path + "/" + file_name_no_ext + ".csv")
+                    data_source.s3_objects.pop()
+                    data_source.s3_objects.append({'key':path + '/' + file_name_no_ext + ".csv", 'size': os.path.getsize(csv_path_and_file)})
+                    shutil.rmtree(workdir)
 
-                    create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
-                    create_catalog_thread.start()
-
-                else:
-                    return Error("file type is not supported as a structured data source")
+                data_source.state = "pending"
+                data_source.save()
+                create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
+                create_catalog_thread.start()
 
             elif data_source.type == "zip":
+                data_source.state = "pending"
+                data_source.save()
                 handle_zip_thread = threading.Thread(target=lib.handle_zipped_data_source, args=[data_source])
                 handle_zip_thread.start()
 
