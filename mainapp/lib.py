@@ -96,14 +96,18 @@ def create_catalog(data_source):
         )
         crawler_ready = True if res['Crawler']['State'] == 'READY' else False
         sleep(5)
-        retries-=1
+        retries -= 1
 
     print("is crawler finished: ", crawler_ready)
     if not crawler_ready:
         data_source.state = "crawling error"
+        data_source.save()
     else:
+        glue_client.delete_crawler(
+            Name="data_source-"+str(data_source.id)
+        )
         data_source.state = "ready"
-    data_source.save()
+        data_source.save()
 
 def create_glue_crawler(data_source):
     glue_client = boto3.client('glue', region_name=settings.aws_region)
