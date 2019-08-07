@@ -503,7 +503,9 @@ class DatasetViewSet(ModelViewSet):
                     'AllowedHeaders': ['*'],
                     'AllowedMethods': ['GET', 'PUT', 'POST', 'DELETE'],
                     'AllowedOrigins': ['*'],
+                    'ExposeHeaders': ['ETag'],
                     'MaxAgeSeconds': 3000
+
                 }]
             }
 
