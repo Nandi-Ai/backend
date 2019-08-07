@@ -725,13 +725,15 @@ class DataSourceViewSet(ModelViewSet):
         # if data_source_serialized.is_valid():
 
         data_source = self.get_object()
-        # additional validations only for update:
+        if data_source.glue_table:
+            # additional validations only for update:
 
-        glue_client = boto3.client('glue', region_name=settings.aws_region)
-        glue_client.delete_table(
-            DatabaseName=data_source.dataset.glue_database,
-            Name=data_source.glue_table
-        )
+            glue_client = boto3.client('glue', region_name=settings.aws_region)
+            glue_client.delete_table(
+                DatabaseName=data_source.dataset.glue_database,
+                Name=data_source.glue_table
+            )
+            
         print("here1")
 
 

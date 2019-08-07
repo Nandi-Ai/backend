@@ -230,6 +230,9 @@ class DataSource(models.Model):
 
     @property
     def glue_table(self):
+        if self.type != "structured":
+            return
+
         return self.dir.replace("-", "_")
 
 
