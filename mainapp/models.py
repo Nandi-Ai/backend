@@ -228,6 +228,10 @@ class DataSource(models.Model):
         db_table = 'data_sources'
         unique_together = (("name", "dataset"),)
 
+    @property
+    def glue_table(self):
+        return self.dir.replace("-", "_")
+
 
 class Tag(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

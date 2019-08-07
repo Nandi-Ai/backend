@@ -222,8 +222,8 @@ class StudyViewSet(ModelViewSet):
         if serialized.is_valid():  # if not valid super will handle it
             study_updated = serialized.validated_data
 
-            study_id = self.request.parser_context['kwargs']['pk']
-            study = Study.objects.get(id=study_id)
+
+            study = self.get_object()
 
             client = boto3.client('iam')
             policy_arn = "arn:aws:iam::"+settings.aws_account_number+":policy/lynx-workspace-"+str(study.id)
@@ -576,12 +576,7 @@ class DatasetViewSet(ModelViewSet):
             if error_response:
                 return error_response
 
-
-            #additional validations only for update:
-            dataset_id  = self.request.parser_context['kwargs']['pk']
-            dataset = Dataset.objects.get(id=dataset_id)
-
-
+            dataset = self.get_object()
 
             if request.user.permission(dataset) is not "admin":
                 return Error("this user can't update the dataset")
@@ -719,10 +714,28 @@ class DataSourceViewSet(ModelViewSet):
 
         if serialized.is_valid(): #if not valid super will handle it
             dataset = serialized.validated_data['dataset']
-            if dataset not in request.user.datasets.all():
+            if dataset not in request.user.datasets.all(): #TODO to check if that even possible since the get_queryset should already handle filtering it.. if does can remove the update mothod
                 return Error("dataset doesn't exist or doesn't belong to the user")
 
         return super(self.__class__, self).update(request=self.request)
+
+    def destroy(self, request, *args, **kwargs):
+
+        # data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
+        # if data_source_serialized.is_valid():
+
+        data_source = self.get_object()
+        # additional validations only for update:
+
+        glue_client = boto3.client('glue', region_name=settings.aws_region)
+        glue_client.delete_table(
+            DatabaseName=data_source.dataset.glue_database,
+            Name=data_source.glue_table
+        )
+        print("here1")
+
+
+        return super(self.__class__, self).destroy(request=self.request)
 
 
 class RunQuery(GenericAPIView):

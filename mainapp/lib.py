@@ -109,6 +109,7 @@ def create_catalog(data_source):
         data_source.state = "ready"
         data_source.save()
 
+
 def create_glue_crawler(data_source):
     glue_client = boto3.client('glue', region_name=settings.aws_region)
 
