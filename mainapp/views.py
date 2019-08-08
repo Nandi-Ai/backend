@@ -41,8 +41,8 @@ class SendSyncSignal(APIView):
 
         execution = request.user.the_execution.last()
 
-    
-        p = Process(target=send_sync_signal, args=(execution.id,))
+
+        p = Process(target=send_sync_signal, args=(execution.token,))
         p.start()
 
         return Response()
@@ -104,8 +104,8 @@ class GetExecution(APIView):
             # execution.study = study
             execution.real_user = request.user
 
-            execution_user = User.objects.create_user(email=execution.id+"@lynx.md")
-            execution_user.set_password(execution.id)
+            execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
+            execution_user.set_password(execution.token)
             execution_user.is_execution = True
             execution_user.save()
             execution.execution_user = execution_user
@@ -117,7 +117,7 @@ class GetExecution(APIView):
 
             data = {
                 "usernames": [
-                    execution.id
+                    execution.token
                 ],
                 "admin": False
             }
@@ -126,7 +126,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Error("error creating execution")
 
-        return Response({'execution_identifier': str(study.execution.id), 'token': settings.jh_api_user_token})
+        return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_api_user_token})
 
 
 class StudyViewSet(ModelViewSet):

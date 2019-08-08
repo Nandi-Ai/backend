@@ -255,6 +255,9 @@ class Execution(models.Model):
     class Meta:
         db_table = 'executions'
 
+    @property
+    def token(self):
+        return str(self.id).split("-")[-1]
 
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
