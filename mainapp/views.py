@@ -41,8 +41,8 @@ class SendSyncSignal(APIView):
 
         execution = request.user.the_execution.last()
 
-        identifier = str(execution.id).split("-")[-1]
-        p = Process(target=send_sync_signal, args=(identifier,))
+    
+        p = Process(target=send_sync_signal, args=(execution.id,))
         p.start()
 
         return Response()
@@ -50,14 +50,9 @@ class SendSyncSignal(APIView):
 class GetSTS(APIView):
     def get(self, request):
 
-        #execution_identifier = request.query_params.get('execution_identifier')
         execution = request.user.the_execution.last()
         service = request.query_params.get('service')
-        #
-        # try:
-        #     execution = Execution.objects.get(id=ei)
-        # except Execution.DoesNotExist:
-        #     return Error("execution does not exists")
+
 
         try:
             study = Study.objects.get(execution = execution)
@@ -108,9 +103,9 @@ class GetExecution(APIView):
 
             # execution.study = study
             execution.real_user = request.user
-            identifier = str(execution.id).split("-")[-1]
-            execution_user = User.objects.create_user(email=identifier+"@lynx.md")
-            execution_user.set_password(identifier)
+
+            execution_user = User.objects.create_user(email=execution.id+"@lynx.md")
+            execution_user.set_password(execution.id)
             execution_user.is_execution = True
             execution_user.save()
             execution.execution_user = execution_user
@@ -122,7 +117,7 @@ class GetExecution(APIView):
 
             data = {
                 "usernames": [
-                    identifier
+                    execution.id
                 ],
                 "admin": False
             }
@@ -131,7 +126,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Error("error creating execution")
 
-        return Response({'execution_identifier': str(study.execution.id).split("-")[-1], 'token': settings.jh_api_user_token})
+        return Response({'execution_identifier': str(study.execution.id), 'token': settings.jh_api_user_token})
 
 
 class StudyViewSet(ModelViewSet):
@@ -733,7 +728,7 @@ class DataSourceViewSet(ModelViewSet):
                 DatabaseName=data_source.dataset.glue_database,
                 Name=data_source.glue_table
             )
-            
+
         print("here1")
 
 
