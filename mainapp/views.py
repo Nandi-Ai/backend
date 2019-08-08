@@ -799,8 +799,10 @@ class ActivityViewSet(ModelViewSet):
         return Activity.objects.filter(dataset_id__in=[x.id for x in self.request.user.admin_datasets.all()])
 
     def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
         start_raw = request.GET.get('start')
         end_raw = request.GET.get('end')
+
 
         if not all([start_raw, end_raw]):
             return Error("please provide start and end as query string params in some datetime format")
@@ -810,7 +812,7 @@ class ActivityViewSet(ModelViewSet):
         except exceptions.ValidationError as e:
             return Error("cannot parse this format: "+str(e))
 
-        queryset = self.get_queryset().filter(ts__range = (start, end)).order_by("-ts")
+        queryset = queryset.filter(ts__range = (start, end)).order_by("-ts")
         serializer = self.serializer_class(data=queryset,  allow_null = True, many=True)
         serializer.is_valid()
 
