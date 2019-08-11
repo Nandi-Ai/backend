@@ -87,7 +87,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
             data_sources  = data_sources | dataset.data_sources.all()
-            return data_sources
+
+        return data_sources
 
     @property
     def datasets(self):
@@ -227,6 +228,13 @@ class DataSource(models.Model):
         db_table = 'data_sources'
         unique_together = (("name", "dataset"),)
 
+    @property
+    def glue_table(self):
+        if self.type != "structured":
+            return
+
+        return self.dir.replace("-", "_")
+
 
 class Tag(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -247,6 +255,9 @@ class Execution(models.Model):
     class Meta:
         db_table = 'executions'
 
+    @property
+    def token(self):
+        return str(self.id).split("-")[-1]
 
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -255,7 +266,7 @@ class Activity(models.Model):
     dataset = models.ForeignKey('Dataset', on_delete=models.SET_NULL, related_name="activities", null=True)
     study = models.ForeignKey('Study', on_delete=models.SET_NULL, related_name="activities", null=True)
     type = models.CharField(null=True, blank=True, max_length=32)
-    action = models.CharField(null=True, blank=True, max_length=1024)
+    # action = models.CharField(null=True, blank=True, max_length=1024)
     note = models.CharField(null=True, blank=True, max_length=2048)
     meta = JSONField(null=True, blank=True, default=None)
 

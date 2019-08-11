@@ -96,14 +96,19 @@ def create_catalog(data_source):
         )
         crawler_ready = True if res['Crawler']['State'] == 'READY' else False
         sleep(5)
-        retries-=1
+        retries -= 1
 
     print("is crawler finished: ", crawler_ready)
     if not crawler_ready:
         data_source.state = "crawling error"
+        data_source.save()
     else:
+        glue_client.delete_crawler(
+            Name="data_source-"+str(data_source.id)
+        )
         data_source.state = "ready"
-    data_source.save()
+        data_source.save()
+
 
 def create_glue_crawler(data_source):
     glue_client = boto3.client('glue', region_name=settings.aws_region)
@@ -111,7 +116,7 @@ def create_glue_crawler(data_source):
     path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0]['key'])
     glue_client.create_crawler(
         Name="data_source-"+str(data_source.id),
-        Role='service-role/AWSGlueServiceRole-mvp',
+        Role=settings.aws_glue_service_role,
         DatabaseName="dataset-"+str(data_source.dataset.id),
         Description='',
         Targets={
@@ -147,7 +152,9 @@ def handle_zipped_data_source(data_source):
     shutil.rmtree("/tmp/" + str(data_source.id))
     data_source.state = "ready"
     data_source.save()
-
+#
+# def clean(string):
+#     return ''.join(e for e in string.replace("-", " ").replace(" ", "c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5", "-")
 
 def calc_access_to_database(user, dataset):
     if dataset.state == "private":

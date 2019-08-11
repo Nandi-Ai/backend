@@ -19,6 +19,7 @@ import shutil
 import dateparser
 from django.core import exceptions
 from mainapp import resources
+from slugify import slugify
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -40,8 +41,8 @@ class SendSyncSignal(APIView):
 
         execution = request.user.the_execution.last()
 
-        identifier = str(execution.id).split("-")[-1]
-        p = Process(target=send_sync_signal, args=(identifier,))
+
+        p = Process(target=send_sync_signal, args=(execution.token,))
         p.start()
 
         return Response()
@@ -49,14 +50,9 @@ class SendSyncSignal(APIView):
 class GetSTS(APIView):
     def get(self, request):
 
-        #execution_identifier = request.query_params.get('execution_identifier')
         execution = request.user.the_execution.last()
         service = request.query_params.get('service')
-        #
-        # try:
-        #     execution = Execution.objects.get(id=ei)
-        # except Execution.DoesNotExist:
-        #     return Error("execution does not exists")
+
 
         try:
             study = Study.objects.get(execution = execution)
@@ -107,9 +103,9 @@ class GetExecution(APIView):
 
             # execution.study = study
             execution.real_user = request.user
-            identifier = str(execution.id).split("-")[-1]
-            execution_user = User.objects.create_user(email=identifier+"@lynx.md")
-            execution_user.set_password(identifier)
+
+            execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
+            execution_user.set_password(execution.token)
             execution_user.is_execution = True
             execution_user.save()
             execution.execution_user = execution_user
@@ -121,7 +117,7 @@ class GetExecution(APIView):
 
             data = {
                 "usernames": [
-                    identifier
+                    execution.token
                 ],
                 "admin": False
             }
@@ -130,7 +126,7 @@ class GetExecution(APIView):
             if res.status_code != 201:
                 return Error("error creating execution")
 
-        return Response({'execution_identifier': str(study.execution.id).split("-")[-1], 'token': settings.jh_api_user_token})
+        return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_dummy_password})
 
 
 class StudyViewSet(ModelViewSet):
@@ -221,8 +217,8 @@ class StudyViewSet(ModelViewSet):
         if serialized.is_valid():  # if not valid super will handle it
             study_updated = serialized.validated_data
 
-            study_id = self.request.parser_context['kwargs']['pk']
-            study = Study.objects.get(id=study_id)
+
+            study = self.get_object()
 
             client = boto3.client('iam')
             policy_arn = "arn:aws:iam::"+settings.aws_account_number+":policy/lynx-workspace-"+str(study.id)
@@ -315,7 +311,7 @@ class HandleDatasetAccessRequest(APIView):
     def get(self, request, user_request_id):
         possible_responses = ["approve", "deny"]
         response = request.query_params.get('response')
-        print(response)
+
 
         if response not in possible_responses:
             return Error("please response with query string param: "+str(possible_responses))
@@ -368,7 +364,7 @@ class RequestViewSet(ModelViewSet):
             request_data = request_serialized.validated_data
 
             if request_data["type"] == "dataset_access":
-                permission_request_types = ["aggregated", "full"]
+                permission_request_types = ["aggregated_access", "full_access"]
 
                 if not "dataset" in request_data:
                     return Error("please mention dataset if type is dataset_access")
@@ -385,10 +381,10 @@ class RequestViewSet(ModelViewSet):
                     return Error("permission must be one of: "+str(permission_request_types))
 
                 #the logic validations:
-                if request.user.permission(dataset) == request_data["permission"]:
+                if request.user.permission(dataset) =="full" and request_data["permission"] == "full_access":
                     return Error("you already have " + request_data["permission"] + " access for that dataset")
 
-                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated":
+                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated_access":
                     return Error("you already have aggregated access for that dataset")
 
                 if request.user.permission(dataset) is "admin":
@@ -396,13 +392,13 @@ class RequestViewSet(ModelViewSet):
 
                 existing_requests = Request.objects.filter(dataset=dataset, type="dataset_access", user_requested=request.user, state = "pending")
 
-                if existing_requests.filter(permission="aggregated"):
-                    if request_data["permission"] == "aggregated":
+                if existing_requests.filter(permission="aggregated_access"):
+                    if request_data["permission"] == "aggregated_access":
                         return Error("you already requested aggregated access for this dataset")
-                    if request_data["permission"] == "full":
+                    if request_data["permission"] == "full_access":
                         return Error("you have already requested aggregated access for this dataset. you have to wait for an admin to response your current request before requesting full access")
 
-                if existing_requests.filter(permission="full"):
+                if existing_requests.filter(permission="full_access"):
                     return Error("you have already requested full access for that dataset")
 
                 request_data['user_requested'] = request.user
@@ -489,7 +485,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = ''.join(e for e in dataset.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+"-"+str(dataset.id).split("-")[0]
+            dataset.programmatic_name = slugify(dataset.name)+"-"+str(dataset.id).split("-")[0]
             dataset.save()
 
             # create the dataset bucket:
@@ -502,7 +498,9 @@ class DatasetViewSet(ModelViewSet):
                     'AllowedHeaders': ['*'],
                     'AllowedMethods': ['GET', 'PUT', 'POST', 'DELETE'],
                     'AllowedOrigins': ['*'],
+                    'ExposeHeaders': ['ETag'],
                     'MaxAgeSeconds': 3000
+
                 }]
             }
 
@@ -555,9 +553,9 @@ class DatasetViewSet(ModelViewSet):
             for user in dataset.admin_users.all():
                 Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"admin"})
             for user in dataset.aggregated_users.all():
-                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"aggregated"})
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"aggregated_access"})
             for user in dataset.full_access_users.all():
-                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"full"})
+                Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"full_access"})
 
             return Response(data, status=201)
         else:
@@ -573,12 +571,7 @@ class DatasetViewSet(ModelViewSet):
             if error_response:
                 return error_response
 
-
-            #additional validations only for update:
-            dataset_id  = self.request.parser_context['kwargs']['pk']
-            dataset = Dataset.objects.get(id=dataset_id)
-
-
+            dataset = self.get_object()
 
             if request.user.permission(dataset) is not "admin":
                 return Error("this user can't update the dataset")
@@ -589,7 +582,7 @@ class DatasetViewSet(ModelViewSet):
             diff = updated_admin ^ existing
             new = diff & updated_admin
             removed_admins = diff & existing
-            print(removed_admins)
+
 
             for user in new:
                 Activity.objects.create(type="dataset permission",  dataset=dataset, user=request.user, meta={"user_affected": str(user.id),"action":"grant","permission":"admin"})
@@ -604,7 +597,7 @@ class DatasetViewSet(ModelViewSet):
 
             for user in new:
                 Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
-                                        meta={"user_affected": str(user.id),"action":"grant", "permission":"aggregated"})
+                                        meta={"user_affected": str(user.id),"action":"grant", "permission":"aggregated_access"})
             # for user in removed_agg:
             #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
             #                             meta={"user_affected":  str(user.id),"permission":"aggregated"})
@@ -617,14 +610,14 @@ class DatasetViewSet(ModelViewSet):
 
             for user in new:
                 Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
-                                        meta={"user_affected": str(user.id),"action":"grant", "permission": "full"})
+                                        meta={"user_affected": str(user.id),"action":"grant", "permission": "full_access"})
             # for user in removed_full:
             #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
             #                             meta={"user_affected": str(user.id), "permission": "full"})
 
             all_removed_users = removed_admins | removed_agg | removed_full
-            for u in all_removed_users:
-                if u not in (updated_admin | updated_agg | updated_full):
+            for user in all_removed_users:
+                if user not in (updated_admin | updated_agg | updated_full):
                     Activity.objects.create(type="dataset permission", dataset=dataset, user=request.user,
                                             meta={"user_affected": str(user.id), "action": "remove", "permission": "all"})
 
@@ -660,39 +653,45 @@ class DataSourceViewSet(ModelViewSet):
             if data_source_data['type'] in ["zip", "structured"]:
                 if not 's3_objects' in data_source_data:
                     return ("s3_objects field must be included")
+
                 if len(data_source_data['s3_objects']) != 1:
                     return Error("data source of type structured and zip must include exactly one item in s3_objects json array")
 
+                s3_obj = data_source_data['s3_objects'][0]["key"]
+                path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
+                if ext not in ["sav", "zsav", "csv"]:
+                    return Error("file type is not supported as a structured data source")
+
             data_source = data_source_serialized.save()
-            data_source.programmatic_name = ''.join(e for e in data_source.name.replace("-", " ").replace(" ","c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5","-")+"-"+str(data_source.id).split("-")[0]
+            data_source.programmatic_name = slugify(data_source.name)+"-"+str(data_source.id).split("-")[0]
             data_source.save()
 
             if data_source.type == "structured":
                 s3_obj = data_source.s3_objects[0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
-                if ext in ["sav", "zsav", "csv"]:
-                    if ext in ["sav", "zsav"]: #convert to csv
-                        s3_client = boto3.client('s3')
-                        workdir = "/tmp/" + str(data_source.id)
-                        os.makedirs(workdir)
-                        s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
-                        df, meta = pyreadstat.read_sav(workdir +"/"+ file_name)
-                        csv_path_and_file = workdir+"/" + file_name_no_ext + ".csv"
-                        df.to_csv(csv_path_and_file)
-                        s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
-                                              path + "/" + file_name_no_ext + ".csv")
-                        data_source.s3_objects.pop()
-                        data_source.s3_objects.append({'key':path + '/' + file_name_no_ext + ".csv", 'size': os.path.getsize(csv_path_and_file)})
-                        shutil.rmtree(workdir)
+                if ext in ["sav", "zsav"]: #convert to csv
+                    s3_client = boto3.client('s3')
+                    workdir = "/tmp/" + str(data_source.id)
+                    os.makedirs(workdir)
+                    s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir +"/"+ file_name)
+                    df, meta = pyreadstat.read_sav(workdir +"/"+ file_name)
+                    csv_path_and_file = workdir+"/" + file_name_no_ext + ".csv"
+                    df.to_csv(csv_path_and_file)
+                    s3_client.upload_file(csv_path_and_file, data_source.dataset.bucket,
+                                          path + "/" + file_name_no_ext + ".csv")
+                    data_source.s3_objects.pop()
+                    data_source.s3_objects.append({'key':path + '/' + file_name_no_ext + ".csv", 'size': os.path.getsize(csv_path_and_file)})
+                    shutil.rmtree(workdir)
 
-                    create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
-                    create_catalog_thread.start()
-
-                else:
-                    return Error("file type is not supported as a structured data source")
+                data_source.state = "pending"
+                data_source.save()
+                create_catalog_thread = threading.Thread(target=lib.create_catalog, args=[data_source])  # also setting the data_source state to ready when it's done
+                create_catalog_thread.start()
 
             elif data_source.type == "zip":
+                data_source.state = "pending"
+                data_source.save()
                 handle_zip_thread = threading.Thread(target=lib.handle_zipped_data_source, args=[data_source])
                 handle_zip_thread.start()
 
@@ -710,10 +709,30 @@ class DataSourceViewSet(ModelViewSet):
 
         if serialized.is_valid(): #if not valid super will handle it
             dataset = serialized.validated_data['dataset']
-            if dataset not in request.user.datasets.all():
+            if dataset not in request.user.datasets.all(): #TODO to check if that even possible since the get_queryset should already handle filtering it.. if does can remove the update mothod
                 return Error("dataset doesn't exist or doesn't belong to the user")
 
         return super(self.__class__, self).update(request=self.request)
+
+    def destroy(self, request, *args, **kwargs):
+
+        # data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
+        # if data_source_serialized.is_valid():
+
+        data_source = self.get_object()
+        if data_source.glue_table:
+            # additional validations only for update:
+
+            glue_client = boto3.client('glue', region_name=settings.aws_region)
+            glue_client.delete_table(
+                DatabaseName=data_source.dataset.glue_database,
+                Name=data_source.glue_table
+            )
+
+        print("here1")
+
+
+        return super(self.__class__, self).destroy(request=self.request)
 
 
 class RunQuery(GenericAPIView):
@@ -763,7 +782,7 @@ class RunQuery(GenericAPIView):
             except Exception as e:
                     return Error(str(e))
 
-            Activity.objects.create(user = execution.real_user,dataset = dataset,study = study,action = query_string,type = "query")
+            Activity.objects.create(user = execution.real_user,dataset = dataset, study = study, meta = {"query_string":query_string} ,type = "query")
             return Response({"query_execution_id": response['QueryExecutionId']})
         else:
             return (query_serialized.errors)
@@ -772,7 +791,7 @@ class RunQuery(GenericAPIView):
 class ActivityViewSet(ModelViewSet):
     serializer_class = ActivitySerializer
     http_method_names = ['get', 'head', 'post', 'delete']
-    filter_fields = ('user', 'dataset', 'study')
+    filter_fields = ('user', 'dataset', 'study','type')
 
 
     def get_queryset(self):
@@ -780,8 +799,10 @@ class ActivityViewSet(ModelViewSet):
         return Activity.objects.filter(dataset_id__in=[x.id for x in self.request.user.admin_datasets.all()])
 
     def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
         start_raw = request.GET.get('start')
         end_raw = request.GET.get('end')
+
 
         if not all([start_raw, end_raw]):
             return Error("please provide start and end as query string params in some datetime format")
@@ -791,7 +812,7 @@ class ActivityViewSet(ModelViewSet):
         except exceptions.ValidationError as e:
             return Error("cannot parse this format: "+str(e))
 
-        queryset = self.get_queryset().filter(ts__range = (start, end)).order_by("-ts")
+        queryset = queryset.filter(ts__range = (start, end)).order_by("-ts")
         serializer = self.serializer_class(data=queryset,  allow_null = True, many=True)
         serializer.is_valid()
 
