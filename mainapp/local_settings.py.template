@@ -10,8 +10,8 @@ DATABASES = {
 
 SECRET_KEY="<can be generated with: tr -dc 'a-z0-9!@#$%^&*(-_=+)' < /dev/urandom | head -c50>"
 
-jh_api_user_token = "<md5(random uuid)>"
-jh_api_admin_token = "<md5(random uuid)>"
+jh_dummy_password = "<md5(random uuid)>"  #dummy password from kube config
+jh_api_admin_token = "<md5(random uuid)>" #need to access the JH with the admin user and dummy password from kube config and create a token to the admin user and put it here
 
 jh_url = "<the JH link. example: https://msc.app.lynx.md/jh/>"
 
