@@ -5,6 +5,7 @@ from django.db.utils import IntegrityError
 from django.contrib.postgres.fields import JSONField
 import uuid
 
+
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
         """
@@ -259,6 +260,7 @@ class Execution(models.Model):
     def token(self):
         return str(self.id).split("-")[-1]
 
+
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ts = models.DateTimeField(auto_now_add=True)
@@ -279,7 +281,6 @@ class Request(models.Model):
     types = (
         ("dataset_access", "dataset_access"),
     )
-
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)

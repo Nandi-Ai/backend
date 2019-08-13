@@ -47,6 +47,7 @@ class SendSyncSignal(APIView):
 
         return Response()
 
+
 class GetSTS(APIView):
     def get(self, request):
 
@@ -89,7 +90,9 @@ class Dummy(APIView):
     def get(self, request):
         return Response()
 
+
 class GetExecution(APIView):
+
     def get(self, request):
         study_id = request.query_params.get('study')
 
@@ -124,7 +127,7 @@ class GetExecution(APIView):
 
             res = requests.post(settings.jh_url + "/hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                return Error("error creating execution")
+                return Error("error creating a user for the execution in JH: "+str(res.status_code+", "+res.text))
 
         return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_dummy_password})
 
@@ -282,7 +285,6 @@ class GetDatasetSTS(APIView):
     def get(self, request, dataset_id):
         try:
             dataset = request.user.datasets.get(id=dataset_id)
-
         except Dataset.DoesNotExist:
             return Error("dataset with that id not exists")
 
@@ -728,8 +730,6 @@ class DataSourceViewSet(ModelViewSet):
                 DatabaseName=data_source.dataset.glue_database,
                 Name=data_source.glue_table
             )
-
-        print("here1")
 
 
         return super(self.__class__, self).destroy(request=self.request)
