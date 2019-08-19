@@ -101,6 +101,9 @@ class GetExecution(APIView):
         except Study.DoesNotExist:
             return Error("study does not exists")
 
+        if request.user is not study.user_created:
+            return Error("only the study creator can get a study execution")
+
         if not study.execution:
             execution = Execution.objects.create()
 
@@ -133,12 +136,13 @@ class GetExecution(APIView):
 
 
 class StudyViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post','put','delete']
+    http_method_names = ['get', 'head', 'post','put', 'delete']
+    filter_fields = ('user_created',)
 
     serializer_class = StudySerializer
 
     def get_queryset(self, **kwargs):
-        return self.request.user.studies.all()
+        return self.request.user.related_studies.all()
 
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
@@ -218,10 +222,12 @@ class StudyViewSet(ModelViewSet):
         serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if serialized.is_valid():  # if not valid super will handle it
+
             study_updated = serialized.validated_data
 
-
             study = self.get_object()
+            if request.user is not study.user_created:
+                return Error("only the study creator can edit a study")
 
             client = boto3.client('iam')
             policy_arn = "arn:aws:iam::"+settings.aws_account_number+":policy/lynx-workspace-"+str(study.id)

@@ -87,9 +87,19 @@ class User(AbstractBaseUser, PermissionsMixin):
     def data_sources(self):
         data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
-            data_sources  = data_sources | dataset.data_sources.all()
+            data_sources = data_sources | dataset.data_sources.all()
 
         return data_sources
+
+    @property
+    def related_studies(self):
+        print("here")
+        studies_ids = []
+        studies_ids = studies_ids + [s.id for s in self.studies_created.all()]
+        for dataset in self.admin_datasets.all():
+            studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
+        studies = Study.objects.filter(id__in=studies_ids) #no need set. return one item even if id appears mutiple times.
+        return studies
 
     @property
     def datasets(self):
