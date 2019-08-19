@@ -156,9 +156,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self in dataset.admin_users.all():
             return "admin"
         if self in dataset.full_access_users.all():
-            return "full"
+            return "full_access"
         if self in dataset.aggregated_users.all():
-            return "aggregated"
+            return "aggregated_access"
         #this function can also return None.....
 
 
@@ -196,7 +196,7 @@ class Dataset(models.Model):
 
     possible_default_user_permissions_for_private_dataset = (
         ("none", "none"),
-        ("aggregated", "aggregated"),
+        ("aggregated_access", "aggregated_access"),
     )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)

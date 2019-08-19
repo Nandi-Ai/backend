@@ -389,10 +389,10 @@ class RequestViewSet(ModelViewSet):
                     return Error("permission must be one of: "+str(permission_request_types))
 
                 #the logic validations:
-                if request.user.permission(dataset) =="full" and request_data["permission"] == "full_access":
+                if request.user.permission(dataset) =="full_access" and request_data["permission"] == "full_access":
                     return Error("you already have " + request_data["permission"] + " access for that dataset")
 
-                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated_access":
+                if request.user.permission(dataset) == "full_access" and request_data["permission"] == "aggregated_access":
                     return Error("you already have aggregated access for that dataset")
 
                 if request.user.permission(dataset) is "admin":
