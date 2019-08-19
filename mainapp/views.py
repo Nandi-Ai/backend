@@ -101,7 +101,7 @@ class GetExecution(APIView):
         except Study.DoesNotExist:
             return Error("study does not exists")
 
-        if request.user is not study.user_created:
+        if request.user != study.user_created:
             return Error("only the study creator can get a study execution")
 
         if not study.execution:
@@ -226,7 +226,7 @@ class StudyViewSet(ModelViewSet):
             study_updated = serialized.validated_data
 
             study = self.get_object()
-            if request.user is not study.user_created:
+            if request.user != study.user_created:
                 return Error("only the study creator can edit a study")
 
             client = boto3.client('iam')
@@ -581,7 +581,7 @@ class DatasetViewSet(ModelViewSet):
 
             dataset = self.get_object()
 
-            if request.user.permission(dataset) is not "admin":
+            if request.user.permission(dataset) != "admin":
                 return Error("this user can't update the dataset")
 
             #activity
