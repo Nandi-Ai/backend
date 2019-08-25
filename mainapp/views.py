@@ -176,6 +176,7 @@ class StudyViewSet(ModelViewSet):
             else:
                 s3.create_bucket(Bucket=workspace_bucket_name,
                                  CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
+            time.sleep(1)  # wait for the bucket to be created
 
             policy_json = {
                 "Version": "2012-10-17",
@@ -507,6 +508,7 @@ class DatasetViewSet(ModelViewSet):
             else:
                 s3.create_bucket(Bucket=dataset.bucket,
                              CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
+            time.sleep(1) #wait for the bucket to be created
 
             cors_configuration = {
                 'CORSRules': [{
@@ -519,7 +521,6 @@ class DatasetViewSet(ModelViewSet):
                 }]
             }
 
-            time.sleep(3) #wait for the bucket to be created
 
             s3.put_bucket_cors(Bucket=dataset.bucket, CORSConfiguration=cors_configuration)
 
