@@ -43,25 +43,21 @@ class UserManager(BaseUserManager):
         # print(payload)
 
         try:
-            u = self.get(email=payload['email'])
-            if not u.cognito_id or u.cognito_id != payload['sub']:
-                u.cognito_id = payload['sub']
-                u.save()
+            user = User.objects.get(email=payload['email'])
+            if not user.cognito_id or user.cognito_id != payload['sub']:
+                user.cognito_id = payload['sub']
+            return user
 
-            return u
-
-        except self.model.DoesNotExist:
-
-            u = self.create(cognito_id=payload['sub'], email=payload['email'], is_active=True)
+        except User.DoesNotExist:
+            user = self.create(cognito_id=payload['sub'], email=payload['email'], is_active=True)
 
             if 'organization' in payload:
                 organization_name = payload['organization']
                 organization, _ = Organization.objects.get_or_create(name = organization_name)
+                user.organization = organization
+                user.save()
 
-                u.organization = organization
-                u.save()
-
-            return u
+            return user
 
 
 class User(AbstractBaseUser, PermissionsMixin):

@@ -188,7 +188,10 @@ def close_all_jh_running_servers(idle_for_hours = 0):
     for user in users:
         if user['admin']:
             continue
-        idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(user['last_activity'])
+
+        last_activity = user['last_activity'] or user['created']
+
+        idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
 
         if idle_time > td(hours=idle_for_hours):
             res = requests.delete(settings.jh_url+'/hub/api/users/'+user['name']+'/server', headers=headers)
