@@ -47,6 +47,7 @@ class SendSyncSignal(APIView):
 
         return Response()
 
+
 class GetSTS(APIView):
     def get(self, request):
 
@@ -89,7 +90,9 @@ class Dummy(APIView):
     def get(self, request):
         return Response()
 
+
 class GetExecution(APIView):
+
     def get(self, request):
         study_id = request.query_params.get('study')
 
@@ -97,6 +100,9 @@ class GetExecution(APIView):
             study = request.user.studies.get(id=study_id)
         except Study.DoesNotExist:
             return Error("study does not exists")
+
+        if request.user != study.user_created:
+            return Error("only the study creator can get a study execution")
 
         if not study.execution:
             execution = Execution.objects.create()
@@ -124,18 +130,19 @@ class GetExecution(APIView):
 
             res = requests.post(settings.jh_url + "/hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                return Error("error creating execution")
+                return Error("error creating a user for the execution in JH: "+str(res.status_code+", "+res.text))
 
         return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_dummy_password})
 
 
 class StudyViewSet(ModelViewSet):
-    http_method_names = ['get', 'head', 'post','put','delete']
+    http_method_names = ['get', 'head', 'post','put', 'delete']
+    filter_fields = ('user_created',)
 
     serializer_class = StudySerializer
 
     def get_queryset(self, **kwargs):
-        return self.request.user.studies.all()
+        return self.request.user.related_studies.all()
 
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
@@ -215,10 +222,12 @@ class StudyViewSet(ModelViewSet):
         serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if serialized.is_valid():  # if not valid super will handle it
+
             study_updated = serialized.validated_data
 
-
             study = self.get_object()
+            if request.user != study.user_created:
+                return Error("only the study creator can edit a study")
 
             client = boto3.client('iam')
             policy_arn = "arn:aws:iam::"+settings.aws_account_number+":policy/lynx-workspace-"+str(study.id)
@@ -282,7 +291,6 @@ class GetDatasetSTS(APIView):
     def get(self, request, dataset_id):
         try:
             dataset = request.user.datasets.get(id=dataset_id)
-
         except Dataset.DoesNotExist:
             return Error("dataset with that id not exists")
 
@@ -381,10 +389,10 @@ class RequestViewSet(ModelViewSet):
                     return Error("permission must be one of: "+str(permission_request_types))
 
                 #the logic validations:
-                if request.user.permission(dataset) =="full" and request_data["permission"] == "full_access":
+                if request.user.permission(dataset) =="full_access" and request_data["permission"] == "full_access":
                     return Error("you already have " + request_data["permission"] + " access for that dataset")
 
-                if request.user.permission(dataset) == "full" and request_data["permission"] == "aggregated_access":
+                if request.user.permission(dataset) == "full_access" and request_data["permission"] == "aggregated_access":
                     return Error("you already have aggregated access for that dataset")
 
                 if request.user.permission(dataset) is "admin":
@@ -573,7 +581,7 @@ class DatasetViewSet(ModelViewSet):
 
             dataset = self.get_object()
 
-            if request.user.permission(dataset) is not "admin":
+            if request.user.permission(dataset) != "admin":
                 return Error("this user can't update the dataset")
 
             #activity
@@ -728,8 +736,6 @@ class DataSourceViewSet(ModelViewSet):
                 DatabaseName=data_source.dataset.glue_database,
                 Name=data_source.glue_table
             )
-
-        print("here1")
 
 
         return super(self.__class__, self).destroy(request=self.request)

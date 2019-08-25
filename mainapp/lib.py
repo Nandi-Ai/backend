@@ -10,7 +10,9 @@ from time import sleep
 import zipfile
 import subprocess
 import shutil
-
+import requests
+import json
+import pytz
 
 def break_s3_object(obj):
     file_name = obj.split("/")[-1]
@@ -19,6 +21,7 @@ def break_s3_object(obj):
     path = "/".join(obj.split("/")[:-1])
 
     return path, file_name, file_name_no_ext, ext
+
 
 def startup():
     os.environ["AWS_ACCESS_KEY_ID"] = settings.aws_access_key_id
@@ -156,14 +159,15 @@ def handle_zipped_data_source(data_source):
 # def clean(string):
 #     return ''.join(e for e in string.replace("-", " ").replace(" ", "c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5", "-")
 
+
 def calc_access_to_database(user, dataset):
     if dataset.state == "private":
-        if user.permission(dataset) == "aggregated":
+        if user.permission(dataset) == "aggregated_access":
             return "aggregated access"
-        elif user.permission(dataset) in ["admin", "full"]:
+        elif user.permission(dataset) in ["admin", "full_access"]:
             return "full access"
         else:  # user not aggregated and not full or admin
-            if dataset.default_user_permission == "aggregated":
+            if dataset.default_user_permission == "aggregated_access":
                 return "aggregated access"
             elif dataset.default_user_permission == "no access":
                 return "no access"
@@ -171,3 +175,28 @@ def calc_access_to_database(user, dataset):
         return "full access"
 
     return "no permission"  # safe. includes archived dataset
+
+
+def close_all_jh_running_servers(idle_for_hours = 0):
+    import dateparser
+    from datetime import datetime as dt, timedelta as td, time as dttime
+    headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
+    res = requests.get(settings.jh_url+'/hub/api/users',headers=headers)
+    assert res.status_code == 200, "error getting users: "+res.text
+    users = json.loads(res.text)
+
+    for user in users:
+        if user['admin']:
+            continue
+
+        last_activity = user['last_activity'] or user['created']
+
+        idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
+
+        if idle_time > td(hours=idle_for_hours):
+            res = requests.delete(settings.jh_url+'/hub/api/users/'+user['name']+'/server', headers=headers)
+            print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
+        else:
+            print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
+
+

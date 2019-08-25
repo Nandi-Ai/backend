@@ -5,6 +5,7 @@ from django.db.utils import IntegrityError
 from django.contrib.postgres.fields import JSONField
 import uuid
 
+
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
         """
@@ -42,25 +43,21 @@ class UserManager(BaseUserManager):
         # print(payload)
 
         try:
-            u = self.get(email=payload['email'])
-            if not u.cognito_id or u.cognito_id != payload['sub']:
-                u.cognito_id = payload['sub']
-                u.save()
+            user = User.objects.get(email=payload['email'])
+            if not user.cognito_id or user.cognito_id != payload['sub']:
+                user.cognito_id = payload['sub']
+            return user
 
-            return u
-
-        except self.model.DoesNotExist:
-
-            u = self.create(cognito_id=payload['sub'], email=payload['email'], is_active=True)
+        except User.DoesNotExist:
+            user = self.create(cognito_id=payload['sub'], email=payload['email'], is_active=True)
 
             if 'organization' in payload:
                 organization_name = payload['organization']
                 organization, _ = Organization.objects.get_or_create(name = organization_name)
+                user.organization = organization
+                user.save()
 
-                u.organization = organization
-                u.save()
-
-            return u
+            return user
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -86,9 +83,19 @@ class User(AbstractBaseUser, PermissionsMixin):
     def data_sources(self):
         data_sources = DataSource.objects.none()
         for dataset in self.datasets.all():
-            data_sources  = data_sources | dataset.data_sources.all()
+            data_sources = data_sources | dataset.data_sources.all()
 
         return data_sources
+
+    @property
+    def related_studies(self):
+        print("here")
+        studies_ids = []
+        studies_ids = studies_ids + [s.id for s in self.studies_created.all()]
+        for dataset in self.admin_datasets.all():
+            studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
+        studies = Study.objects.filter(id__in=studies_ids) #no need set. return one item even if id appears mutiple times.
+        return studies
 
     @property
     def datasets(self):
@@ -145,9 +152,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self in dataset.admin_users.all():
             return "admin"
         if self in dataset.full_access_users.all():
-            return "full"
+            return "full_access"
         if self in dataset.aggregated_users.all():
-            return "aggregated"
+            return "aggregated_access"
         #this function can also return None.....
 
 
@@ -185,7 +192,7 @@ class Dataset(models.Model):
 
     possible_default_user_permissions_for_private_dataset = (
         ("none", "none"),
-        ("aggregated", "aggregated"),
+        ("aggregated_access", "aggregated_access"),
     )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -259,6 +266,7 @@ class Execution(models.Model):
     def token(self):
         return str(self.id).split("-")[-1]
 
+
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ts = models.DateTimeField(auto_now_add=True)
@@ -279,7 +287,6 @@ class Request(models.Model):
     types = (
         ("dataset_access", "dataset_access"),
     )
-
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
