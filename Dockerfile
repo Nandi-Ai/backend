@@ -5,7 +5,7 @@ RUN \
     apk add --no-cache --virtual .build-deps gcc musl-dev libressl-dev libffi-dev postgresql-dev python3-dev g++ jpeg-dev zlib-dev
 ENV LIBRARY_PATH=/lib:/usr/lib
 RUN \
-    /usr/local/bin/python3 -m pip install cython numpy && \
+#    /usr/local/bin/python3 -m pip install cython numpy && \
     /usr/local/bin/python3 -m pip install --no-cache-dir -r requirements.txt && \
     apk --purge del .build-deps
 
