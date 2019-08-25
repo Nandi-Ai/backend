@@ -171,7 +171,7 @@ class StudyViewSet(ModelViewSet):
             study.save()
             workspace_bucket_name ="lynx-workspace-"+ str(study.id)
             s3 = boto3.client('s3')
-            s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration={'LocationConstraint':settings.aws_region},)
+            s3.create_bucket(Bucket=workspace_bucket_name, CreateBucketConfiguration=None if settings.aws_region == 'us-east-1' else {'LocationConstraint': settings.aws_region},)
 
             policy_json = {
                 "Version": "2012-10-17",
@@ -499,7 +499,7 @@ class DatasetViewSet(ModelViewSet):
             # create the dataset bucket:
             s3 = boto3.client('s3')
             s3.create_bucket(Bucket=dataset.bucket,
-                             CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
+                             CreateBucketConfiguration=None if settings.aws_region == 'us-east-1' else {'LocationConstraint': settings.aws_region}, )
 
             cors_configuration = {
                 'CORSRules': [{
