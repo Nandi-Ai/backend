@@ -519,6 +519,8 @@ class DatasetViewSet(ModelViewSet):
                 }]
             }
 
+            time.sleep(3) #wait for the bucket to be created
+
             s3.put_bucket_cors(Bucket=dataset.bucket, CORSConfiguration=cors_configuration)
 
             # create the dataset policy:
