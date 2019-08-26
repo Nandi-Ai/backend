@@ -42,21 +42,17 @@ class UserManager(BaseUserManager):
 
         # print(payload)
 
+        cognito_id = payload['sub']
+
         try:
-            user = User.objects.get(email=payload['email'])
-            if not user.cognito_id or user.cognito_id != payload['sub']:
-                user.cognito_id = payload['sub']
+            user = self.get(email=payload['email'])
+            if not user.cognito_id or user.cognito_id != cognito_id:
+                user.cognito_id = cognito_id
+                user.save()
             return user
 
-        except User.DoesNotExist:
-            user = self.create(cognito_id=payload['sub'], email=payload['email'], is_active=True)
-
-            if 'organization' in payload:
-                organization_name = payload['organization']
-                organization, _ = Organization.objects.get_or_create(name = organization_name)
-                user.organization = organization
-                user.save()
-
+        except self.model.DoesNotExist:
+            user = self.create(cognito_id=cognito_id, email=payload['email'], is_active=True)
             return user
 
 
