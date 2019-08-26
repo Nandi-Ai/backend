@@ -96,14 +96,18 @@ class User(AbstractBaseUser, PermissionsMixin):
         studies_ids = studies_ids + [s.id for s in self.studies_created.all()]
         for dataset in self.admin_datasets.all():
             studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
-        studies = Study.objects.filter(id__in=studies_ids) #no need set. return one item even if id appears mutiple times.
+        studies = Study.objects.filter(
+            id__in=studies_ids)  # no need set. return one item even if id appears multiple times.
         return studies
 
     @property
     def datasets(self):
-        #all public datasets, datasets that the user have aggregated access accept archived, datasets that the user has admin access, datasets that the user have full access permission accept archived.
+        # all public datasets, datasets that the user have aggregated access accept archived,
+        # datasets that the user has admin access, datasets that the user have full access permission accept archived.
 
-        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state = "archived")).distinct() #this method seems to return duplicate items because somethig related to the admin_datasets(many to many)
+        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(
+            # this method seems to return duplicate items because something related to the admin_datasets(many to many)
+            state="archived")).distinct()
         # datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
         return datasets
 
@@ -124,31 +128,31 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
-    #REQUIRED_FIELDS = []
+
+    # REQUIRED_FIELDS = []
 
     def __str__(self):
         return self.email
 
     def has_perm(self, perm, obj=None):
-        "Does the user have a specific permission?"
+        """Does the user have a specific permission?"""
         # Simplest possible answer: Yes, always
         return True
 
     def has_module_perms(self, app_label):
-        "Does the user have permissions to view the app `app_label`?"
+        """Does the user have permissions to view the app `app_label`?"""
         # Simplest possible answer: Yes, always
         return True
 
     @property
     def is_staff(self):
-        "Is the user a member of staff?"
+        """Is the user a member of staff?"""
         # Simplest possible answer: All admins are staff
         return self.is_admin
 
     class Meta:
-        # need to manualy edit the primary key and change it from timestamp to [patient_id,timestamp] in that order
+        # need to manually edit the primary key and change it from timestamp to [patient_id,timestamp] in that order
         db_table = 'users'
-
 
     def permission(self, dataset):
         if self in dataset.admin_users.all():
@@ -157,7 +161,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             return "full_access"
         if self in dataset.aggregated_users.all():
             return "aggregated_access"
-        #this function can also return None.....
+        # this function can also return None.....
 
 
 class Organization(models.Model):
@@ -206,11 +210,13 @@ class Dataset(models.Model):
     user_created = models.ForeignKey('User', on_delete=models.SET_NULL, related_name="datasets_created", null=True)
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
-    default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset, max_length=32, null=True)
+    default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset,
+                                               max_length=32, null=True)
     bucket = models.CharField(max_length=255, blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now = True)
+    updated_at = models.DateTimeField(auto_now=True)
     glue_database = models.CharField(max_length=255, blank=True, null=True)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
+    organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="datasets", null=True)
 
     class Meta:
         db_table = 'datasets'
@@ -224,12 +230,12 @@ class DataSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
-    s3_objects = JSONField(null = True, blank = True, default = None)
+    s3_objects = JSONField(null=True, blank=True, default=None)
     dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="data_sources")
     type = models.CharField(null=True, blank=True, max_length=32)
     about = models.TextField(null=True, blank=True, max_length=2048)
-    columns = JSONField(null = True, blank = True, default = None)
-    preview = JSONField(null = True, blank = True, default = None)
+    columns = JSONField(null=True, blank=True, default=None)
+    preview = JSONField(null=True, blank=True, default=None)
     state = models.CharField(null=True, blank=True, max_length=32)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
 
@@ -259,6 +265,7 @@ class Execution(models.Model):
     # identifier = models.CharField(max_length=255, null=True)
     real_user = models.ForeignKey('User', on_delete=models.CASCADE, null=True)
     execution_user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="the_execution", null=True)
+
     # study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="executions", null=True)
 
     class Meta:
@@ -282,7 +289,12 @@ class Activity(models.Model):
 
     class Meta:
         db_table = 'activities'
-        #in future it is possible to optimize this table by creating primary_key=(ts,user) while removing the id and the unique_togheter constraint. (for now django not supports combined primary key but it can be achieved manually with adding to the migration: # migrations.RunSQL("ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)
+        # in future it is possible to optimize this table by creating primary_key=(ts,user)
+        # while removing the id and the unique_together constraint.
+        # (for now django not supports combined primary key but it can be achieved manually
+        # with adding to the migration:
+        # migrations.RunSQL(
+        # "ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)
 
 
 class Request(models.Model):
@@ -296,12 +308,16 @@ class Request(models.Model):
     user_requested = models.ForeignKey('User', on_delete=models.CASCADE, related_name="requests", null=True)
     dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="requests", null=True)
     study = models.ForeignKey('Study', on_delete=models.CASCADE, related_name="requests", null=True)
-    type = models.CharField(choices=types,max_length=32)
+    type = models.CharField(choices=types, max_length=32)
     note = models.CharField(null=True, blank=True, max_length=2048)
     permission = models.CharField(null=True, blank=True, max_length=32)
-    state = models.CharField(null=True, blank=True,default = "pending", max_length=32)
+    state = models.CharField(null=True, blank=True, default="pending", max_length=32)
 
     class Meta:
         db_table = 'requests'
 
-        # in future it is possible to optimize this table by creating primary_key=(ts,user) while removing the id and the unique_togheter constraint. (for now django not supports combined primary key but it can be achieved manually with adding to the migration: # migrations.RunSQL("ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)
+        # in future it is possible to optimize this table by creating primary_key=(ts,user)
+        # while removing the id and the unique_together constraint.
+        # (for now django not supports combined primary key but it can be achieved manually
+        # with adding to the migration: # migrations.RunSQL(
+        # "ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)

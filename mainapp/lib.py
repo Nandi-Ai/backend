@@ -3,7 +3,7 @@ import os
 from mainapp import settings
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from datetime import datetime as dt,timedelta as td
+from datetime import datetime as dt, timedelta as td
 import sqlparse
 import boto3
 from time import sleep
@@ -13,6 +13,7 @@ import shutil
 import requests
 import json
 import pytz
+
 
 def break_s3_object(obj):
     file_name = obj.split("/")[-1]
@@ -42,6 +43,7 @@ def is_aggregated(query):
 
     return True
 
+
 class MyTokenAuthentication(TokenAuthentication):
     keyword = "Bearer"
 
@@ -69,14 +71,13 @@ class MyTokenAuthentication(TokenAuthentication):
 
 
 def create_catalog(data_source):
-
     # Clients
     glue_client = boto3.client('glue', region_name=settings.aws_region)
     dataset = data_source.dataset
 
     if not dataset.glue_database:
         print("creating glue database")
-        dataset.glue_database = "dataset-"+str(data_source.dataset.id)
+        dataset.glue_database = "dataset-" + str(data_source.dataset.id)
         glue_client.create_database(
             DatabaseInput={
                 "Name": dataset.glue_database
@@ -85,17 +86,17 @@ def create_catalog(data_source):
         dataset.save()
 
     print("creating database crawler")
-    create_glue_crawler(data_source) #if no dataset no crawler
+    create_glue_crawler(data_source)  # if no dataset no crawler
 
     print('starting the database crawler')
-    glue_client.start_crawler(Name="data_source-"+str(data_source.id))
+    glue_client.start_crawler(Name="data_source-" + str(data_source.id))
 
     crawler_ready = False
     retries = 50
 
     while not crawler_ready and retries >= 0:
         res = glue_client.get_crawler(
-            Name="data_source-"+str(data_source.id)
+            Name="data_source-" + str(data_source.id)
         )
         crawler_ready = True if res['Crawler']['State'] == 'READY' else False
         sleep(5)
@@ -107,7 +108,7 @@ def create_catalog(data_source):
         data_source.save()
     else:
         glue_client.delete_crawler(
-            Name="data_source-"+str(data_source.id)
+            Name="data_source-" + str(data_source.id)
         )
         data_source.state = "ready"
         data_source.save()
@@ -118,14 +119,14 @@ def create_glue_crawler(data_source):
 
     path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0]['key'])
     glue_client.create_crawler(
-        Name="data_source-"+str(data_source.id),
+        Name="data_source-" + str(data_source.id),
         Role=settings.aws_glue_service_role,
-        DatabaseName="dataset-"+str(data_source.dataset.id),
+        DatabaseName="dataset-" + str(data_source.dataset.id),
         Description='',
         Targets={
             'S3Targets': [
                 {
-                    'Path': 's3://' + data_source.dataset.bucket+"/"+path+"/",
+                    'Path': 's3://' + data_source.dataset.bucket + "/" + path + "/",
                     'Exclusions': []
                 },
             ]
@@ -151,10 +152,13 @@ def handle_zipped_data_source(data_source):
         data_source.state = "error: failed to extract zip file"
     zip_ref.close()
     subprocess.check_output(
-        ["aws", "s3", "sync", workdir + "/extracted", "s3://" + data_source.dataset.bucket + "/" + path+"/"+file_name_no_ext])
+        ["aws", "s3", "sync", workdir + "/extracted",
+         "s3://" + data_source.dataset.bucket + "/" + path + "/" + file_name_no_ext])
     shutil.rmtree("/tmp/" + str(data_source.id))
     data_source.state = "ready"
     data_source.save()
+
+
 #
 # def clean(string):
 #     return ''.join(e for e in string.replace("-", " ").replace(" ", "c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5", "-")
@@ -177,12 +181,12 @@ def calc_access_to_database(user, dataset):
     return "no permission"  # safe. includes archived dataset
 
 
-def close_all_jh_running_servers(idle_for_hours = 0):
+def close_all_jh_running_servers(idle_for_hours=0):
     import dateparser
     from datetime import datetime as dt, timedelta as td, time as dttime
     headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
-    res = requests.get(settings.jh_url+'/hub/api/users',headers=headers)
-    assert res.status_code == 200, "error getting users: "+res.text
+    res = requests.get(settings.jh_url + '/hub/api/users', headers=headers)
+    assert res.status_code == 200, "error getting users: " + res.text
     users = json.loads(res.text)
 
     for user in users:
@@ -194,9 +198,7 @@ def close_all_jh_running_servers(idle_for_hours = 0):
         idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
 
         if idle_time > td(hours=idle_for_hours):
-            res = requests.delete(settings.jh_url+'/hub/api/users/'+user['name']+'/server', headers=headers)
+            res = requests.delete(settings.jh_url + '/hub/api/users/' + user['name'] + '/server', headers=headers)
             print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
         else:
             print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
-
-

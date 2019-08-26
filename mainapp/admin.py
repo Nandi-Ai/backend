@@ -8,4 +8,5 @@ admin.site.unregister(authgroup)
 class TagAdmin(admin.ModelAdmin):
     pass
 
+
 admin.site.register(Tag, TagAdmin)

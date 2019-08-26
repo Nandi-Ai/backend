@@ -15,13 +15,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from django.conf.urls import url,include
+from django.conf.urls import url, include
 from mainapp import views
 from mainapp.views import schema_view
 from rest_framework.routers import SimpleRouter
 from mainapp.lib import startup
 
-#from django.contrib.auth import views as auth_views
+# from django.contrib.auth import views as auth_views
 #
 # class OptionalSlashRouter(SimpleRouter):
 #
@@ -55,7 +55,8 @@ urlpatterns = [
     url(r'^send_sync_signal/$', views.SendSyncSignal.as_view(), name='send_sync_signal'),
     url(r'^run_query/$', views.RunQuery.as_view(), name='run_query'),
     url(r'^me/$', views.CurrentUserView.as_view(), name='run_query'),
-    url(r'^requests/respond/(?P<user_request_id>[^/]+)$', views.HandleDatasetAccessRequest.as_view(), name='respond_request'),
+    url(r'^requests/respond/(?P<user_request_id>[^/]+)$', views.HandleDatasetAccessRequest.as_view(),
+        name='respond_request'),
 ]
 
 startup()
