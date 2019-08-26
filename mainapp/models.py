@@ -55,7 +55,9 @@ class UserManager(BaseUserManager):
                 email=payload['email'],
                 is_active=True)
         except IntegrityError:
-            user = self.get(cognito_id=cognito_id)
+            user = self.get(email=payload['email'])
+            user.cognito_id=cognito_id
+            user.save()
 
         return user
 
