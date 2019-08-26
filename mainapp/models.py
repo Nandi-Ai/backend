@@ -45,15 +45,19 @@ class UserManager(BaseUserManager):
         cognito_id = payload['sub']
 
         try:
-            user = self.get(email=payload['email'])
-            if not user.cognito_id or user.cognito_id != cognito_id:
-                user.cognito_id = cognito_id
-                user.save()
-            return user
-
+            return self.get(cognito_id=cognito_id)
         except self.model.DoesNotExist:
-            user = self.create(cognito_id=cognito_id, email=payload['email'], is_active=True)
-            return user
+            pass
+
+        try:
+            user = self.create(
+                cognito_id=cognito_id,
+                email=payload['email'],
+                is_active=True)
+        except IntegrityError:
+            user = self.get(cognito_id=cognito_id)
+
+        return user
 
 
 class User(AbstractBaseUser, PermissionsMixin):
