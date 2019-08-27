@@ -263,9 +263,6 @@ class Tag(models.Model):
     def __str__(self):
         return self.name +" | "+self.category
 
-
-
-
 class Execution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # identifier = models.CharField(max_length=255, null=True)

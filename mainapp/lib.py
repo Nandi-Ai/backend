@@ -210,4 +210,4 @@ def load_tags():
         tags=json.load(f)
         Tag.objects.all().delete()
         for tag in tags:
-            Tag.objects.create(name = tag['tag_name'], category=tag['category'])
+            Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
