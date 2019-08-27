@@ -30,6 +30,9 @@ def startup():
     os.environ["AWS_SECRET_ACCESS_KEY"] = settings.aws_secret_access_key
     os.environ["AWS_REGION"] = settings.aws_region
 
+    if not Tag.objects.count():
+        load_tags()
+
 
 def is_aggregated(query):
     # aggregated_tokens = {"AVG","SUM", "GROUPBY"}
@@ -205,9 +208,11 @@ def close_all_jh_running_servers(idle_for_hours=0):
             print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
 
 
-def load_tags():
+def load_tags(delete_removed_tags=True):
     with open("tags.json") as f:
         tags=json.load(f)
-        Tag.objects.all().delete()
+        if delete_removed_tags:
+            Tag.objects.all().delete()
+
         for tag in tags:
             Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
