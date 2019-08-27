@@ -13,6 +13,7 @@ import shutil
 import requests
 import json
 import pytz
+from mainapp.models import Tag
 
 
 def break_s3_object(obj):
@@ -202,3 +203,11 @@ def close_all_jh_running_servers(idle_for_hours=0):
             print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
         else:
             print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
+
+
+def load_tags():
+    with open("tags.json") as f:
+        tags=json.load(f)
+        for tag in tags:
+            Tag.objects.create(name = tag['tag_name'], category=tag['category'])
+

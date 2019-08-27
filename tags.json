@@ -1,0 +1,1282 @@
+[
+ {
+   "tag_name": "stomach",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "adrenal gland",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "anus",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "arm",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "laryngeal prominence",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "appendix",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "artery",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "adenoids",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ankle",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "back",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "umbilicus",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "blood",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "bone",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "buttocks",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "foot",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "big toe",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "blood vessels",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "brain",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "bladder",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "breast",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "cartilage",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "cheek",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "circulatory system",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "clavicle",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "capillary",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "cell",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "chest",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "carpal",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "cervical vertebrae",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "chin",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "coccyx",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "diaphragm",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "digestive system",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ear",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "endocrine system",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ear lobe",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "esophagus",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "elbow",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "eye",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "eyelid",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "face",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "femur",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "finger",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "fallopian tubes",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "fibula",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "fingernail",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "forehead",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "feet",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "follicle",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "gallbladder",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "gums",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "glands",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "groin",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "hair",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "heart",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "humerus",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "hand",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "heel",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "head",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "thigh",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "immune system",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "intestines",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "iris",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "instep",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "jaw",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "jaw",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "knee",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "throat",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "lip",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "lumbar vertebrae",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "leg",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "liver",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "lungs",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ligament",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "lymph node",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "metacarpal",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "mouth",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "metatarsal",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "muscle",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "nerves",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "nostril",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "neck",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "nose",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ovary",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "palm",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "pelvis",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "pancreas",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "patella",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "pharynx",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "pore",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "radius",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "respiratory system",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "rectum",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ribs",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "red blood cells",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "tarsal",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "testes",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "throat",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "tibia",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "teeth",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "thumb",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "tissue",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "tongue",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "torso",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "tendon",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "thorax",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "thyroid",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "tonsils",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "trachea",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ulna",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "urinary system",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "ureter",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "uterus",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "urethra",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "uvula",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "vein",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "vertebra",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "waist",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "white blood cells",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "wrist",
+   "category": "body_parts"
+ },
+ {
+   "tag_name": "emergency medicine",
+   "category": "departments"
+ },
+ {
+   "tag_name": "anesthesiology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "breast screening",
+   "category": "departments"
+ },
+ {
+   "tag_name": "cardiology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "chaplaincy",
+   "category": "departments"
+ },
+ {
+   "tag_name": "critical care",
+   "category": "departments"
+ },
+ {
+   "tag_name": "ear nose and throat",
+   "category": "departments"
+ },
+ {
+   "tag_name": "gastroenterology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "general surgery",
+   "category": "departments"
+ },
+ {
+   "tag_name": "gynecology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "hematology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "maternity",
+   "category": "departments"
+ },
+ {
+   "tag_name": "microbiology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "neonatal unit",
+   "category": "departments"
+ },
+ {
+   "tag_name": "nephrology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "neurology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "nutrition and dietetics",
+   "category": "departments"
+ },
+ {
+   "tag_name": "pediatrics",
+   "category": "departments"
+ },
+ {
+   "tag_name": "occupational therapy",
+   "category": "departments"
+ },
+ {
+   "tag_name": "oncology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "ophthalmology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "orthopedics",
+   "category": "departments"
+ },
+ {
+   "tag_name": "pain management",
+   "category": "departments"
+ },
+ {
+   "tag_name": "pharmacy",
+   "category": "departments"
+ },
+ {
+   "tag_name": "physiotherapy",
+   "category": "departments"
+ },
+ {
+   "tag_name": "radiation oncology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "renal unit",
+   "category": "departments"
+ },
+ {
+   "tag_name": "rheumatology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "sexual health",
+   "category": "departments"
+ },
+ {
+   "tag_name": "urology",
+   "category": "departments"
+ },
+ {
+   "tag_name": "genomics",
+   "category": "departments"
+ },
+ {
+   "tag_name": "x-ray",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "angiography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "interventional radiology",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "ct",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "mri",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "endoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "ophthalmic imaging",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "biopsies",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "bone scans",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "amniocentesis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "blood chemistry",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "blood count",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "blood typing",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "bone marrow aspiration",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "enzyme analysis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "epinephrine tolerance test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "glucose tolerance test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "hematocrit",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "immunologic blood test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "serological test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "gastric fluid analysis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "kidney function test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "liver function test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "lumbar puncture",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "malabsorption test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "pap smear",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "psp test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "pregnancy test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "prenatal testing",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "syphilis test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "thoracentesis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "thyroid function test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "toxicology test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "urinalysis/uroscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "diagnostic imaging",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "angiocardiography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "cerebral angiography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "brain scanning",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "echoencephalography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "magnetoencephalography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "pneumoencephalography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "cholecystography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "echocardiography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "endoscopic retrograde cholangiopancreatoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "lung ventilation/perfusion scan",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "magnetic resonance spectroscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "mammography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "myelography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "prenatal testing",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "tomography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "positron emission tomography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "ultrasound",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "urography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "genetic testing",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "complementation test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "fluorescence in situ hybridization",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "preimplantation genetic diagnosis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "measurement",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "electrocardiography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "electroencephalography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "electromyography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "lumbar puncture",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "magnetic resonance spectroscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "phonocardiography",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "pulmonary function test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "semen analysis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "physical and visual examination",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "auscultation",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "autopsy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "biopsy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "bronchoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "cardiac catheterization",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "colposcopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "esophagogastroduodenoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "gynecological examination",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "laparoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "mediastinoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "nasopharyngolaryngoscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "palpation",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "percussion",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "rubin�s test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "semen analysis",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "skin test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "patch test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "schick test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "tuberculin test",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "toxicological examination",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "uroscopy",
+   "category": "procedures_tests"
+ },
+ {
+   "tag_name": "geriatrics",
+   "category": "demographics"
+ },
+ {
+   "tag_name": "women",
+   "category": "demographics"
+ },
+ {
+   "tag_name": "men",
+   "category": "demographics"
+ },
+ {
+   "tag_name": "children",
+   "category": "demographics"
+ },
+ {
+   "tag_name": "premature baby",
+   "category": "demographics"
+ },
+ {
+   "tag_name": "adolescent medicine",
+   "category": "demographics"
+ },
+ {
+   "tag_name": "care",
+   "category": "data_types"
+ },
+ {
+   "tag_name": "cost",
+   "category": "data_types"
+ },
+ {
+   "tag_name": "operational",
+   "category": "data_types"
+ },
+ {
+   "tag_name": "stroke",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "diabetes",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "ambulation problems",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "continence problems",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "blood pressure",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "syncope",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "bone disease",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "cancer",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "kidney problems",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "pregnancy",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "alcoholism",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "allergies",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "amputation",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "anxiety disorders",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "arthritis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "asperger syndrome",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "asthma",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "adhd",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "autism",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "bipolar disorder",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "bleeding disorders",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "blindness and low vision",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "celiac",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "cerebral palsy",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "cmt",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "chronic fatigue",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "chronic illness",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "orofacial cleft",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "crohn",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "cystic fibrosis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "deafness",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "depression",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "down syndrome",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "drug abuse",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "dwarfism",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "eating disorders",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "endometriosis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "epilepsy",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "eczema",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "fibromyalgia",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "gerd",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "growth hormone",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "heart diseases",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "hiv",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "huntington's disease",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "inflammatory bowel",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "intellectual disabilities",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "lactose intolerance",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "learning disabilities",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "lupus",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "migraine",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "mental health",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "mononucleosis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "multiple sclerosis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "muscular dystrophy",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "narcolepsy",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "obesity",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "ocd",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "pcos",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "post-traumatic stress",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "psoriasis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "scleroderma",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "scoliosis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "anemia",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "speech and language disorders",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "spina bifida",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "spinal cord",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "tourette",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "turner syndrome",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "ulcerative colitis",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "ulcers",
+   "category": "medical_conditions"
+ },
+ {
+   "tag_name": "williams syndrome",
+   "category": "medical_conditions"
+ }
+]

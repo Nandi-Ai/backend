@@ -1,4 +1,0 @@
-Host bitbucket.org
-  User git
-  Hostname bitbucket.org
-  IdentityFile /root/.ssh/lynx_app
