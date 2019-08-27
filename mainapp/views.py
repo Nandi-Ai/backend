@@ -127,7 +127,7 @@ class GetExecution(APIView):
                 "admin": False
             }
 
-            res = requests.post(settings.jh_url + "/hub/api/users", json=data, headers=headers)
+            res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
                 return Error("error creating a user for the execution in JH: " + str(res.status_code + ", " + res.text))
 
