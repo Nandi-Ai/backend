@@ -258,9 +258,12 @@ class Tag(models.Model):
 
     class Meta:
         db_table = 'tags'
+        unique_together = (("name", "category"),)
 
     def __str__(self):
         return self.name +" | "+self.category
+
+
 
 
 class Execution(models.Model):

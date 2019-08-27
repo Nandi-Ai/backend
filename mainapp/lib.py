@@ -208,5 +208,6 @@ def close_all_jh_running_servers(idle_for_hours=0):
 def load_tags():
     with open("tags.json") as f:
         tags=json.load(f)
+        Tag.objects.all().delete()
         for tag in tags:
             Tag.objects.create(name = tag['tag_name'], category=tag['category'])
