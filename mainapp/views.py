@@ -129,7 +129,7 @@ class GetExecution(APIView):
 
             res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                return Error("error creating a user for the execution in JH: " + str(res.status_code + ", " + res.text))
+                return Error("error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text)
 
         return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_dummy_password})
 
