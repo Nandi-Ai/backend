@@ -24,6 +24,13 @@ def break_s3_object(obj):
 
     return path, file_name, file_name_no_ext, ext
 
+def create_s3_bucket(name,s3_client):
+    #https://github.com/boto/boto3/issues/125
+    if settings.aws_region == 'us-east-1':
+        s3_client.create_bucket(Bucket=name)
+    else:
+        s3_client.create_bucket(Bucket=name,
+                         CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
 
 def startup():
     os.environ["AWS_ACCESS_KEY_ID"] = settings.aws_access_key_id
