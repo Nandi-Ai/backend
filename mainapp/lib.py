@@ -222,4 +222,6 @@ def load_tags(delete_removed_tags=True):
             Tag.objects.all().delete()
 
         for tag in tags:
-            Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
+            tagdb,created=Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
+            if not created:
+                print("duplicate:", tag)

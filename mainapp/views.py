@@ -32,7 +32,7 @@ class Error(Response):
         self.data = {"error": error_text}
 
 
-class SendSyncSignal(APIView):
+class SendSyncSignal(APIView): #from execution
     def get(self, request):
         def send_sync_signal(ei):
             time.sleep(60)
@@ -47,7 +47,7 @@ class SendSyncSignal(APIView):
         return Response()
 
 
-class GetSTS(APIView):
+class GetSTS(APIView): #from execution
     def get(self, request):
 
         execution = request.user.the_execution.last()
@@ -90,7 +90,7 @@ class Dummy(APIView):
         return Response()
 
 
-class GetExecution(APIView):
+class GetExecution(APIView): #from frontend
 
     def get(self, request):
         study_id = request.query_params.get('study')
@@ -105,19 +105,6 @@ class GetExecution(APIView):
 
         if not study.execution:
             execution = Execution.objects.create()
-
-            # execution.study = study
-            execution.real_user = request.user
-
-            execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
-            execution_user.set_password(execution.token)
-            execution_user.is_execution = True
-            execution_user.save()
-            execution.execution_user = execution_user
-            execution.save()
-            study.execution = execution
-            study.save()
-
             headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 
             data = {
@@ -126,10 +113,21 @@ class GetExecution(APIView):
                 ],
                 "admin": False
             }
-
             res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
+                execution.delete()
                 return Error("error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text)
+
+            # execution.study = study
+            execution.real_user = request.user
+            execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
+            execution_user.set_password(execution.token)
+            execution_user.is_execution = True
+            execution_user.save()
+            execution.execution_user = execution_user
+            execution.save()
+            study.execution = execution
+            study.save()
 
         return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_dummy_password})
 
@@ -286,7 +284,7 @@ class StudyViewSet(ModelViewSet):
         return super(self.__class__, self).update(request=self.request)
 
 
-class GetDatasetSTS(APIView):
+class GetDatasetSTS(APIView): #for frontend uploads
 
     def get(self, request, dataset_id):
         try:
@@ -514,7 +512,6 @@ class DatasetViewSet(ModelViewSet):
                     'AllowedOrigins': ['*'],
                     'ExposeHeaders': ['ETag'],
                     'MaxAgeSeconds': 3000
-
                 }]
             }
 
