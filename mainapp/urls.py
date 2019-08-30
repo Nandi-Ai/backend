@@ -46,15 +46,15 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
     url(r'^docs/', schema_view),
-    url(r'^me$', views.CurrentUserView.as_view(), name='me'),
-    url(r'^get_dataset_sts/(?P<dataset_id>[^/]+)$', views.GetDatasetSTS.as_view(), name='get_dataset_sts'), #for fronted
-    url(r'^get_execution$', views.GetExecution.as_view(), name='get_execution'), #for forntend
-    url(r'^get_execution_config$', views.GetExecutionConfig.as_view(), name='get_execution_config'), #for execution
-    url(r'^dummy$', views.Dummy.as_view(), name='dummy'),
-    url(r'^get_sts$', views.GetSTS.as_view(), name='get_sts'), #for execution
-    url(r'^send_sync_signal$', views.SendSyncSignal.as_view(), name='send_sync_signal'), #for execution
-    url(r'^run_query$', views.RunQuery.as_view(), name='run_query'), #for execution
-    url(r'^requests/respond/(?P<user_request_id>[^/]+)$', views.HandleDatasetAccessRequest.as_view(),
+    url(r'^me/?$', views.CurrentUserView.as_view(), name='me'),
+    url(r'^get_dataset_sts/(?P<dataset_id>[^/]+)/?$', views.GetDatasetSTS.as_view(), name='get_dataset_sts'), #for fronted
+    url(r'^get_execution/?$', views.GetExecution.as_view(), name='get_execution'), #for forntend
+    url(r'^get_execution_config/?$', views.GetExecutionConfig.as_view(), name='get_execution_config'), #for execution
+    url(r'^dummy/?$', views.Dummy.as_view(), name='dummy'),
+    url(r'^get_sts/?$', views.GetSTS.as_view(), name='get_sts'), #for execution
+    url(r'^send_sync_signal/?$', views.SendSyncSignal.as_view(), name='send_sync_signal'), #for execution
+    url(r'^run_query/?$', views.RunQuery.as_view(), name='run_query'), #for execution
+    url(r'^requests/respond/(?P<user_request_id>[^/]+)/?$', views.HandleDatasetAccessRequest.as_view(),
         name='respond_request'),
 ]
 
