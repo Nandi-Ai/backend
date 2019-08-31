@@ -37,9 +37,6 @@ def startup():
     os.environ["AWS_SECRET_ACCESS_KEY"] = settings.aws_secret_access_key
     os.environ["AWS_REGION"] = settings.aws_region
 
-    if not Tag.objects.count():
-        load_tags()
-
 
 def is_aggregated(query):
     # aggregated_tokens = {"AVG","SUM", "GROUPBY"}
