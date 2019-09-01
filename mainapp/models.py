@@ -249,7 +249,7 @@ class DataSource(models.Model):
         if self.type != "structured":
             return
 
-        return slugify(self.dir, separator="_")
+        return slugify(self.dir, separator="_",to_lower=True)
 
 
 class Tag(models.Model):
