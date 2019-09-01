@@ -248,7 +248,7 @@ class DataSource(models.Model):
         if self.type != "structured":
             return
 
-        return self.dir.replace("-", "_")
+        return self.dir.replace("-", "_").replace("/", "").lower()
 
 
 class Tag(models.Model):
