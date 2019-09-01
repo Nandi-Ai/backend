@@ -4,6 +4,7 @@ from django.db import models
 from django.db.utils import IntegrityError
 from django.contrib.postgres.fields import JSONField
 import uuid
+from slugify import slugify
 
 
 class UserManager(BaseUserManager):
@@ -248,7 +249,7 @@ class DataSource(models.Model):
         if self.type != "structured":
             return
 
-        return self.dir.replace("-", "_").replace("/", "").lower()
+        return slugify(self.dir, separator="_")
 
 
 class Tag(models.Model):
