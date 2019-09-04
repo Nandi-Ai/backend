@@ -105,7 +105,7 @@ class GetExecution(APIView): #from frontend
 
         if not study.execution:
             execution = Execution.objects.create()
-            headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"AUTH_USER": settings.jh_admin_user}
+            headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 
             data = {
                 "usernames": [
