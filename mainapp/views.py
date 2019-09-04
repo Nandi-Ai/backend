@@ -104,21 +104,22 @@ class GetExecution(APIView): #from frontend
             return Error("only the study creator can get a study execution")
 
         if not study.execution:
-            execution = Execution.objects.create()
+            id=uuid.uuid4()
+
             headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 
             data = {
                 "usernames": [
-                    execution.token
+                    str(id).split("-")[-1]
                 ],
                 "admin": False
             }
             res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers)
             if res.status_code != 201:
-                execution.delete()
                 return Error("error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text)
 
             # execution.study = study
+            execution = Execution.objects.create(id=id)
             execution.real_user = request.user
             execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
             execution_user.set_password(execution.token)
