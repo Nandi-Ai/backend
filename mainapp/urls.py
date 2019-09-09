@@ -13,13 +13,15 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf.urls import url, include
 from django.contrib import admin
 from django.urls import path
-from django.conf.urls import url, include
-from mainapp import views
-from mainapp.views import schema_view
 from rest_framework.routers import SimpleRouter
+
+from mainapp import views
 from mainapp.lib import startup
+from mainapp.views import schema_view
+
 
 # from django.contrib.auth import views as auth_views
 
@@ -30,9 +32,11 @@ class OptionalSlashRouter(SimpleRouter):
         super(SimpleRouter, self).__init__()
 #
 
+
 router = OptionalSlashRouter()
 
 router.register(r'users', views.UserViewSet, 'users')
+router.register(r'organizations', views.OrganizationViewSet, 'organizations')
 router.register(r'tags', views.TagViewSet, 'tags')
 router.register(r'datasets', views.DatasetViewSet, 'datasets')
 router.register(r'data_sources', views.DataSourceViewSet, 'data_sources')

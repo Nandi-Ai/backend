@@ -1,4 +1,5 @@
 from rest_framework.serializers import *
+
 from mainapp.models import *
 
 
@@ -12,6 +13,12 @@ class UserSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'email', 'organization', 'name')
+
+
+class OrganizationSerializer(ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ('id', 'name', 'logo',)
 
 
 class TagSerializer(ModelSerializer):

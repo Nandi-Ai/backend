@@ -1,9 +1,10 @@
+import uuid
+
 from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 from django.contrib.auth.models import PermissionsMixin
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.utils import IntegrityError
-from django.contrib.postgres.fields import JSONField
-import uuid
 from slugify import slugify
 
 
@@ -57,7 +58,7 @@ class UserManager(BaseUserManager):
                 is_active=True)
         except IntegrityError:
             user = self.get(email=payload['email'])
-            user.cognito_id=cognito_id
+            user.cognito_id = cognito_id
             user.save()
 
         return user
@@ -100,6 +101,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         studies = Study.objects.filter(
             id__in=studies_ids)  # no need set. return one item even if id appears multiple times.
         return studies
+
+    @property
+    def related_organizations(self):
+        organizations_ids = [dataset.organization.id for dataset in self.datasets]
+        # no need set. return one item even if id appears multiple times.
+        organizations = Organization.objects.filter(id__in=organizations_ids)
+        return organizations
 
     @property
     def datasets(self):
@@ -168,6 +176,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
+    logo = models.CharField(max_length=255, null=True)
 
     class Meta:
         db_table = 'organizations'
@@ -249,7 +258,7 @@ class DataSource(models.Model):
         if self.type != "structured":
             return
 
-        return slugify(self.dir, separator="_",to_lower=True)
+        return slugify(self.dir, separator="_", to_lower=True)
 
 
 class Tag(models.Model):
@@ -262,7 +271,8 @@ class Tag(models.Model):
         unique_together = (("name", "category"),)
 
     def __str__(self):
-        return self.name +" | "+self.category
+        return self.name + " | " + self.category
+
 
 class Execution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

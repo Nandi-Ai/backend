@@ -1,25 +1,27 @@
-from rest_framework.generics import GenericAPIView
-from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
-from rest_framework.response import Response
-from mainapp.serializers import *
-from rest_framework_swagger.views import get_swagger_view
-from mainapp import settings
-import boto3
-import requests
-from multiprocessing import Process
-import time
-import subprocess
 import json
-from mainapp import lib
-import pyreadstat
-import threading
 import os
 import shutil
+import subprocess
+import threading
+import time
+from multiprocessing import Process
+
+import boto3
 import dateparser
+import pyreadstat
+import requests
 from django.core import exceptions
-from mainapp import resources
+from rest_framework.generics import GenericAPIView
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework_swagger.views import get_swagger_view
 from slugify import slugify
+
+from mainapp import lib
+from mainapp import resources
+from mainapp import settings
+from mainapp.serializers import *
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -32,7 +34,7 @@ class Error(Response):
         self.data = {"error": error_text}
 
 
-class SendSyncSignal(APIView): #from execution
+class SendSyncSignal(APIView):  # from execution
     def get(self, request):
         def send_sync_signal(ei):
             time.sleep(60)
@@ -47,7 +49,7 @@ class SendSyncSignal(APIView): #from execution
         return Response()
 
 
-class GetSTS(APIView): #from execution
+class GetSTS(APIView):  # from execution
     def get(self, request):
 
         execution = request.user.the_execution.last()
@@ -90,7 +92,7 @@ class Dummy(APIView):
         return Response()
 
 
-class GetExecution(APIView): #from frontend
+class GetExecution(APIView):  # from frontend
 
     def get(self, request):
         study_id = request.query_params.get('study')
@@ -285,7 +287,7 @@ class StudyViewSet(ModelViewSet):
         return super(self.__class__, self).update(request=self.request)
 
 
-class GetDatasetSTS(APIView): #for frontend uploads
+class GetDatasetSTS(APIView):  # for frontend uploads
 
     def get(self, request, dataset_id):
         try:
@@ -439,6 +441,13 @@ class UserViewSet(ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_execution=False)
 
 
+class OrganizationViewSet(ReadOnlyModelViewSet):
+    serializer_class = OrganizationSerializer
+
+    def get_queryset(self, **kwargs):
+        return self.request.user.related_organizations.all()
+
+
 class TagViewSet(ReadOnlyModelViewSet):
     serializer_class = TagSerializer
     queryset = Tag.objects.all()
@@ -503,7 +512,7 @@ class DatasetViewSet(ModelViewSet):
 
             # create the dataset bucket:
             s3 = boto3.client('s3')
-            lib.create_s3_bucket(dataset.bucket,s3)
+            lib.create_s3_bucket(dataset.bucket, s3)
             time.sleep(1)  # wait for the bucket to be created
 
             cors_configuration = {
