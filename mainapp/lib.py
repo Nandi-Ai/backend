@@ -24,13 +24,49 @@ def break_s3_object(obj):
 
     return path, file_name, file_name_no_ext, ext
 
-def create_s3_bucket(name,s3_client):
+def create_s3_bucket(name, s3_client=None,encrypt = True,https_only = True):
+    if not s3_client:
+        s3_client = boto3.client('s3')
     #https://github.com/boto/boto3/issues/125
     if settings.aws_region == 'us-east-1':
         s3_client.create_bucket(Bucket=name)
     else:
         s3_client.create_bucket(Bucket=name,
                          CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
+
+    if encrypt:
+        s3_client.put_bucket_encryption(
+            Bucket=name,
+            ServerSideEncryptionConfiguration={
+                'Rules': [
+                    {
+                        'ApplyServerSideEncryptionByDefault': {
+                            'SSEAlgorithm': 'aws:kms',
+                            'KMSMasterKeyID': 'arn:aws:kms:us-east-1:'+settings.aws_account_number+':alias/aws/s3'
+                        }
+                    },
+                ]
+            }
+        )
+
+    if https_only:
+        s3_client.put_bucket_policy(
+            Bucket=name,
+            Policy = json.dumps({
+                "Statement":[
+                    {
+                        "Action": "s3:*",
+                        "Effect": "Deny",
+                        "Principal": "*",
+                        "Resource": "arn:aws:s3:::"+name+"/*",
+                        "Condition": {
+                            "Bool":
+                            {"aws:SecureTransport": False}
+                        }
+                    }
+                ]
+            })
+        )
 
 def startup():
     os.environ["AWS_ACCESS_KEY_ID"] = settings.aws_access_key_id
