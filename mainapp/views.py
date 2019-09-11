@@ -102,8 +102,8 @@ class GetExecution(APIView):  # from frontend
         except Study.DoesNotExist:
             return Error("study does not exists")
 
-        if request.user != study.user_created:
-            return Error("only the study creator can get a study execution")
+        if request.user not in study.users.all():
+            return Error("only users that has this study can get a study execution")
 
         if not study.execution:
             id=uuid.uuid4()
@@ -229,7 +229,7 @@ class StudyViewSet(ModelViewSet):
             study_updated = serialized.validated_data
 
             study = self.get_object()
-            if request.user != study.user_created:
+            if request.user not in study.users.all():
                 return Error("only the study creator can edit a study")
 
             client = boto3.client('iam')

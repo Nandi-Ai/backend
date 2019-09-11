@@ -95,7 +95,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def related_studies(self):
         print("here")
         studies_ids = []
-        studies_ids = studies_ids + [s.id for s in self.studies_created.all()]
+        studies_ids = studies_ids + [s.id for s in self.studies.all()]
         for dataset in self.admin_datasets.all():
             studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
         studies = Study.objects.filter(
