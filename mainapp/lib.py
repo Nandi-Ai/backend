@@ -42,7 +42,7 @@ def create_s3_bucket(name, s3_client=None,encrypt = True,https_only = True):
                     {
                         'ApplyServerSideEncryptionByDefault': {
                             'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': 'arn:aws:kms:us-east-1:'+settings.aws_account_number+':alias/aws/s3'
+                            'KMSMasterKeyID': settings.aws_kms_arn
                         }
                     },
                 ]
