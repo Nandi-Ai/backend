@@ -24,7 +24,7 @@ def break_s3_object(obj):
 
     return path, file_name, file_name_no_ext, ext
 
-def create_s3_bucket(name, s3_client=None,encrypt = True,https_only = False):
+def create_s3_bucket(name, s3_client=None,encrypt = True,https_only = True):
     if not s3_client:
         s3_client = boto3.client('s3')
     #https://github.com/boto/boto3/issues/125
