@@ -93,7 +93,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def related_studies(self):
-        print("here")
+
         studies_ids = []
         studies_ids = studies_ids + [s.id for s in self.studies.all()]
         for dataset in self.admin_datasets.all():
