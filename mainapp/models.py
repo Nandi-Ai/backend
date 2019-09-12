@@ -61,6 +61,13 @@ class UserManager(BaseUserManager):
             user.cognito_id = cognito_id
             user.save()
 
+        if 'name' in payload:
+            user.name = payload['name']
+        elif 'custom:name' in payload:
+            user.name = payload['custom:name']
+
+        user.save()
+
         return user
 
 
