@@ -200,6 +200,7 @@ class Study(models.Model):
     execution = models.ForeignKey("Execution", on_delete=models.CASCADE, related_name="studies", null=True)
     tags = models.ManyToManyField('Tag', related_name="study_tags")
     updated_at = models.DateTimeField(auto_now=True)
+    cover = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'studies'
@@ -234,6 +235,7 @@ class Dataset(models.Model):
     glue_database = models.CharField(max_length=255, blank=True, null=True)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="datasets", null=True)
+    cover = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'datasets'

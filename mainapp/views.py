@@ -87,6 +87,23 @@ class GetSTS(APIView):  # from execution
         return Response(config)
 
 
+class GetStaticSTS(APIView):  # from execution
+    def get(self, request):
+        sts_default_provider_chain = boto3.client('sts')
+        workspace_bucket_name = "lynx-front-static"
+        role_name = "lynx-front-static"
+        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
+
+        response = sts_default_provider_chain.assume_role(
+            RoleArn=role_to_assume_arn,
+            RoleSessionName='session'
+        )
+
+        config = {'bucket': workspace_bucket_name, 'aws_sts_creds': response['Credentials']}
+
+        return Response(config)
+
+
 class Dummy(APIView):
     def get(self, request):
         return Response()
@@ -106,7 +123,7 @@ class GetExecution(APIView):  # from frontend
             return Error("only users that has this study can get a study execution")
 
         if not study.execution:
-            id=uuid.uuid4()
+            id = uuid.uuid4()
 
             headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
 

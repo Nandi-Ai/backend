@@ -71,7 +71,8 @@ class DatasetSerializer(ModelSerializer):
             'organization',
             'state',
             'programmatic_name',
-            'bucket'
+            'bucket',
+            'cover',
         )
 
         extra_kwargs = {
@@ -90,7 +91,17 @@ class StudySerializer(ModelSerializer):
 
     class Meta:
         model = Study
-        fields = ('id', 'name', "datasets", 'users', 'tags', 'updated_at', 'description', 'user_created')
+        fields = (
+            'id',
+            'name',
+            'datasets',
+            'users',
+            'tags',
+            'updated_at',
+            'description',
+            'user_created',
+            'cover',
+        )
         extra_kwargs = {
             'users': {'allow_empty': True},  # required = False?
             'datasets': {'allow_empty': True},
