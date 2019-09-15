@@ -21,7 +21,7 @@ class UserManager(BaseUserManager):
             email=self.normalize_email(email),
         )
 
-        user.organization = Organization.objects.first()
+        user.organization = Organization.objects.filter(default=True).last()
 
         user.set_password(password)
 
@@ -58,7 +58,7 @@ class UserManager(BaseUserManager):
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload['email'],
-                is_active=True, organization = Organization.objects.first())
+                is_active=True, organization = Organization.objects.filter(default=True).first())
         except IntegrityError:
             user = self.get(email=payload['email'])
             user.cognito_id = cognito_id
@@ -125,9 +125,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         # all public datasets, datasets that the user have aggregated access accept archived,
         # datasets that the user has admin access, datasets that the user have full access permission accept archived.
 
-        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(
-            # this method seems to return duplicate items because something related to the admin_datasets(many to many)
-            state="archived")).distinct()
+        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state="archived")).distinct()
         # datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
         return datasets
 
@@ -188,6 +186,12 @@ class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     logo = models.CharField(max_length=255, null=True)
+    default = models.BooleanField(default = False)
+
+    def set_default(self):
+        Organization.objects.all().update(default = False)
+        self.default = True
+        self.save()
 
     class Meta:
         db_table = 'organizations'
