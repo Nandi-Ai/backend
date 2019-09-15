@@ -90,7 +90,7 @@ class GetSTS(APIView):  # from execution
 class GetStaticSTS(APIView):  # from execution
     def get(self, request):
         sts_default_provider_chain = boto3.client('sts')
-        workspace_bucket_name = "lynx-front-static"
+        workspace_bucket_name = settings.lynx_front_static_bucket
         role_name = "lynx-front-static"
         role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
 
