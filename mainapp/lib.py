@@ -234,18 +234,18 @@ def close_all_jh_running_servers(idle_for_hours=0):
     users = json.loads(res.text)
 
     for user in users:
-        if user['admin']:
-            continue
+        # if user['admin']:
+        #     continue
+        if user['server']:
+            last_activity = user['last_activity'] or user['created']
 
-        last_activity = user['last_activity'] or user['created']
-
-        idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
-
-        if idle_time > td(hours=idle_for_hours):
-            res = requests.delete(settings.jh_url + 'hub/api/users/' + user['name'] + '/server', headers=headers)
-            print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
-        else:
-            print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
+            idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
+            # print(user)
+            if idle_time > td(hours=idle_for_hours):
+                res = requests.delete(settings.jh_url + 'hub/api/users/' + user['name'] + '/server', headers=headers)
+                print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
+            else:
+                print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
 
 
 def load_tags(delete_removed_tags=True):
