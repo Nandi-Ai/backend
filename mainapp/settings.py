@@ -136,6 +136,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles/')
 CORS_ORIGIN_ALLOW_ALL = True
 token_valid_hours = 48
 
-APPEND_SLASH=False
+APPEND_SLASH = False
+
+secured_bucket = False
 
 from .local_settings import *
