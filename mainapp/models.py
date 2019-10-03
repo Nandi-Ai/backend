@@ -64,7 +64,7 @@ class UserManager(BaseUserManager):
             user.cognito_id = cognito_id
             user.save()
 
-
+        #doesn't seem that cognito send any of those field in payload...
         if 'name' in payload:
             user.name = payload['name']
         elif 'custom:name' in payload:
