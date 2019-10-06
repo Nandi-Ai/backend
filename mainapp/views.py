@@ -5,6 +5,7 @@ import subprocess
 import threading
 import time
 from multiprocessing import Process
+import sqlparse
 
 import boto3
 import dateparser
@@ -802,8 +803,9 @@ class RunQuery(GenericAPIView):
             if access == "no access":
                 return Error("no permission to query this dataset")
 
-            client = boto3.client('athena', region_name=settings.aws_region)
 
+
+            client = boto3.client('athena', region_name=settings.aws_region)
             try:
                 response = client.start_query_execution(
                     QueryString=query_string,
@@ -846,8 +848,6 @@ class CreateCohort(GenericAPIView):
                 except Dataset.DoesNotExist:
                     return Error("data set not exists. in needs to be created first")
 
-
-
             query_string = query_serialized.validated_data['query_string']
 
             access = lib.calc_access_to_database(user, dataset)
@@ -861,6 +861,41 @@ class CreateCohort(GenericAPIView):
 
             client = boto3.client('athena', region_name=settings.aws_region)
 
+            #COUNT query
+
+            try:
+                res = sqlparse.parse(query_string)
+                stmt = res[0]
+                tokens=[t.value.lower() for t in stmt.tokens]
+                last_obj = (-3 if 'limit' in tokens else -1)
+                # print(last_obj)
+                # print(tokens)
+                print(stmt[8])
+                count_query = "select count(*) from " + stmt[6].value +" "+"".join([x.value for x in stmt[8]])
+                print(count_query)
+                response = client.start_query_execution(
+                    QueryString=count_query,
+                    QueryExecutionContext={
+                        'Database': dataset.glue_database  # the name of the database in glue/athena
+                    },
+                    ResultConfiguration={
+                        'OutputLocation': "s3://lynx-dataset-" +str(dataset.id)+"/temp_execution_results",
+                    }
+                )
+
+                time.sleep(2)
+                query_execution_id = response['QueryExecutionId']
+
+                s3_client = boto3.client('s3')
+                obj = s3_client.get_object(Bucket=dataset.bucket,
+                                           Key="temp_execution_results/" + query_execution_id + ".csv")
+                count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
+
+            except Exception as e:
+                count = "failed"
+
+            #REAL query
+            print(query_string)
             try:
                 response = client.start_query_execution(
                     QueryString=query_string,
@@ -875,11 +910,7 @@ class CreateCohort(GenericAPIView):
             except Exception as e:
                 return Error(str(e))
 
-            query_execution_id = response['QueryExecutionId']
-
-
-            res = {"execution_result":{"query_execution_id":query_execution_id,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
-
+            res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
 
             if destination_dataset:
                 if 'data_source_id' not in query_serialized.validated_data:
@@ -890,7 +921,7 @@ class CreateCohort(GenericAPIView):
                     return Error("data source not exists")
 
                 time.sleep(2)
-                s3_client = boto3.client('s3')
+
                 copy_source = {
                     'Bucket': dataset.bucket,
                     'Key': "temp_execution_results/"+query_execution_id+".csv"
