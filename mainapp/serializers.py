@@ -113,6 +113,12 @@ class QuerySerializer(Serializer):
     query_string = CharField(max_length=2048)
     dataset_id = CharField(max_length=255)
 
+class CohortSerializer(Serializer):
+    query_string = CharField(max_length=2048)
+    dataset_id = CharField(max_length=255)
+    data_source_id = CharField(max_length=255,required=False)
+    destination_dataset_id = CharField(max_length=255,required=False)
+
 
 class DatasetUploadedSerializer(Serializer):
     query = IntegerField()

@@ -824,6 +824,87 @@ class RunQuery(GenericAPIView):
             return query_serialized.errors
 
 
+class CreateCohort(GenericAPIView):
+    serializer_class = CohortSerializer
+
+    def post(self, request):
+        query_serialized = self.serializer_class(data=request.data)
+        if query_serialized.is_valid():
+
+            user = request.user
+            req_dataset_id = query_serialized.validated_data['dataset_id']
+
+            try:
+                dataset = user.datasets.get(id=req_dataset_id)
+            except Dataset.DoesNotExist:
+                return Error("no permission to this dataset. make sure it is exists, it's yours or shared with you")
+
+            destination_dataset = None
+            if 'destination_dataset_id' in query_serialized.validated_data:
+                try:
+                    destination_dataset = user.datasets.get(id=query_serialized.validated_data['destination_dataset_id'])
+                except Dataset.DoesNotExist:
+                    return Error("data set not exists. in needs to be created first")
+
+
+
+            query_string = query_serialized.validated_data['query_string']
+
+            access = lib.calc_access_to_database(user, dataset)
+
+            if access == "aggregated access":
+                if not lib.is_aggregated(query_string):
+                    return Error("this is not an aggregated query. only aggregated queries are allowed")
+
+            if access == "no access":
+                return Error("no permission to query this dataset")
+
+            client = boto3.client('athena', region_name=settings.aws_region)
+
+            try:
+                response = client.start_query_execution(
+                    QueryString=query_string,
+                    QueryExecutionContext={
+                        'Database': dataset.glue_database  # the name of the database in glue/athena
+                    },
+                    ResultConfiguration={
+                        'OutputLocation': "s3://lynx-dataset-" +str(dataset.id)+"/temp_execution_results",
+                    }
+                )
+
+            except Exception as e:
+                return Error(str(e))
+
+            query_execution_id = response['QueryExecutionId']
+
+
+            res = {"execution_result":{"query_execution_id":query_execution_id,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
+
+
+            if destination_dataset:
+                if 'data_source_id' not in query_serialized.validated_data:
+                    return Error("please mention data_source_id")
+                try:
+                    data_source = user.data_sources.get(id=query_serialized.validated_data['data_source_id'])
+                except Dataset.DoesNotExist:
+                    return Error("data source not exists")
+
+                time.sleep(2)
+                s3_client = boto3.client('s3')
+                copy_source = {
+                    'Bucket': dataset.bucket,
+                    'Key': "temp_execution_results/"+query_execution_id+".csv"
+                }
+
+                s3_client.copy(copy_source, destination_dataset.bucket, data_source.s3_objects[0]['key'])
+                res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
+
+            # Activity.objects.create(user=user, dataset=dataset, meta={"query_string": query_string}, type="query")
+            return Response(res)
+        else:
+            return Error(query_serialized.errors)
+
+
 class ActivityViewSet(ModelViewSet):
     serializer_class = ActivitySerializer
     http_method_names = ['get', 'head', 'post', 'delete']
