@@ -866,7 +866,12 @@ class CreateCohort(GenericAPIView):
                 res = sqlparse.parse(query_string)
                 stmt = res[0]
                 tokens=[t.value.lower() for t in stmt.tokens]
-                count_query = "select count(*) from " + stmt[6].value +" "+"".join([x.value for x in stmt[8]])
+                if len(list(stmt))>7:
+                    where_clauses = "".join([x.value for x in stmt[8]])
+                else:
+                    where_clauses = ""
+
+                count_query = "select count(*) from " + stmt[6].value +" "+where_clauses
             except Exception as e:
                 return Error("failed converting the query to a count query: "+str(e))
 
