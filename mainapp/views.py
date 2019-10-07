@@ -862,17 +862,16 @@ class CreateCohort(GenericAPIView):
             client = boto3.client('athena', region_name=settings.aws_region)
 
             #COUNT query
-
             try:
                 res = sqlparse.parse(query_string)
                 stmt = res[0]
                 tokens=[t.value.lower() for t in stmt.tokens]
-                last_obj = (-3 if 'limit' in tokens else -1)
-                # print(last_obj)
-                # print(tokens)
-                print(stmt[8])
                 count_query = "select count(*) from " + stmt[6].value +" "+"".join([x.value for x in stmt[8]])
-                print(count_query)
+            except Exception as e:
+                return Error("failed converting the query to a count query: "+str(e))
+
+            print(count_query)
+            try:
                 response = client.start_query_execution(
                     QueryString=count_query,
                     QueryExecutionContext={
@@ -883,16 +882,20 @@ class CreateCohort(GenericAPIView):
                     }
                 )
 
-                time.sleep(2)
-                query_execution_id = response['QueryExecutionId']
-
-                s3_client = boto3.client('s3')
-                obj = s3_client.get_object(Bucket=dataset.bucket,
-                                           Key="temp_execution_results/" + query_execution_id + ".csv")
-                count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
-
             except Exception as e:
-                count = "failed"
+                return Error("failed executing count query: "+str(e))
+
+            query_execution_id = response['QueryExecutionId']
+            s3_client = boto3.client('s3')
+
+            try:
+                time.sleep(2)
+                obj = s3_client.get_object(Bucket=dataset.bucket,
+                                       Key="temp_execution_results/" + query_execution_id + ".csv")
+            except Exception as e:
+                return Error("failed getting the count result. might be bad query string: " + str(e))
+
+            count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
             #REAL query
             print(query_string)
@@ -922,12 +925,16 @@ class CreateCohort(GenericAPIView):
 
                 time.sleep(2)
 
+
                 copy_source = {
                     'Bucket': dataset.bucket,
                     'Key': "temp_execution_results/"+query_execution_id+".csv"
                 }
+                try:
+                    s3_client.copy(copy_source, destination_dataset.bucket, data_source.s3_objects[0]['key'])
+                except Exception as e:
+                    return Error("error copying the result query results to destination location: "+str(e))
 
-                s3_client.copy(copy_source, destination_dataset.bucket, data_source.s3_objects[0]['key'])
                 res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
 
             # Activity.objects.create(user=user, dataset=dataset, meta={"query_string": query_string}, type="query")
