@@ -861,21 +861,23 @@ class CreateCohort(GenericAPIView):
 
             client = boto3.client('athena', region_name=settings.aws_region)
 
+
             #COUNT query
             try:
                 res = sqlparse.parse(query_string)
                 stmt = res[0]
-                tokens=[t.value.lower() for t in stmt.tokens]
-                if len(list(stmt))>7:
-                    where_clauses = "".join([x.value for x in stmt[8]])
-                else:
-                    where_clauses = ""
 
+                tokens_values = [x.value.lower() for x in stmt.tokens]
+
+                if "limit" in tokens_values:
+                    i_limit = tokens_values.index("limit")
+                    del stmt.tokens[i_limit:i_limit+3]
+
+                where_clauses = stmt[8].value if len(list(stmt))>8 else ""
                 count_query = "select count(*) from " + stmt[6].value +" "+where_clauses
             except Exception as e:
-                return Error("failed converting the query to a count query: "+str(e))
-
-            print(count_query)
+                return Error("failed converting the query to a count query: " + str(e))
+            
             try:
                 response = client.start_query_execution(
                     QueryString=count_query,
