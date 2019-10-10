@@ -54,10 +54,10 @@ class GetSTS(APIView):  # from execution
     def get(self, request):
 
         execution = request.user.the_execution.last()
-        service = request.query_params.get('service')
+        # service = request.query_params.get('service')
 
         try:
-            study = Study.objects.get(execution=execution)
+            study = Study.objects.filter(execution=execution).last()
         except Study.DoesNotExist:
             return Error("this is not the execution of any study")
 
@@ -66,15 +66,8 @@ class GetSTS(APIView):  # from execution
 
         workspace_bucket_name = "lynx-workspace-" + str(study.id)
 
-        if service == "athena":
-            role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/athena_access'
-
-        elif service == "s3":
-            role_name = "lynx-workspace-" + str(study.id)
-            role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
-
-        else:
-            return Error("please mention an aws service in a query string param")
+        role_name = "lynx-workspace-" + str(study.id)
+        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -91,16 +84,15 @@ class GetSTS(APIView):  # from execution
 class GetStaticSTS(APIView):  # from execution
     def get(self, request):
         sts_default_provider_chain = boto3.client('sts')
-        workspace_bucket_name = settings.lynx_front_static_bucket
-        role_name = "lynx-front-static"
-        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
+        static_bucket_name = settings.lynx_front_static_bucket
+        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + settings.static_role_name
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
             RoleSessionName='session'
         )
 
-        config = {'bucket': workspace_bucket_name, 'aws_sts_creds': response['Credentials']}
+        config = {'bucket': static_bucket_name, 'aws_sts_creds': response['Credentials']}
 
         return Response(config)
 
