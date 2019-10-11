@@ -827,6 +827,8 @@ class CreateCohort(GenericAPIView):
 
             user = request.user
             req_dataset_id = query_serialized.validated_data['dataset_id']
+            return_result=True if request.GET.get('return_result')=="true" else False
+    
 
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
@@ -888,7 +890,7 @@ class CreateCohort(GenericAPIView):
             s3_client = boto3.client('s3')
 
             try:
-                time.sleep(2)
+                time.sleep(2) #time it takes to the results to be created is >1 #todo better to retry until file is there.
                 obj = s3_client.get_object(Bucket=dataset.bucket,
                                        Key="temp_execution_results/" + query_execution_id + ".csv")
             except Exception as e:
@@ -912,7 +914,19 @@ class CreateCohort(GenericAPIView):
             except Exception as e:
                 return Error(str(e))
 
-            res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
+            query_execution_id = response['QueryExecutionId']
+
+            this_req_res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
+
+            if return_result:
+                try:
+                    time.sleep(
+                        2)  # time it takes to the results to be created is >1 #todo better to retry until file is there.
+                    obj2= s3_client.get_object(Bucket=dataset.bucket,
+                                               Key="temp_execution_results/" + query_execution_id + ".csv")
+                    this_req_res['results'] = obj2['Body'].read().decode('utf-8')
+                except Exception as e:
+                    return Error("failed getting the count result. might be bad query string: " + str(e))
 
             if destination_dataset:
                 if 'data_source_id' not in query_serialized.validated_data:
@@ -922,8 +936,7 @@ class CreateCohort(GenericAPIView):
                 except Dataset.DoesNotExist:
                     return Error("data source not exists")
 
-                time.sleep(2)
-
+                time.sleep(2) #time it takes to the results to be created is >1 #todo better to retry until file is there.
 
                 copy_source = {
                     'Bucket': dataset.bucket,
@@ -936,8 +949,9 @@ class CreateCohort(GenericAPIView):
 
                 res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
 
+
             # Activity.objects.create(user=user, dataset=dataset, meta={"query_string": query_string}, type="query")
-            return Response(res)
+            return Response(this_req_res)
         else:
             return Error(query_serialized.errors)
 
