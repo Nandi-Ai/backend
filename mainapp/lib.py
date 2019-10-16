@@ -1,18 +1,18 @@
-import logging
+import json
 import os
-from mainapp import settings
+import shutil
+import subprocess
+import zipfile
+from datetime import datetime as dt, timedelta as td
+from time import sleep
+
+import boto3
+import pytz
+import requests
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from datetime import datetime as dt, timedelta as td
-import sqlparse
-import boto3
-from time import sleep
-import zipfile
-import subprocess
-import shutil
-import requests
-import json
-import pytz
+
+from mainapp import settings
 from mainapp.models import Tag
 
 
@@ -227,7 +227,7 @@ def calc_access_to_database(user, dataset):
 
 def close_all_jh_running_servers(idle_for_hours=0):
     import dateparser
-    from datetime import datetime as dt, timedelta as td, time as dttime
+    from datetime import datetime as dt, timedelta as td
     headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
     res = requests.get(settings.jh_url + 'hub/api/users', headers=headers)
     assert res.status_code == 200, "error getting users: " + res.text
@@ -258,3 +258,66 @@ def load_tags(delete_removed_tags=True):
             tagdb,created=Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
             if not created:
                 print("duplicate:", tag)
+
+
+def create_where_section(field, operator, value):
+    # todo not working
+    if operator == 'contains':
+        return "{} LIKE '%{}%'".format(field, value)
+
+    # todo not working
+    if operator == 'notcontains':
+        return "{} ILIKE '%{}%'".format(field, value)
+
+    # todo not working
+    if operator == 'startswith':
+        return "{} LIKE '{}%'".format(field, value)
+
+    # todo not working
+    if operator == 'endswith':
+        return "{} LIKE '%{}'".format(field, value)
+
+    if operator == "=":
+        return "{} = {}".format(field, value)
+
+    if operator == "<>":
+        return "{} <> {}".format(field, value)
+
+    # = null or = "" (is blank)
+    # <> null and <> "" (is not blank)
+
+    raise Exception("unknown operator")
+
+
+def create_where_section_from_array(data_filter):
+    field = data_filter[0]
+    operator = data_filter[1]
+    value = data_filter[2]
+    return create_where_section(field, operator, value)
+
+
+def dev_express_to_sql(table, data_filter, columns):
+    select = ",".join(columns) if columns else "*"
+    query = "SELECT %s FROM %s" % (select, table)
+    if data_filter:
+        query += " WHERE "
+
+        if not isinstance(data_filter, list):
+            raise Exception("invalid data filters")
+
+        # only one filter
+        if isinstance(data_filter[0], str) and isinstance(data_filter[0], str):
+            query += create_where_section_from_array(data_filter)
+
+        # in case there is one filter if "is none of" - [ "!",  [[x, =, x], "and", [x, =, x] ]
+        # if isinstance(data_filter[0], str) and isinstance(data_filter[0], list):
+
+        # multiple filters
+        if isinstance(data_filter[0], list) and isinstance(data_filter[1], str):
+            for data in data_filter:
+                if isinstance(data, list):
+                    query += create_where_section_from_array(data)
+                elif isinstance(data, str):
+                    query += " " + data + " "
+
+    return query

@@ -5,12 +5,12 @@ import subprocess
 import threading
 import time
 from multiprocessing import Process
-import sqlparse
 
 import boto3
 import dateparser
 import pyreadstat
 import requests
+import sqlparse
 from django.core import exceptions
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
@@ -828,7 +828,6 @@ class CreateCohort(GenericAPIView):
             user = request.user
             req_dataset_id = query_serialized.validated_data['dataset_id']
             return_result=True if request.GET.get('return_result')=="true" else False
-    
 
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
@@ -842,19 +841,26 @@ class CreateCohort(GenericAPIView):
                 except Dataset.DoesNotExist:
                     return Error("data set not exists. in needs to be created first")
 
-            query_string = query_serialized.validated_data['query_string']
+            # query_string = query_serialized.validated_data['query_string']
 
             access = lib.calc_access_to_database(user, dataset)
 
-            if access == "aggregated access":
-                if not lib.is_aggregated(query_string):
-                    return Error("this is not an aggregated query. only aggregated queries are allowed")
+            # if access == "aggregated access":
+                # if not lib.is_aggregated(query_string):
+                #     return Error("this is not an aggregated query. only aggregated queries are allowed")
 
             if access == "no access":
                 return Error("no permission to query this dataset")
 
             client = boto3.client('athena', region_name=settings.aws_region)
 
+            table = query_serialized.validated_data['table']
+            data_filter = json.loads(query_serialized.validated_data[
+                'filter']) if 'filter' in query_serialized.validated_data else None
+            columns = json.loads(query_serialized.validated_data[
+                                         'columns']) if 'columns' in query_serialized.validated_data else None
+
+            query_string = lib.dev_express_to_sql(table, data_filter, columns)
 
             #COUNT query
             try:
@@ -871,7 +877,7 @@ class CreateCohort(GenericAPIView):
                 count_query = "select count(*) from " + stmt[6].value +" "+where_clauses
             except Exception as e:
                 return Error("failed converting the query to a count query: " + str(e))
-            
+
             try:
                 response = client.start_query_execution(
                     QueryString=count_query,
@@ -899,10 +905,9 @@ class CreateCohort(GenericAPIView):
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
             #REAL query
-            print(query_string)
             try:
                 response = client.start_query_execution(
-                    QueryString=query_string,
+                    QueryString=query_string if destination_dataset else query_string + " LIMIT 10",
                     QueryExecutionContext={
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
@@ -947,7 +952,7 @@ class CreateCohort(GenericAPIView):
                 except Exception as e:
                     return Error("error copying the result query results to destination location: "+str(e))
 
-                res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
+                this_req_res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
 
 
             # Activity.objects.create(user=user, dataset=dataset, meta={"query_string": query_string}, type="query")
