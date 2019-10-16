@@ -115,8 +115,8 @@ class QuerySerializer(Serializer):
 
 
 class CohortSerializer(Serializer):
-    # query_string = CharField(max_length=2048)
-    table = CharField(max_length=2048)
+    query_string = CharField(max_length=2048,required=False)
+    table = CharField(max_length=2048,required=False)
     filter = CharField(max_length=2048, required=False)
     columns = CharField(max_length=2048, required=False)
     dataset_id = CharField(max_length=255)

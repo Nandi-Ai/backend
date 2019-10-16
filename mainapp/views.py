@@ -841,7 +841,15 @@ class CreateCohort(GenericAPIView):
                 except Dataset.DoesNotExist:
                     return Error("data set not exists. in needs to be created first")
 
-            # query_string = query_serialized.validated_data['query_string']
+                if 'data_source_id' not in query_serialized.validated_data:
+                    return Error("please mention data_source_id")
+                try:
+                    data_source = dataset.data_sources.get(id=query_serialized.validated_data['data_source_id'])
+                except DataSource.DoesNotExist:
+                    return Error("data source not exists")
+
+
+
 
             access = lib.calc_access_to_database(user, dataset)
 
@@ -853,14 +861,17 @@ class CreateCohort(GenericAPIView):
                 return Error("no permission to query this dataset")
 
             client = boto3.client('athena', region_name=settings.aws_region)
+            if 'query_string' in query_serialized.validated_data:
+                query_string = query_serialized.validated_data['query_string']
 
-            table = query_serialized.validated_data['table']
-            data_filter = json.loads(query_serialized.validated_data[
-                'filter']) if 'filter' in query_serialized.validated_data else None
-            columns = json.loads(query_serialized.validated_data[
-                                         'columns']) if 'columns' in query_serialized.validated_data else None
+            else:
+                table = query_serialized.validated_data['table']
+                data_filter = json.loads(query_serialized.validated_data[
+                    'filter']) if 'filter' in query_serialized.validated_data else None
+                columns = json.loads(query_serialized.validated_data[
+                                             'columns']) if 'columns' in query_serialized.validated_data else None
 
-            query_string = lib.dev_express_to_sql(table, data_filter, columns)
+                query_string = lib.dev_express_to_sql(table, data_filter, columns)
 
             #COUNT query
             try:
@@ -896,18 +907,16 @@ class CreateCohort(GenericAPIView):
             s3_client = boto3.client('s3')
 
             try:
-                time.sleep(2) #time it takes to the results to be created is >1 #todo better to retry until file is there.
-                obj = s3_client.get_object(Bucket=dataset.bucket,
-                                       Key="temp_execution_results/" + query_execution_id + ".csv")
-            except Exception as e:
-                return Error("failed getting the count result. might be bad query string: " + str(e))
+                obj=lib.get_s3_object(bucket=dataset.bucket,key="temp_execution_results/" + query_execution_id + ".csv")
+            except s3_client.exceptions.NoSuchKey:
+                return Error("failed getting the count result. might be bad query string")
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
             #REAL query
             try:
                 response = client.start_query_execution(
-                    QueryString=query_string if destination_dataset else query_string + " LIMIT 10",
+                    QueryString=query_string,
                     QueryExecutionContext={
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
@@ -923,30 +932,20 @@ class CreateCohort(GenericAPIView):
 
             this_req_res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
 
+            try:
+                obj2 = lib.get_s3_object(bucket=dataset.bucket, key="temp_execution_results/" + query_execution_id + ".csv")
+            except s3_client.exceptions.NoSuchKey:
+                return Error("failed getting the result. might be bad query string")
+
             if return_result:
-                try:
-                    time.sleep(
-                        2)  # time it takes to the results to be created is >1 #todo better to retry until file is there.
-                    obj2= s3_client.get_object(Bucket=dataset.bucket,
-                                               Key="temp_execution_results/" + query_execution_id + ".csv")
-                    this_req_res['results'] = obj2['Body'].read().decode('utf-8')
-                except Exception as e:
-                    return Error("failed getting the count result. might be bad query string: " + str(e))
+                this_req_res['results'] = obj2['Body'].read().decode('utf-8')
 
             if destination_dataset:
-                if 'data_source_id' not in query_serialized.validated_data:
-                    return Error("please mention data_source_id")
-                try:
-                    data_source = user.data_sources.get(id=query_serialized.validated_data['data_source_id'])
-                except Dataset.DoesNotExist:
-                    return Error("data source not exists")
-
-                time.sleep(2) #time it takes to the results to be created is >1 #todo better to retry until file is there.
-
                 copy_source = {
                     'Bucket': dataset.bucket,
                     'Key': "temp_execution_results/"+query_execution_id+".csv"
                 }
+
                 try:
                     s3_client.copy(copy_source, destination_dataset.bucket, data_source.s3_objects[0]['key'])
                 except Exception as e:
