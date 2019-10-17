@@ -936,6 +936,14 @@ class CreateCohort(GenericAPIView):
             result = result_obj['Body'].read().decode('utf-8')
             result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
 
+            glue_client=boto3.client("glue")
+
+            response = glue_client.get_table(
+                DatabaseName=dataset.glue_database,
+                Name=data_source.glue_table
+            )
+            this_req_res['original_columns_types'] = response["Table"]['StorageDescriptor']['Columns']
+
             if return_result:
                 this_req_res['results'] = result
 

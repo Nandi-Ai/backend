@@ -272,8 +272,7 @@ class DataSource(models.Model):
 
     @property
     def glue_table(self):
-        if self.type != "structured":
-            return
+        assert self.type == "structured", "only data source of type structured can have a glue table"
 
         return slugify(self.dir, separator="_", to_lower=True)
 
