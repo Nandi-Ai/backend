@@ -827,7 +827,8 @@ class CreateCohort(GenericAPIView):
 
             user = request.user
             req_dataset_id = query_serialized.validated_data['dataset_id']
-            return_result=True if request.GET.get('return_result')=="true" else False
+            return_result=True if request.GET.get('result') == "true" else False
+            result_format = request.GET.get('result_format')
 
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
@@ -841,12 +842,12 @@ class CreateCohort(GenericAPIView):
                 except Dataset.DoesNotExist:
                     return Error("data set not exists. in needs to be created first")
 
-                if 'data_source_id' not in query_serialized.validated_data:
-                    return Error("please mention data_source_id")
-                try:
-                    data_source = dataset.data_sources.get(id=query_serialized.validated_data['data_source_id'])
-                except DataSource.DoesNotExist:
-                    return Error("data source not exists")
+            if 'data_source_id' not in query_serialized.validated_data:
+                return Error("please mention data_source_id")
+            try:
+                data_source = dataset.data_sources.get(id=query_serialized.validated_data['data_source_id'])
+            except DataSource.DoesNotExist:
+                return Error("data source not exists")
 
             access = lib.calc_access_to_database(user, dataset)
 
@@ -949,7 +950,7 @@ class CreateCohort(GenericAPIView):
             result_dict = lib.csv_to_json(result_no_quotes, columns_types)
 
             if return_result:
-                this_req_res['results'] = result_dict
+                this_req_res['results'] = result_no_quotes if result_format=="csv" else result_dict
 
             if destination_dataset:
                 # copy_source = {
