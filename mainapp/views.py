@@ -952,7 +952,7 @@ class CreateCohort(GenericAPIView):
                 columns_types = response["Table"]['StorageDescriptor']['Columns']
                 this_req_res['original_columns_types'] = columns_types
 
-                this_req_res['results'] = result_no_quotes if result_format=="csv" else lib.csv_to_json(result_no_quotes, columns_types)
+                this_req_res['results'] = lib.csv_to_json(result_no_quotes, columns_types) if result_format=="json" else result_no_quotes
 
             if destination_dataset:
                 # copy_source = {
