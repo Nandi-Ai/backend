@@ -827,7 +827,7 @@ class CreateCohort(GenericAPIView):
 
             user = request.user
             req_dataset_id = query_serialized.validated_data['dataset_id']
-            return_result=True if request.GET.get('result') == "true" else False
+            return_result=True if request.GET.get('return_result') == "true" else False
             result_format = request.GET.get('result_format')
 
             try:
@@ -929,28 +929,30 @@ class CreateCohort(GenericAPIView):
             query_execution_id = response['QueryExecutionId']
             this_req_res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
 
-            try:
-                result_obj = lib.get_s3_object(bucket=dataset.bucket, key="temp_execution_results/" + query_execution_id + ".csv")
-            except s3_client.exceptions.NoSuchKey:
-                return Error("failed getting the result. might be bad query string")
 
-            result = result_obj['Body'].read().decode('utf-8')
-            result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
-
-            glue_client=boto3.client("glue")
-
-            response = glue_client.get_table(
-                DatabaseName=dataset.glue_database,
-                Name=data_source.glue_table
-            )
-
-            columns_types = response["Table"]['StorageDescriptor']['Columns']
-            this_req_res['original_columns_types'] = columns_types
-
-            result_dict = lib.csv_to_json(result_no_quotes, columns_types)
 
             if return_result:
-                this_req_res['results'] = result_no_quotes if result_format=="csv" else result_dict
+
+                try:
+                    result_obj = lib.get_s3_object(bucket=dataset.bucket,
+                                                   key="temp_execution_results/" + query_execution_id + ".csv")
+                except s3_client.exceptions.NoSuchKey:
+                    return Error("failed getting the result. might be bad query string")
+
+                result = result_obj['Body'].read().decode('utf-8')
+                result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
+
+                glue_client = boto3.client("glue")
+
+                response = glue_client.get_table(
+                    DatabaseName=dataset.glue_database,
+                    Name=data_source.glue_table
+                )
+
+                columns_types = response["Table"]['StorageDescriptor']['Columns']
+                this_req_res['original_columns_types'] = columns_types
+
+                this_req_res['results'] = result_no_quotes if result_format=="csv" else lib.csv_to_json(result_no_quotes, columns_types)
 
             if destination_dataset:
                 # copy_source = {
