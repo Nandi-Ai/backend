@@ -942,10 +942,14 @@ class CreateCohort(GenericAPIView):
                 DatabaseName=dataset.glue_database,
                 Name=data_source.glue_table
             )
-            this_req_res['original_columns_types'] = response["Table"]['StorageDescriptor']['Columns']
+
+            columns_types = response["Table"]['StorageDescriptor']['Columns']
+            this_req_res['original_columns_types'] = columns_types
+
+            result_dict = lib.csv_to_json(result_no_quotes, columns_types)
 
             if return_result:
-                this_req_res['results'] = result
+                this_req_res['results'] = result_dict
 
             if destination_dataset:
                 # copy_source = {
