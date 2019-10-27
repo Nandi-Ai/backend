@@ -21,7 +21,7 @@ class UserManager(BaseUserManager):
             email=self.normalize_email(email),
         )
 
-        user.organization = Organization.objects.filter(default=True).last()
+        user.organization = Organization.objects.get_or_create(name="default")
 
         user.set_password(password)
 
@@ -58,7 +58,7 @@ class UserManager(BaseUserManager):
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload['email'],
-                is_active=True, organization = Organization.objects.filter(default=True).first())
+                is_active=True, organization = Organization.objects.get_or_create(name="default"))
         except IntegrityError:
             user = self.get(email=payload['email'])
             user.cognito_id = cognito_id
