@@ -24,7 +24,7 @@ class UserManager(BaseUserManager):
         try:
             org = Organization.objects.get(default=True)
         except Organization.DoesNotExist:
-            org, _ = Organization.objects.get_or_create(name="default", default=True)
+            org = Organization.objects.create(name="default", default=True)
 
         user.organization=org
 
@@ -63,7 +63,7 @@ class UserManager(BaseUserManager):
             try:
                 org = Organization.objects.get(default=True)
             except Organization.DoesNotExist:
-                org,_ = Organization.objects.get_or_create(name="default", default=True)
+                org,_ = Organization.objects.create(name="default", default=True)
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload['email'],
