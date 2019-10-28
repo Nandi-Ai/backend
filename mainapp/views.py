@@ -118,7 +118,7 @@ class GetExecution(APIView):  # from frontend
         if not study.execution:
             id = uuid.uuid4()
 
-            headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
+            headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
 
             data = {
                 "usernames": [

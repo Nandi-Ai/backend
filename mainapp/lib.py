@@ -228,7 +228,7 @@ def calc_access_to_database(user, dataset):
 def close_all_jh_running_servers(idle_for_hours=0):
     import dateparser
     from datetime import datetime as dt, timedelta as td
-    headers = {"Authorization": "Bearer " + settings.jh_api_admin_token}
+    headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
     res = requests.get(settings.jh_url + 'hub/api/users', headers=headers)
     assert res.status_code == 200, "error getting users: " + res.text
     users = json.loads(res.text)
