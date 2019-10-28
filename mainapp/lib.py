@@ -229,7 +229,7 @@ def close_all_jh_running_servers(idle_for_hours=0):
     import dateparser
     from datetime import datetime as dt, timedelta as td
     headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
-    res = requests.get(settings.jh_url + 'hub/api/users', headers=headers)
+    res = requests.get(settings.jh_url + 'hub/api/users', headers=headers,verify=False)
     assert res.status_code == 200, "error getting users: " + res.text
     users = json.loads(res.text)
 
@@ -242,7 +242,7 @@ def close_all_jh_running_servers(idle_for_hours=0):
             idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
             # print(user)
             if idle_time > td(hours=idle_for_hours):
-                res = requests.delete(settings.jh_url + 'hub/api/users/' + user['name'] + '/server', headers=headers)
+                res = requests.delete(settings.jh_url + 'hub/api/users/' + user['name'] + '/server', headers=headers,verify=False)
                 print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
             else:
                 print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
