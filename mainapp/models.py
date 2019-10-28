@@ -21,7 +21,12 @@ class UserManager(BaseUserManager):
             email=self.normalize_email(email),
         )
 
-        user.organization,_ = Organization.objects.get_or_create(name="default")
+        try:
+            org = Organization.objects.get(default=True)
+        except Organization.DoesNotExist:
+            org, _ = Organization.objects.get_or_create(name="default", default=True)
+
+        user.organization=org
 
         user.set_password(password)
 
@@ -55,7 +60,10 @@ class UserManager(BaseUserManager):
             pass
 
         try:
-            org,_ = Organization.objects.get_or_create(name="default")
+            try:
+                org = Organization.objects.get(default=True)
+            except Organization.DoesNotExist:
+                org,_ = Organization.objects.get_or_create(name="default", default=True)
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload['email'],
