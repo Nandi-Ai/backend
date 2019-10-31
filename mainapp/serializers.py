@@ -119,6 +119,7 @@ class CohortSerializer(Serializer):
     table = CharField(max_length=2048,required=False)
     filter = CharField(max_length=2048, required=False)
     columns = CharField(max_length=2048, required=False)
+    limit = IntegerField(required=False)
     dataset_id = CharField(max_length=255)
     data_source_id = CharField(max_length=255,required=False)
     destination_dataset_id = CharField(max_length=255,required=False)

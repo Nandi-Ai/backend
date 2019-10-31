@@ -910,11 +910,12 @@ class CreateCohort(GenericAPIView):
                 return Error("failed getting the count result. might be bad query string")
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
+            limit = query_serialized.validated_data['limit']
 
             #REAL query
             try:
                 response = client.start_query_execution(
-                    QueryString=query_string,
+                    QueryString=query_string if not limit else query_string + " LIMIT " + str(limit),
                     QueryExecutionContext={
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
