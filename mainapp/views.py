@@ -944,7 +944,7 @@ class CreateCohort(GenericAPIView):
                 result = result_obj['Body'].read().decode('utf-8')
                 result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
 
-                glue_client = boto3.client("glue")
+                glue_client = boto3.client("glue",region_name=settings.aws_region)
 
                 response = glue_client.get_table(
                     DatabaseName=dataset.glue_database,
