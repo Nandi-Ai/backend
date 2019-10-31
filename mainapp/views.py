@@ -910,8 +910,8 @@ class CreateCohort(GenericAPIView):
                 return Error("failed getting the count result. might be bad query string")
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
-            if 'limit' in query_serialized.validated_data:
-                limit = query_serialized.validated_data['limit']
+
+            limit = query_serialized.validated_data['limit']
 
             #REAL query
             try:
