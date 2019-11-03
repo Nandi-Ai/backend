@@ -755,8 +755,8 @@ class DataSourceViewSet(ModelViewSet):
                     DatabaseName=data_source.dataset.glue_database,
                     Name=data_source.glue_table
                 )
-            except:
-                pass
+            except Execution as e:
+                return Error("Error deleting datasource: "+str(e))
 
         return super(self.__class__, self).destroy(request=self.request)
 
