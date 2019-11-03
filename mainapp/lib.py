@@ -146,15 +146,19 @@ def create_catalog(data_source):
         sleep(5)
         retries -= 1
 
+
     print("is crawler finished: ", crawler_ready)
     if not crawler_ready:
         data_source.state = "crawling error"
         data_source.save()
+
     else:
         glue_client.delete_crawler(
             Name="data_source-" + str(data_source.id)
         )
         data_source.state = "ready"
+        glue_table_name = res['Crawler']['Targets']['CatalogTargets'][0]['Tables'][0]
+        data_source.glue_table = glue_table_name
         data_source.save()
 
 
