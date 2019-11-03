@@ -358,7 +358,7 @@ def get_s3_object(bucket,key,s3_client=None,retries=30):
             if retries>0:
                 sleep(0.5)
                 retries-=1
-                print("retrying")
+
                 continue
             raise
 
@@ -383,7 +383,7 @@ def csv_to_json(csv,columns_types):
         for row in rows[1:]:
             cols = row.split(",")
             dic[column_name].append(convert(cols[i], columns_types[i]['Type']))
-    print(dic)
+
     return dic
 
 
