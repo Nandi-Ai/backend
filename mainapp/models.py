@@ -274,18 +274,19 @@ class DataSource(models.Model):
     preview = JSONField(null=True, blank=True, default=None)
     state = models.CharField(null=True, blank=True, max_length=32)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
-    glue_table = models.CharField(null=True, blank=True, max_length=255)
+    # glue_table = models.CharField(null=True, blank=True, max_length=255)
 
     class Meta:
         db_table = 'data_sources'
         unique_together = (("name", "dataset"),)
 
-    # @property
-    # def glue_table(self):
-    #     if not self.type == "structured":
-    #         return None
-    #
-    #     return slugify(self.dir, separator="_", to_lower=True)
+    @property
+    def glue_table(self):
+        if not self.type == "structured":
+            return None
+        name = self.dir.translate({ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "})
+        name = name.lower()
+        return name
 
 
 class Tag(models.Model):
