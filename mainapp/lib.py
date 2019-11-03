@@ -157,8 +157,6 @@ def create_catalog(data_source):
             Name="data_source-" + str(data_source.id)
         )
         data_source.state = "ready"
-        glue_table_name = res['Crawler']['Targets']['CatalogTargets'][0]['Tables'][0]
-        data_source.glue_table = glue_table_name
         data_source.save()
 
 
