@@ -364,7 +364,9 @@ def get_s3_object(bucket,key,s3_client=None,retries=30):
 
 def csv_to_json(csv,columns_types):
     def convert(value, type):
-        if type == 'bigint':
+        if value in ('', '""'):
+            return ''
+        elif type == 'bigint':
             return int(value)
         elif type == 'double':
             return float(value)
