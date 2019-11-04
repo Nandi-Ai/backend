@@ -932,8 +932,7 @@ class CreateCohort(GenericAPIView):
             this_req_res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
 
 
-
-            if return_result:
+            if return_result or destination_dataset:
 
                 try:
                     result_obj = lib.get_s3_object(bucket=dataset.bucket,
@@ -954,19 +953,12 @@ class CreateCohort(GenericAPIView):
                 columns_types = response["Table"]['StorageDescriptor']['Columns']
                 this_req_res['original_columns_types'] = columns_types
 
-                this_req_res['results'] = lib.csv_to_json(result_no_quotes, columns_types) if result_format=="json" else result_no_quotes
+                if return_result:
+                    this_req_res['results'] = lib.csv_to_json(result_no_quotes, columns_types) if result_format=="json" else result_no_quotes
 
-            if destination_dataset:
-                # copy_source = {
-                #     'Bucket': dataset.bucket,
-                #     'Key': "temp_execution_results/"+query_execution_id+".csv"
-                # }
-                # try:
-                #     s3_client.copy(copy_source, destination_dataset.bucket, data_source.s3_objects[0]['key'])
-                # except Exception as e:
-                #     return Error("error copying the result query results to destination location: "+str(e))
-                s3_client.put_object(Bucket=destination_dataset.bucket,Body=result_no_quotes,Key=data_source.s3_objects[0]['key'])
-                this_req_res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
+                if destination_dataset:
+                    s3_client.put_object(Bucket=destination_dataset.bucket,Body=result_no_quotes,Key=data_source.s3_objects[0]['key'])
+                    this_req_res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
 
             # Activity.objects.create(user=user, dataset=dataset, meta={"query_string": query_string}, type="query")
             return Response(this_req_res)
