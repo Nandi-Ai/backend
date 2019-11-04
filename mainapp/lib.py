@@ -320,7 +320,9 @@ def create_where_section_from_array(data_filter):
 
 
 def dev_express_to_sql(table, data_filter, columns):
-    select = ",".join(columns) if columns else "*"
+
+    select = '"'+('","'.join(columns))+'"' if columns else "*"
+
     query = 'SELECT %s FROM "%s"' % (select, table)
     if data_filter:
         query += " WHERE "
