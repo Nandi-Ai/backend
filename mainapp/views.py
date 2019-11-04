@@ -883,7 +883,7 @@ class CreateCohort(GenericAPIView):
                     del stmt.tokens[i_limit:i_limit+3]
 
                 where_clauses = stmt[8].value if len(list(stmt))>8 else ""
-                count_query = 'select count(*) from "' + stmt[6].value +'" '+where_clauses
+                count_query = 'SELECT COUNT(*) FROM "' + stmt[6].value +'" '+where_clauses
             except Exception as e:
                 return Error("query: "+query_string+" count query: "+count_query+" .failed converting the query to a count query: " + str(e))
 
