@@ -885,7 +885,7 @@ class CreateCohort(GenericAPIView):
                 where_clauses = stmt[8].value if len(list(stmt))>8 else ""
                 count_query = "select count(*) from " + stmt[6].value +" "+where_clauses
             except Exception as e:
-                return Error("failed converting the query to a count query: " + str(e))
+                return Error("query: "+query_string+" count query: "+count_query+" .failed converting the query to a count query: " + str(e))
 
             try:
                 response = client.start_query_execution(
@@ -899,7 +899,7 @@ class CreateCohort(GenericAPIView):
                 )
 
             except Exception as e:
-                return Error("failed executing count query: "+str(e))
+                return Error("query: "+query_string+" count query: "+count_query+" .failed executing count query: "+str(e))
 
             query_execution_id = response['QueryExecutionId']
             s3_client = boto3.client('s3')
