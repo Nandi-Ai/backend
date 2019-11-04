@@ -905,9 +905,9 @@ class CreateCohort(GenericAPIView):
             s3_client = boto3.client('s3')
 
             try:
-                obj=lib.get_s3_object(bucket=dataset.bucket,key="temp_execution_results/" + query_execution_id + ".csv")
+                obj=lib.get_s3_object(bucket=dataset.bucket, key="temp_execution_results/" + query_execution_id + ".csv")
             except s3_client.exceptions.NoSuchKey:
-                return Error("failed getting the count result. might be bad query string")
+                return Error("failed getting the count result. might be bad query string. query string: "+query_string)
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
