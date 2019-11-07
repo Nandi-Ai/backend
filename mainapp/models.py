@@ -50,8 +50,6 @@ class UserManager(BaseUserManager):
 
     def get_or_create_for_cognito(self, payload):
 
-        # print(payload)
-
         cognito_id = payload['sub']
 
         try:
@@ -178,7 +176,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.is_admin
 
     class Meta:
-        # need to manually edit the primary key and change it from timestamp to [patient_id,timestamp] in that order
         db_table = 'users'
 
     def permission(self, dataset):
@@ -210,7 +207,6 @@ class Study(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
-    # organization = models.ForeignKey("Organization", on_delete=models.DO_NOTHING, related_name="studies")
     datasets = models.ManyToManyField('Dataset', related_name="studies")
     users = models.ManyToManyField('User', related_name="studies")
     user_created = models.ForeignKey('User', on_delete=models.SET_NULL, related_name="studies_created", null=True)
@@ -221,8 +217,6 @@ class Study(models.Model):
 
     class Meta:
         db_table = 'studies'
-        # unique_together = (("name", "organization"),)
-
 
 class Dataset(models.Model):
     states = (
@@ -274,7 +268,6 @@ class DataSource(models.Model):
     preview = JSONField(null=True, blank=True, default=None)
     state = models.CharField(null=True, blank=True, max_length=32)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
-    # glue_table = models.CharField(null=True, blank=True, max_length=255)
 
     class Meta:
         db_table = 'data_sources'
@@ -304,11 +297,8 @@ class Tag(models.Model):
 
 class Execution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # identifier = models.CharField(max_length=255, null=True)
     real_user = models.ForeignKey('User', on_delete=models.CASCADE, null=True)
     execution_user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="the_execution", null=True)
-
-    # study = models.ForeignKey('Study', on_delete=models.DO_NOTHING, related_name="executions", null=True)
 
     class Meta:
         db_table = 'executions'
@@ -325,18 +315,11 @@ class Activity(models.Model):
     dataset = models.ForeignKey('Dataset', on_delete=models.SET_NULL, related_name="activities", null=True)
     study = models.ForeignKey('Study', on_delete=models.SET_NULL, related_name="activities", null=True)
     type = models.CharField(null=True, blank=True, max_length=32)
-    # action = models.CharField(null=True, blank=True, max_length=1024)
     note = models.CharField(null=True, blank=True, max_length=2048)
     meta = JSONField(null=True, blank=True, default=None)
 
     class Meta:
         db_table = 'activities'
-        # in future it is possible to optimize this table by creating primary_key=(ts,user)
-        # while removing the id and the unique_together constraint.
-        # (for now django not supports combined primary key but it can be achieved manually
-        # with adding to the migration:
-        # migrations.RunSQL(
-        # "ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)
 
 
 class Request(models.Model):
@@ -357,9 +340,3 @@ class Request(models.Model):
 
     class Meta:
         db_table = 'requests'
-
-        # in future it is possible to optimize this table by creating primary_key=(ts,user)
-        # while removing the id and the unique_together constraint.
-        # (for now django not supports combined primary key but it can be achieved manually
-        # with adding to the migration: # migrations.RunSQL(
-        # "ALTER TABLE entries DROP CONSTRAINT entries_pkey; ALTER TABLE entries ADD PRIMARY KEY (user_id ,ts)

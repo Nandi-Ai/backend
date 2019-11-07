@@ -142,7 +142,7 @@ class GetExecution(APIView):  # from frontend
             study.execution = execution
             study.save()
 
-        return Response({'execution_identifier': str(study.execution.token), 'token': settings.jh_dummy_password})
+        return Response({'execution_identifier': str(study.execution.token)})
 
 
 class StudyViewSet(ModelViewSet):
@@ -227,7 +227,7 @@ class StudyViewSet(ModelViewSet):
                 Activity.objects.create(dataset=dataset, study=study, user=request.user, type="dataset assignment")
 
             return Response(self.serializer_class(study, allow_null=True).data,
-                            status=201)  # llow null, read_only, many
+                            status=201)
         else:
             return Error(study_serialized.errors)
 
