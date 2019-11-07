@@ -118,17 +118,17 @@ class GetExecution(APIView):  # from frontend
         if not study.execution:
             id = uuid.uuid4()
 
-            headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
-
-            data = {
-                "usernames": [
-                    str(id).split("-")[-1]
-                ],
-                "admin": False
-            }
-            res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers, verify=False)
-            if res.status_code != 201:
-                return Error("error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text)
+            # headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
+            #
+            # data = {
+            #     "usernames": [
+            #         str(id).split("-")[-1]
+            #     ],
+            #     "admin": False
+            # }
+            # res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers, verify=False)
+            # if res.status_code != 201:
+            #     return Error("error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text)
 
             # execution.study = study
             execution = Execution.objects.create(id=id)
