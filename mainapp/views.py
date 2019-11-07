@@ -913,10 +913,21 @@ class CreateCohort(GenericAPIView):
 
             limit = query_serialized.validated_data['limit']
 
+            #if max_aalowd
+            if not limit:
+                if not destination_dataset:
+                    if count > settings.query_no_limit_max_raws:
+                        percentage = int((settings.query_no_limit_max_raws/count)*100)
+                        query_string += " TABLESAMPLE BERNOULLI("+str(percentage)+")"
+            else:
+                query_string += " LIMIT " + str(limit)
+
+
+            print(query_string)
             #REAL query
             try:
                 response = client.start_query_execution(
-                    QueryString=query_string if not limit else query_string + " LIMIT " + str(limit),
+                    QueryString=query_string,
                     QueryExecutionContext={
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
