@@ -483,7 +483,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.description = dataset_data['description']
             dataset.readme = dataset_data['readme']
             req_admin_users = dataset_data['admin_users']
-            dataset.admin_users.set([request.user] + list(User.objects.filter(id__in=[x.id for x in req_admin_users])))
+            dataset.admin_users.set(list(User.objects.filter(id__in=[x.id for x in req_admin_users])))
             req_aggregated_users = dataset_data['aggregated_users']
             dataset.aggregated_users.set(list(User.objects.filter(id__in=[x.id for x in req_aggregated_users])))
             req_full_access_users = dataset_data['full_access_users']
