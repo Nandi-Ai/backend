@@ -797,6 +797,7 @@ class RunQuery(GenericAPIView):
 
 
 
+
             client = boto3.client('athena', region_name=settings.aws_region)
             try:
                 response = client.start_query_execution(
@@ -851,12 +852,15 @@ class CreateCohort(GenericAPIView):
 
             access = lib.calc_access_to_database(user, dataset)
 
-            # if access == "aggregated access":
-                # if not lib.is_aggregated(query_string):
-                #     return Error("this is not an aggregated query. only aggregated queries are allowed")
-
             if access == "no access":
                 return Error("no permission to query this dataset")
+
+            limit = query_serialized.validated_data['limit']
+
+            sample = query_serialized.validated_data['sample']
+
+            # if sample and limit:
+            #     return Error("sample OR limit but not both")
 
             client = boto3.client('athena', region_name=settings.aws_region)
             if 'query_string' in query_serialized.validated_data:
@@ -911,15 +915,13 @@ class CreateCohort(GenericAPIView):
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
-            limit = query_serialized.validated_data['limit']
 
-            #if max_aalowd
-            if not limit:
-                if not destination_dataset:
-                    if count > settings.query_no_limit_max_raws:
-                        percentage = int((settings.query_no_limit_max_raws/count)*100)
-                        query_string += " TABLESAMPLE BERNOULLI("+str(percentage)+")"
-            else:
+            if sample:
+                if count > sample:
+                    percentage = int((sample/count)*100)
+                    query_string += " TABLESAMPLE BERNOULLI("+str(percentage)+")"
+
+            if limit:
                 query_string += " LIMIT " + str(limit)
 
 
