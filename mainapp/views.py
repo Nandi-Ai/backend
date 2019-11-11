@@ -861,7 +861,7 @@ class CreateCohort(GenericAPIView):
 
             limit = query_serialized.validated_data['limit']
 
-            sample = query_serialized.validated_data['sample']
+            sample_aprx = query_serialized.validated_data['sample_aprx']
 
             client = boto3.client('athena', region_name=settings.aws_region)
             if 'query_string' in query_serialized.validated_data:
@@ -917,9 +917,9 @@ class CreateCohort(GenericAPIView):
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
 
-            if sample:
-                if count > sample:
-                    percentage = int((sample/count)*100)
+            if sample_aprx:
+                if count > sample_aprx:
+                    percentage = int((sample_aprx / count) * 100)
                     query_string += " TABLESAMPLE BERNOULLI("+str(percentage)+")"
 
             if limit:
