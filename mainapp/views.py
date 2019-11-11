@@ -755,8 +755,8 @@ class DataSourceViewSet(ModelViewSet):
                     DatabaseName=data_source.dataset.glue_database,
                     Name=data_source.glue_table
                 )
-            except Execution as e:
-                return Error("Error deleting datasource: "+str(e))
+            except Exception as e:
+                pass
 
         return super(self.__class__, self).destroy(request=self.request)
 
@@ -855,12 +855,13 @@ class CreateCohort(GenericAPIView):
             if access == "no access":
                 return Error("no permission to query this dataset")
 
+            # if access == "aggregated access":
+            #    if not lib.is_aggregated(query_string):
+            #        return Error("this is not an aggregated query. only aggregated queries are allowed")
+
             limit = query_serialized.validated_data['limit']
 
             sample = query_serialized.validated_data['sample']
-
-            # if sample and limit:
-            #     return Error("sample OR limit but not both")
 
             client = boto3.client('athena', region_name=settings.aws_region)
             if 'query_string' in query_serialized.validated_data:
