@@ -466,7 +466,7 @@ class DatasetViewSet(ModelViewSet):
             # TODO maybe use super() as in update instead of completing the all process.
 
             dataset_data = dataset_serialized.validated_data
-            print(dataset_data)
+
 
             # validations common for create and update:
             error_response = self.logic_validate(request, dataset_data)
@@ -495,7 +495,7 @@ class DatasetViewSet(ModelViewSet):
             req_tags = dataset_data['tags']
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
-            dataset.ancestor = dataset_data['ancestor']
+            dataset.ancestor = dataset_data['ancestor'] if 'ancestor' in dataset_data else None
             dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
