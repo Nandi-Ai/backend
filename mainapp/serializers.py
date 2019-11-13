@@ -73,9 +73,12 @@ class DatasetSerializer(ModelSerializer):
             'programmatic_name',
             'bucket',
             'cover',
+            'children',
+            'ancestor',
         )
 
         extra_kwargs = {
+            'children': {'read_only': True},
             'tags': {'allow_empty': True},
             'admin_users': {'allow_empty': True},
             'aggregated_users': {'allow_empty': True},

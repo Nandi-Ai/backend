@@ -444,6 +444,7 @@ class TagViewSet(ReadOnlyModelViewSet):
 class DatasetViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post', 'put', 'delete']
     serializer_class = DatasetSerializer
+    filter_fields = ('ancestor',)
 
     def logic_validate(self, request, dataset_data):  # only common validations for create and update! #
 
@@ -465,6 +466,7 @@ class DatasetViewSet(ModelViewSet):
             # TODO maybe use super() as in update instead of completing the all process.
 
             dataset_data = dataset_serialized.validated_data
+            print(dataset_data)
 
             # validations common for create and update:
             error_response = self.logic_validate(request, dataset_data)
@@ -493,7 +495,8 @@ class DatasetViewSet(ModelViewSet):
             req_tags = dataset_data['tags']
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
-            dataset.organization = request.user.organization
+            dataset.ancestor = dataset_data['ancestor']
+            dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
             dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
             dataset.save()

@@ -140,5 +140,4 @@ APPEND_SLASH = False
 
 secured_bucket = False
 
-query_no_limit_max_raws = 10000
 from .local_settings import *

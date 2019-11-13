@@ -247,6 +247,7 @@ class Dataset(models.Model):
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="datasets", null=True)
     cover = models.CharField(max_length=255, blank=True, null=True)
+    ancestor = models.ForeignKey('Dataset', on_delete=models.DO_NOTHING, related_name="children", null=True)
 
     class Meta:
         db_table = 'datasets'
