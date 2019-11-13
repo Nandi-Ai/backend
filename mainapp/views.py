@@ -647,6 +647,30 @@ class DatasetViewSet(ModelViewSet):
         return super(self.__class__, self).update(
             request=self.request)  # will handle the case where serializer is not valid
 
+    def destroy(self, request, *args, **kwargs):
+
+        def delete_dataset_tree(dataset):
+            if dataset.children:
+                for child in dataset.children.all():
+                    delete_dataset_tree(child)
+
+            dataset.delete()
+
+
+        delete_tree_raw = request.GET.get('delete_tree')
+        delete_tree = True if delete_tree_raw == "true" else False
+
+        dataset = self.get_object()
+
+        #delete dataset bucket and data sources
+
+        if delete_tree:
+            delete_dataset_tree(dataset)
+        else:
+            dataset.delete()
+
+        return Response(status=204)
+
 
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
