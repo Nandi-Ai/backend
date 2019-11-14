@@ -650,11 +650,8 @@ class DatasetViewSet(ModelViewSet):
     def destroy(self, request, *args, **kwargs):
 
         def delete_dataset_tree(dataset):
-            if dataset.children:
-                for child in dataset.children.all():
-                    delete_dataset_tree(child)
-
-            dataset.delete()
+            for child in dataset.children.all():
+                delete_dataset_tree(child)
 
 
         delete_tree_raw = request.GET.get('delete_tree')
@@ -666,8 +663,13 @@ class DatasetViewSet(ModelViewSet):
 
         if delete_tree:
             delete_dataset_tree(dataset)
-        else:
-            dataset.delete()
+
+        elif dataset.ancestor:
+            for child in dataset.children.all():
+                child.ancestor = dataset.ancestor
+                child.save()
+
+        dataset.delete()
 
         return Response(status=204)
 
