@@ -653,13 +653,13 @@ class DatasetViewSet(ModelViewSet):
             for child in dataset.children.all():
                 delete_dataset_tree(child)
 
+        dataset = self.get_object()
+
+        if request.user.permission(dataset) != "admin":
+            return Error("this user can't delete the dataset")
 
         delete_tree_raw = request.GET.get('delete_tree')
         delete_tree = True if delete_tree_raw == "true" else False
-
-        dataset = self.get_object()
-
-        #delete dataset bucket and data sources
 
         if delete_tree:
             delete_dataset_tree(dataset)
@@ -823,9 +823,6 @@ class RunQuery(GenericAPIView):
 
             if access == "no access":
                 return Error("no permission to query this dataset")
-
-
-
 
             client = boto3.client('athena', region_name=settings.aws_region)
             try:
