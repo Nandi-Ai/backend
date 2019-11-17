@@ -933,7 +933,7 @@ class CreateCohort(GenericAPIView):
                 )
 
             except Exception as e:
-                return Error("query: "+query_string+" count query: "+count_query+" .failed executing count query: "+str(e))
+                return Error("failed executing the count query: "+count_query+". error: "+str(e)+". original query: "+query_string)
 
             query_execution_id = response['QueryExecutionId']
             s3_client = boto3.client('s3')
@@ -941,7 +941,7 @@ class CreateCohort(GenericAPIView):
             try:
                 obj=lib.get_s3_object(bucket=dataset.bucket, key="temp_execution_results/" + query_execution_id + ".csv")
             except s3_client.exceptions.NoSuchKey:
-                return Error("failed getting the count result. might be bad query string. query string: "+query_string)
+                return Error("count query result file doesn't seem to exist in bucket. query string: "+query_string)
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
@@ -969,7 +969,7 @@ class CreateCohort(GenericAPIView):
                 )
 
             except Exception as e:
-                return Error(str(e))
+                return Error("error execution the query: "+str(e))
 
             query_execution_id = response['QueryExecutionId']
             this_req_res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
@@ -981,7 +981,7 @@ class CreateCohort(GenericAPIView):
                     result_obj = lib.get_s3_object(bucket=dataset.bucket,
                                                    key="temp_execution_results/" + query_execution_id + ".csv")
                 except s3_client.exceptions.NoSuchKey:
-                    return Error("failed getting the result. might be bad query string")
+                    return Error("query result file doesnt seem to exist in bucket. query: "+query_string)
 
                 result = result_obj['Body'].read().decode('utf-8')
                 result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')

@@ -219,8 +219,6 @@ class Study(models.Model):
         db_table = 'studies'
 
 class Dataset(models.Model):
-
-
     states = (
         ("public", "public"),
         ("private", "private"),

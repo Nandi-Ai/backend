@@ -347,7 +347,7 @@ def dev_express_to_sql(table, data_filter, columns):
 
     return query
 
-def get_s3_object(bucket,key,s3_client=None,retries=30):
+def get_s3_object(bucket,key,s3_client=None,retries=60):
     if not s3_client:
         s3_client=boto3.client('s3')
 
@@ -358,7 +358,7 @@ def get_s3_object(bucket,key,s3_client=None,retries=30):
             return obj
         except s3_client.exceptions.NoSuchKey:
             if retries>0:
-                sleep(0.5)
+                sleep(1)
                 retries-=1
 
                 continue
