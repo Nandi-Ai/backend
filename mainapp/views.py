@@ -854,8 +854,6 @@ class CreateCohort(GenericAPIView):
 
             user = request.user
             req_dataset_id = query_serialized.validated_data['dataset_id']
-            return_result=True if request.GET.get('return_result') == "true" else False
-            result_format = request.GET.get('result_format')
 
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
@@ -881,6 +879,98 @@ class CreateCohort(GenericAPIView):
             if access == "no access":
                 return Error("no permission to query this dataset")
 
+            limit = query_serialized.validated_data['limit']
+
+            data_filter = json.loads(query_serialized.validated_data[
+                'filter']) if 'filter' in query_serialized.validated_data else None
+            columns = json.loads(query_serialized.validated_data[
+                                         'columns']) if 'columns' in query_serialized.validated_data else None
+
+            query, _ = lib.dev_express_to_sql(table = data_source.glue_table, schema=dataset.glue_database, data_filter=data_filter, columns=columns,limit=limit)
+
+            ctas_query = 'CREATE TABLE "'+data_source.glue_table+"\" WITH (format = 'TEXTFILE', external_location = 's3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/') AS "+query+";"
+
+            print(ctas_query)
+            client = boto3.client('athena', region_name=settings.aws_region)
+            try:
+                response = client.start_query_execution(
+                    QueryString=ctas_query,
+                    QueryExecutionContext={
+                        'Database': destination_dataset.glue_database  # the name of the database in glue/athena
+                    },
+                    ResultConfiguration={
+                        'OutputLocation': "s3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/",
+                    }
+                )
+
+            except Exception as e:
+                return Error("failed executing the CTAS query: "+ctas_query+". error: "+str(e)+". query string: "+query)
+
+            print(str(response))
+
+            new_data_source = data_source
+            new_data_source.id = None
+            new_data_source.dataset = destination_dataset
+            new_data_source.s3_objects = None
+
+            try:
+                new_data_source.save()
+            except IntegrityError:
+                return Error("this dataset already has data source with the same name")
+
+            return Response()
+
+        else:
+            return Error(query_serialized.errors)
+
+class Query(GenericAPIView):
+    serializer_class = CohortSerializer
+
+    def post(self, request):
+        query_serialized = self.serializer_class(data=request.data)
+        if query_serialized.is_valid():
+
+            def get_query_no_limit_and_count_query(query):
+                res = sqlparse.parse(query)
+                stmt = res[0]
+
+                tokens_values = [x.value.lower() for x in stmt.tokens]
+
+                limit = None
+                if "limit" in tokens_values:
+                    i_limit = tokens_values.index("limit")
+                    limit = int(str(stmt.tokens[i_limit+2]))
+                    del stmt.tokens[i_limit:i_limit + 3]
+
+                where_clauses = stmt[8].value if len(list(stmt)) > 8 else ""
+
+                count_query = 'SELECT COUNT(*) FROM ' + stmt[6].value + ' ' + where_clauses
+                query_no_limit = str(stmt)
+
+                return query_no_limit, count_query, limit
+
+            user = request.user
+            req_dataset_id = query_serialized.validated_data['dataset_id']
+            return_result=True if request.GET.get('return_result') == "true" else False
+            result_format = request.GET.get('result_format')
+
+            try:
+                dataset = user.datasets.get(id=req_dataset_id)
+            except Dataset.DoesNotExist:
+                return Error("no permission to this dataset. make sure it is exists, it's yours or shared with you")
+
+            if 'data_source_id' not in query_serialized.validated_data:
+                return Error("please mention data_source_id")
+            try:
+                data_source = dataset.data_sources.get(id=query_serialized.validated_data['data_source_id'])
+            except DataSource.DoesNotExist:
+                return Error("data source not exists")
+
+            access = lib.calc_access_to_database(user, dataset)
+
+            if access == "no access":
+                return Error("no permission to query this dataset")
+
             # if access == "aggregated access":
             #    if not lib.is_aggregated(query_string):
             #        return Error("this is not an aggregated query. only aggregated queries are allowed")
@@ -891,32 +981,18 @@ class CreateCohort(GenericAPIView):
 
             client = boto3.client('athena', region_name=settings.aws_region)
             if 'query_string' in query_serialized.validated_data:
-                query_string = query_serialized.validated_data['query_string']
+                query = query_serialized.validated_data['query_string']
+                query_no_limit, count_query, limit = get_query_no_limit_and_count_query(query)
 
             else:
-                table = query_serialized.validated_data['table']
+                table = data_source.glue_table
                 data_filter = json.loads(query_serialized.validated_data[
                     'filter']) if 'filter' in query_serialized.validated_data else None
                 columns = json.loads(query_serialized.validated_data[
                                              'columns']) if 'columns' in query_serialized.validated_data else None
 
-                query_string = lib.dev_express_to_sql(table, data_filter, columns)
-
-            #COUNT query
-            try:
-                res = sqlparse.parse(query_string)
-                stmt = res[0]
-
-                tokens_values = [x.value.lower() for x in stmt.tokens]
-
-                if "limit" in tokens_values:
-                    i_limit = tokens_values.index("limit")
-                    del stmt.tokens[i_limit:i_limit+3]
-
-                where_clauses = stmt[8].value if len(list(stmt))>8 else ""
-                count_query = 'SELECT COUNT(*) FROM ' + stmt[6].value +' '+where_clauses
-            except Exception as e:
-                return Error("query: "+query_string+" count query: "+count_query+" .failed converting the query to a count query: " + str(e))
+                query, query_no_limit = lib.dev_express_to_sql(table = table, data_filter=data_filter, columns=columns,limit=limit)
+                _, count_query, _ = get_query_no_limit_and_count_query(query)
 
             try:
                 response = client.start_query_execution(
@@ -930,7 +1006,7 @@ class CreateCohort(GenericAPIView):
                 )
 
             except Exception as e:
-                return Error("failed executing the count query: "+count_query+". error: "+str(e)+". original query: "+query_string)
+                return Error("failed executing the count query: "+count_query+". error: "+str(e)+". original query: "+query)
 
             query_execution_id = response['QueryExecutionId']
             s3_client = boto3.client('s3')
@@ -938,25 +1014,23 @@ class CreateCohort(GenericAPIView):
             try:
                 obj=lib.get_s3_object(bucket=dataset.bucket, key="temp_execution_results/" + query_execution_id + ".csv")
             except s3_client.exceptions.NoSuchKey:
-                return Error("count query result file doesn't seem to exist in bucket. query string: "+query_string)
+                return Error("count query result file doesn't seem to exist in bucket. query string: "+query)
 
             count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
-
 
             if sample_aprx:
                 if count > sample_aprx:
                     percentage = int((sample_aprx / count) * 100)
-                    query_string += " TABLESAMPLE BERNOULLI("+str(percentage)+")"
+                    query = query_no_limit + " TABLESAMPLE BERNOULLI("+str(percentage)+")"
 
             if limit:
-                query_string += " LIMIT " + str(limit)
+                query = query+" LIMIT " + str(limit)
 
+            print(query)
 
-            print(query_string)
-            #REAL query
             try:
                 response = client.start_query_execution(
-                    QueryString=query_string,
+                    QueryString=query,
                     QueryExecutionContext={
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
@@ -971,14 +1045,12 @@ class CreateCohort(GenericAPIView):
             query_execution_id = response['QueryExecutionId']
             this_req_res = {"execution_result":{"query_execution_id":query_execution_id,"count_no_limit":count,"item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}}
 
-
-            if return_result or destination_dataset:
-
+            if return_result:
                 try:
                     result_obj = lib.get_s3_object(bucket=dataset.bucket,
                                                    key="temp_execution_results/" + query_execution_id + ".csv")
                 except s3_client.exceptions.NoSuchKey:
-                    return Error("query result file doesnt seem to exist in bucket. query: "+query_string)
+                    return Error("query result file doesnt seem to exist in bucket. query: "+query)
 
                 result = result_obj['Body'].read().decode('utf-8')
                 result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
@@ -996,11 +1068,6 @@ class CreateCohort(GenericAPIView):
                 if return_result:
                     this_req_res['results'] = lib.csv_to_json(result_no_quotes, columns_types) if result_format=="json" else result_no_quotes
 
-                if destination_dataset:
-                    s3_client.put_object(Bucket=destination_dataset.bucket,Body=result_no_quotes,Key=data_source.s3_objects[0]['key'])
-                    this_req_res["new_item"] = {"bucket":destination_dataset.bucket,"key":data_source.s3_objects[0]['key']}
-
-            # Activity.objects.create(user=user, dataset=dataset, meta={"query_string": query_string}, type="query")
             return Response(this_req_res)
         else:
             return Error(query_serialized.errors)

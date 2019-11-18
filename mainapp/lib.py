@@ -319,11 +319,15 @@ def create_where_section_from_array(data_filter):
     return create_where_section(field, operator, value)
 
 
-def dev_express_to_sql(table, data_filter, columns):
+def dev_express_to_sql(table, data_filter, columns,schema=None,limit = None):
 
     select = '"'+('","'.join(columns))+'"' if columns else "*"
 
-    query = 'SELECT %s FROM "%s"' % (select, table)
+    if schema:
+        query = 'SELECT %s FROM "%s"."%s"' % (select, schema, table)
+    else:
+        query = 'SELECT %s FROM "%s"' % (select, table)
+
     if data_filter:
         query += " WHERE "
 
@@ -345,7 +349,12 @@ def dev_express_to_sql(table, data_filter, columns):
                 elif isinstance(data, str):
                     query += " " + data + " "
 
-    return query
+    query_no_limit = query
+
+    if limit:
+        query+=" LIMIT "+str(limit)
+
+    return query, query_no_limit
 
 def get_s3_object(bucket,key,s3_client=None,retries=60):
     if not s3_client:
