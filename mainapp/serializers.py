@@ -112,21 +112,28 @@ class StudySerializer(ModelSerializer):
         }
 
 
-class QuerySerializer(Serializer):
+class SimpleQuerySerializer(Serializer):
     query_string = CharField(max_length=2048)
     dataset_id = CharField(max_length=255)
 
 
-class CohortSerializer(Serializer):
+class QuerySerializer(Serializer):
     query_string = CharField(max_length=2048,required=False)
-    table = CharField(max_length=2048,required=False)
     filter = CharField(max_length=2048, required=False)
     columns = CharField(max_length=2048, required=False)
     limit = IntegerField(required=False, default=None)
     sample_aprx = IntegerField(required=False, default=None)
     dataset_id = CharField(max_length=255)
-    data_source_id = CharField(max_length=255,required=False)
-    destination_dataset_id = CharField(max_length=255,required=False)
+    data_source_id = CharField(max_length=255)
+
+
+class CohortSerializer(Serializer):
+    filter = CharField(max_length=2048, required=False)
+    columns = CharField(max_length=2048, required=False)
+    limit = IntegerField(required=False, default=None)
+    dataset_id = CharField(max_length=255)
+    data_source_id = CharField(max_length=255)
+    destination_dataset_id = CharField(max_length=255)
 
 
 class DatasetUploadedSerializer(Serializer):

@@ -15,6 +15,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from mainapp import settings
 from mainapp.models import Tag
 
+import sqlparse
+
 
 def break_s3_object(obj):
     file_name = obj.split("/")[-1]
@@ -402,7 +404,36 @@ def csv_to_json(csv,columns_types):
     return dic
 
 
+def get_columns_types(glue_database, glue_table):
+    glue_client = boto3.client("glue", region_name=settings.aws_region)
 
+    response = glue_client.get_table(
+        DatabaseName=glue_database,
+        Name=glue_table
+    )
+
+    columns_types = response["Table"]['StorageDescriptor']['Columns']
+    return columns_types
+
+
+def get_query_no_limit_and_count_query(query):
+    res = sqlparse.parse(query)
+    stmt = res[0]
+
+    tokens_values = [x.value.lower() for x in stmt.tokens]
+
+    limit = None
+    if "limit" in tokens_values:
+        i_limit = tokens_values.index("limit")
+        limit = int(str(stmt.tokens[i_limit + 2]))
+        del stmt.tokens[i_limit:i_limit + 3]
+
+    where_clauses = stmt[8].value if len(list(stmt)) > 8 else ""
+
+    count_query = 'SELECT COUNT(*) FROM ' + stmt[6].value + ' ' + where_clauses
+    query_no_limit = str(stmt)
+
+    return query_no_limit, count_query, limit
 
 
 
