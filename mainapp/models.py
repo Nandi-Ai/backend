@@ -218,6 +218,10 @@ class Study(models.Model):
     class Meta:
         db_table = 'studies'
 
+    @property
+    def bucket(self):
+        return "lynx-workspace-"+str(self.id)
+
 class Dataset(models.Model):
     states = (
         ("public", "public"),

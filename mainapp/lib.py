@@ -436,6 +436,35 @@ def get_query_no_limit_and_count_query(query):
     return query_no_limit, count_query, limit
 
 
+def list_objects_version(bucket,filter = None,exclude = None,start = None, end = None,prefix = ""):
+
+    import fnmatch
+    import pytz
+
+    s3_client = boto3.client('s3')
+    items=s3_client.list_object_versions(Bucket = bucket, Prefix = prefix)['Versions']
+
+    if start and end:
+        assert start <= end, "start is has to be before end"
+
+    if filter:
+        items = [x for x in items if fnmatch.fnmatch(x['Key'], filter)]
+
+    if exclude:
+        items = [x for x in items if not fnmatch.fnmatch(x['Key'], exclude)]
+
+    if start:
+        if not start.tzinfo:
+            start=start.replace(tzinfo = pytz.utc)
+        items = [x for x in items if x['LastModified'] >= start]
+
+    if end:
+        if not end.tzinfo:
+            end=end.replace(tzinfo = pytz.utc)
+        items = [x for x in items if x['LastModified'] <= end]
+
+    return items
+
 
 
 

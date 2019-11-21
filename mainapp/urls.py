@@ -61,6 +61,7 @@ urlpatterns = [
     url(r'^run_query/?$', views.RunQuery.as_view(), name='run_query'), #for execution
     url(r'^create_cohort/?$', views.CreateCohort.as_view(), name='create_cohort'),
     url(r'^query/?$', views.Query.as_view(), name='query'),
+    url(r'^versions/?$', views.Version.as_view(), name='versions'),
     url(r'^requests/respond/(?P<user_request_id>[^/]+)/?$', views.HandleDatasetAccessRequest.as_view(),
         name='respond_request'),
 ]

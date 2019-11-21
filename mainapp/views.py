@@ -1126,3 +1126,37 @@ class GetExecutionConfig(APIView):
             config['datasets'].append(dataset_ser)
 
         return Response(config)
+
+
+class Version(APIView):
+    def get(self, request):
+
+        if 'study' not in request.query_params:
+            return Error("please provide study as qsp")
+
+        study_id = request.query_params.get('study')
+
+        try:
+            study = request.user.studies.get(id=study_id)
+        except Study.DoesNotExist:
+            return Error("study not exists or not permitted")
+
+        start = request.GET.get('start')
+        end = request.GET.get('end')
+
+        try:
+            if start:
+                start = dateparser.parse(start)
+            if end:
+                end = dateparser.parse(end)
+        except exceptions.ValidationError as e:
+            return Error("cannot parse this format: " + str(e))
+
+        if (start and end) and not start <= end:
+            return Error("start > end")
+
+        items = lib.list_objects_version(bucket=study.bucket, filter="*.ipynb", exclude=".*", start=start, end=end)
+
+        return Response(items)
+
+
