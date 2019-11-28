@@ -115,22 +115,24 @@ class MyTokenAuthentication(TokenAuthentication):
 
         return token.user, token
 
+def create_glue_database(dataset):
+    glue_client = boto3.client('glue', region_name=settings.aws_region)
+
+    assert not dataset.glue_database, "this dataset seems to have glue database"
+    print("creating glue database")
+
+    glue_client.create_database(
+        DatabaseInput={
+            "Name": dataset.glue_database
+        }
+    )
+    dataset.glue_database = "dataset-" + str(dataset.id)
+    dataset.save()
 
 def create_catalog(data_source):
-    # Clients
+    if not data_source.dataset.glue_database:
+        create_glue_database(data_source.dataset)
     glue_client = boto3.client('glue', region_name=settings.aws_region)
-    dataset = data_source.dataset
-
-    if not dataset.glue_database:
-        print("creating glue database")
-        dataset.glue_database = "dataset-" + str(data_source.dataset.id)
-        glue_client.create_database(
-            DatabaseInput={
-                "Name": dataset.glue_database
-            }
-        )
-        dataset.save()
-
     print("creating database crawler")
     create_glue_crawler(data_source)  # if no dataset no crawler
 

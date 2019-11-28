@@ -99,6 +99,7 @@ class GetStaticSTS(APIView):  # from execution
 
 class Dummy(APIView):
     def get(self, request):
+
         return Response()
 
 
@@ -320,6 +321,33 @@ class GetDatasetSTS(APIView):  # for frontend uploads
         config = {}
 
         config['bucket'] = dataset.bucket
+        config['aws_sts_creds'] = sts_response['Credentials']
+
+        return Response(config)
+
+class GetStudySTS(APIView):  # for frontend uploads
+
+    def get(self, request, study_id):
+        try:
+            study = request.user.studies.get(id=study_id)
+        except Dataset.DoesNotExist:
+            return Error("study with that id not exists")
+
+        # generate sts token so the user can upload the dataset to the bucket
+        sts_default_provider_chain = boto3.client('sts')
+
+        role_name = "lynx-workspace-" + str(study.id)
+        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
+
+        sts_response = sts_default_provider_chain.assume_role(
+            RoleArn=role_to_assume_arn,
+            RoleSessionName='session',
+            DurationSeconds=43200
+        )
+
+        config = {}
+
+        config['bucket'] = study.bucket
         config['aws_sts_creds'] = sts_response['Credentials']
 
         return Response(config)
@@ -863,12 +891,12 @@ class CreateCohort(GenericAPIView):
             try:
                 destination_dataset = user.datasets.get(id=query_serialized.validated_data['destination_dataset_id'])
             except Dataset.DoesNotExist:
-                return Error("data set not exists. in needs to be created first")
+                return Error("dataset not found or no permission")
 
             try:
                 data_source = dataset.data_sources.get(id=query_serialized.validated_data['data_source_id'])
             except DataSource.DoesNotExist:
-                return Error("data source not exists")
+                return Error("datasource not found or no permission")
 
             access = lib.calc_access_to_database(user, dataset)
 
@@ -887,6 +915,10 @@ class CreateCohort(GenericAPIView):
             ctas_query = 'CREATE TABLE "'+data_source.glue_table+"\" WITH (format = 'TEXTFILE', external_location = 's3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/') AS "+query+";"
 
             print(ctas_query)
+
+            if not destination_dataset.glue_database:
+                lib.create_glue_database(destination_dataset)
+
             client = boto3.client('athena', region_name=settings.aws_region)
             try:
                 response = client.start_query_execution(
@@ -906,8 +938,8 @@ class CreateCohort(GenericAPIView):
 
             new_data_source = data_source
             new_data_source.id = None
-            new_data_source.dataset = destination_dataset
             new_data_source.s3_objects = None
+            new_data_source.dataset = destination_dataset
 
             try:
                 new_data_source.save()
