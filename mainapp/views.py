@@ -912,11 +912,12 @@ class CreateCohort(GenericAPIView):
 
             query, _ = lib.dev_express_to_sql(table = data_source.glue_table, schema=dataset.glue_database, data_filter=data_filter, columns=columns,limit=limit)
 
+            if not destination_dataset.glue_database:
+                lib.create_glue_database(destination_dataset)
+
             ctas_query = 'CREATE TABLE "'+destination_dataset.glue_database+'"."'+data_source.glue_table+'"'+" WITH (format = 'TEXTFILE', external_location = 's3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/') AS "+query+";"
             print(ctas_query)
 
-            if not destination_dataset.glue_database:
-                lib.create_glue_database(destination_dataset)
 
             client = boto3.client('athena', region_name=settings.aws_region)
             try:
