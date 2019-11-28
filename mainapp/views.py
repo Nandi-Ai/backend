@@ -915,7 +915,7 @@ class CreateCohort(GenericAPIView):
             if not destination_dataset.glue_database:
                 lib.create_glue_database(destination_dataset)
 
-            ctas_query = 'CREATE TABLE "'+destination_dataset.glue_database+'"."'+data_source.glue_table+'"'+" WITH (format = 'JSON', external_location = 's3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/') AS "+query+";"
+            ctas_query = 'CREATE TABLE "'+destination_dataset.glue_database+'"."'+data_source.glue_table+'"'+" WITH (format = 'PARQUET', external_location = 's3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/') AS "+query+";"
             print(ctas_query)
 
 
