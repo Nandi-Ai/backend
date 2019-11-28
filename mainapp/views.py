@@ -1076,14 +1076,14 @@ class Query(GenericAPIView):
                     return Error("query result file doesnt seem to exist in bucket. query: "+query)
 
                 result = result_obj['Body'].read().decode('utf-8')
-                # result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
+                result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"').strip('"\n')
 
 
                 if return_result:
                     if result_format=="json":
-                        this_req_res['result'] = lib.csv_to_json(result, columns_types)
+                        this_req_res['result'] = lib.csv_to_json(result_no_quotes, columns_types)
                     else:
-                        this_req_res['result'] = result
+                        this_req_res['result'] = result_no_quotes
 
             return Response(this_req_res)
         else:
