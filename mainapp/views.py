@@ -1076,7 +1076,7 @@ class Query(GenericAPIView):
                     return Error("query result file doesnt seem to exist in bucket. query: "+query)
 
                 result = result_obj['Body'].read().decode('utf-8')
-                result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"').strip('"\n')
+                result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
 
 
                 if return_result:
