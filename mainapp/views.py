@@ -927,7 +927,7 @@ class CreateCohort(GenericAPIView):
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        'OutputLocation': "s3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/",
+                        'OutputLocation': "s3://"+destination_dataset.bucket+"/ctas_results/",
                     }
                 )
 
