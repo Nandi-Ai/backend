@@ -991,6 +991,22 @@
    "tag_name": "operational",
    "category": "data_types"
  },
+{
+ "tag_name": "operational",
+ "category": "data_types"
+},
+{
+ "tag_name": "clinical",
+ "category": "data_types"
+},
+{
+ "tag_name": "emr",
+ "category": "data_types"
+},
+{
+ "tag_name": "medical records",
+ "category": "data_types"
+ },
  {
    "tag_name": "stroke",
    "category": "medical_conditions"
