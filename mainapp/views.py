@@ -461,7 +461,7 @@ class OrganizationViewSet(ReadOnlyModelViewSet):
     serializer_class = OrganizationSerializer
 
     def get_queryset(self, **kwargs):
-        return self.request.user.related_organizations.all()
+        return Organization.objects.all()
 
 
 class TagViewSet(ReadOnlyModelViewSet):

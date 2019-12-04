@@ -121,13 +121,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return studies
 
     @property
-    def related_organizations(self):
-        organizations_ids = [dataset.organization.id for dataset in self.datasets]
-        # no need set. return one item even if id appears multiple times.
-        organizations = Organization.objects.filter(id__in=organizations_ids)
-        return organizations
-
-    @property
     def datasets(self):
         # all public datasets, datasets that the user have aggregated access accept archived,
         # datasets that the user has admin access, datasets that the user have full access permission accept archived.
