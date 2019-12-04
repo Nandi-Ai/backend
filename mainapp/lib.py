@@ -287,7 +287,7 @@ def create_where_section(field, operator, value):
         if value is None:
             return "\"{}\" is null".format(field, value)
         if value == "":
-            return "\"{}\" = \"{}\"".format(field, value)
+            return "\"{}\" = \'{}\'".format(field, value)
         return "\"{}\" = {}".format(field, value)
 
     if operator == "<>":
