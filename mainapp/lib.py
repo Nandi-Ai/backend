@@ -267,25 +267,27 @@ def load_tags(delete_removed_tags=True):
 
 
 def create_where_section(field, operator, value):
-    # todo not working
+
     if operator == 'contains':
         # return "regexp_like({}, '(?i){}');".format(field, value)
         return "\"{}\" LIKE '%{}%'".format(field, value)
 
-    # todo not working
+
     if operator == 'notcontains':
         return "\"{}\" ILIKE '%{}%'".format(field, value)
 
-    # todo not working
+
     if operator == 'startswith':
         return "\"{}\" LIKE '{}%'".format(field, value)
 
-    # todo not working
+
     if operator == "=":
         # if value is "":
         #     return "\"{}\" = ' '".format(field, value)
         if value is None:
             return "\"{}\" is null".format(field, value)
+        if value == "":
+            return "\"{}\" = \"{}\"".format(field, value)
         return "\"{}\" = {}".format(field, value)
 
     if operator == "<>":
