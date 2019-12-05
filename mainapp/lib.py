@@ -120,7 +120,7 @@ def create_glue_database(dataset):
 
     assert not dataset.glue_database, "this dataset seems to have glue database"
     print("creating glue database")
-    dataset.glue_database = "dataset-" + str(dataset.id)
+    #dataset.glue_database = "dataset-" + str(dataset.id)
     glue_client.create_database(
         DatabaseInput={
             "Name": dataset.glue_database
@@ -287,7 +287,7 @@ def create_where_section(field, operator, value):
         if value is None:
             return "\"{}\" is null".format(field, value)
         if value == "":
-            return "\"{}\" = \'{}\'".format(field, value)
+            return "\"{}\" = '{}'".format(field, value)
         return "\"{}\" = {}".format(field, value)
 
     if operator == "<>":

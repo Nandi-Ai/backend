@@ -525,7 +525,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.user_created = request.user
             dataset.ancestor = dataset_data['ancestor'] if 'ancestor' in dataset_data else None
             dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
-            dataset.bucket = 'lynx-dataset-' + str(dataset.id)
+            #dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
             dataset.save()
 
@@ -991,21 +991,30 @@ class Query(GenericAPIView):
             #    if not lib.is_aggregated(query_string):
             #        return Error("this is not an aggregated query. only aggregated queries are allowed")
 
-            limit = query_serialized.validated_data['limit']
-            sample_aprx = query_serialized.validated_data['sample_aprx']
+            if query_serialized.validated_data['query']:
 
-            data_filter = json.loads(query_serialized.validated_data[
-                'filter']) if 'filter' in query_serialized.validated_data else None
-            columns = json.loads(query_serialized.validated_data[
-                                         'columns']) if 'columns' in query_serialized.validated_data else None
+                query = query_serialized.validated_data['query']
+                query_no_limit, count_query, limit =lib.get_query_no_limit_and_count_query(query)
+                sample_aprx = None
 
-            query, query_no_limit = lib.dev_express_to_sql(table = data_source.glue_table, data_filter=data_filter, columns=columns,limit=limit)
-            _, count_query, _ = lib.get_query_no_limit_and_count_query(query)
+            else:
+                limit = query_serialized.validated_data['limit']
+                sample_aprx = query_serialized.validated_data['sample_aprx']
+
+                data_filter = json.loads(query_serialized.validated_data[
+                    'filter']) if 'filter' in query_serialized.validated_data else None
+                columns = json.loads(query_serialized.validated_data[
+                                             'columns']) if 'columns' in query_serialized.validated_data else None
+
+                query, query_no_limit = lib.dev_express_to_sql(table = data_source.glue_table, data_filter=data_filter, columns=columns,limit=limit)
+                _, count_query, _ = lib.get_query_no_limit_and_count_query(query)
 
             this_req_res = {}
+
             client = boto3.client('athena', region_name=settings.aws_region)
 
             if sample_aprx or return_count:
+                print("count query: "+count_query)
                 try:
                     response = client.start_query_execution(
                         QueryString=count_query,
@@ -1016,6 +1025,7 @@ class Query(GenericAPIView):
                             'OutputLocation': "s3://lynx-dataset-" +str(dataset.id)+"/temp_execution_results",
                         }
                     )
+
 
                 except Exception as e:
                     return Error("failed executing the count query: "+count_query+". error: "+str(e)+". original query: "+query)
@@ -1043,8 +1053,7 @@ class Query(GenericAPIView):
             if limit:
                 final_query +=" LIMIT " + str(limit)
 
-            print(query_no_limit)
-            print(final_query)
+            print("final query:"+final_query)
             try:
                 response = client.start_query_execution(
                     QueryString=final_query,

@@ -238,9 +238,9 @@ class Dataset(models.Model):
     state = models.CharField(choices=states, max_length=32)
     default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset,
                                                max_length=32, null=True)
-    bucket = models.CharField(max_length=255, blank=True, null=True)
+    bucket_override = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
-    glue_database = models.CharField(max_length=255, blank=True, null=True)
+    glue_database_override = models.CharField(max_length=255, blank=True, null=True)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="datasets", null=True)
     cover = models.CharField(max_length=255, blank=True, null=True)
@@ -252,6 +252,18 @@ class Dataset(models.Model):
     @property
     def permitted_users(self):
         return (self.aggregated_users | self.admin_users | self.full_access_users).distinct()
+
+    @property
+    def glue_database(self):
+        if self.glue_database_override:
+            return self.glue_database_override
+        return "dataset-"+str(self.id)
+
+    @property
+    def bucket(self):
+        if self.bucket_override:
+            return self.bucket_override
+        return "lynx-dataset-" + str(self.id)
 
 
 class DataSource(models.Model):
