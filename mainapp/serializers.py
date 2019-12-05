@@ -118,7 +118,7 @@ class SimpleQuerySerializer(Serializer):
 
 
 class QuerySerializer(Serializer):
-    query = CharField(max_length=2048,required=False)
+    query = CharField(max_length=2048,required=False,default=None)
     filter = CharField(max_length=2048, required=False)
     columns = CharField(max_length=2048, required=False)
     limit = IntegerField(required=False, default=None)
