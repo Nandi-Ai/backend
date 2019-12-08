@@ -299,6 +299,10 @@ def create_where_section(field, operator, value):
     elif operator == "<>":
         if value is None:
             return "\"{}\" is not null".format(field, value)
+
+        if isinstance(value, str):
+            return "\"{}\" <> '{}'".format(field, value)
+
         return "\"{}\" <> {}".format(field, value)
 
     if operator == ">":
