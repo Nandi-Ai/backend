@@ -286,9 +286,14 @@ def create_where_section(field, operator, value):
         #     return "\"{}\" = ' '".format(field, value)
         if value is None:
             return "\"{}\" is null".format(field, value)
-        if value == "":
+        #if value == "": #empty string
+
+        #   return "\"{}\" = '{}'".format(field, value)
+        if isinstance(value, str):
             return "\"{}\" = '{}'".format(field, value)
-        return "\"{}\" = {}".format(field, value)
+
+
+        return "\"{}\" = {}".format(field, value) #not string.
 
     if operator == "<>":
         # if value is "":

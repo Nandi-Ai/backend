@@ -946,7 +946,8 @@ class CreateCohort(GenericAPIView):
             except IntegrityError:
                 return Error("this dataset already has data source with the same name")
 
-            return Response(status=201)
+            req_res = {"query":query,"ctas_query":ctas_query}
+            return Response(req_res,status=201)
 
         else:
             return Error(query_serialized.errors)
@@ -1068,6 +1069,9 @@ class Query(GenericAPIView):
             except Exception as e:
                 return Error("error execution the query: "+str(e))
 
+
+            response['query'] = final_query
+            response['count_query'] = count_query
             query_execution_id = response['QueryExecutionId']
             this_req_res["execution_result"]={"query_execution_id":query_execution_id, "item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}
 
