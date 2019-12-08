@@ -270,18 +270,18 @@ class Dataset(models.Model):
 
 
 @receiver(signals.pre_delete, sender=Dataset)
-def delete_dataset(sender, instance, **kwargs):
-    print("in pre delete")
+def delete_dataset(sender, dataset, **kwargs):
+    print("deleting dataset: "+str(dataset.id))
     s3_client = boto3.client("s3")
     s3_resource = boto3.resource("s3")
     try:
-        bucket = s3_resource.Bucket(instance.bucket)
+        bucket = s3_resource.Bucket(dataset.bucket)
         bucket.objects.all().delete()
         bucket.delete()
-        print("deleted bucket")
+        print("deleted bucket: "+dataset.bucket)
     except s3_client.exceptions.NoSuchBucket:
-        print("warning no bucket")
-    print("end pre delete")
+        print("warning no bucket: "+dataset.bucket)
+    print("end deleting dataset "+str(dataset.id))
 
 
 class DataSource(models.Model):
@@ -311,17 +311,20 @@ class DataSource(models.Model):
 
 
 @receiver(signals.pre_delete, sender=DataSource)
-def delete_data_source(sender, instance, **kwargs):
-    if instance.glue_table:
-        # additional validations only for update:
+def delete_data_source(sender, data_source, **kwargs):
+    print("deleting data source"+str(data_source.name)+". "+str(data_source.id))
+    if data_source.glue_table:
         try:
             glue_client = boto3.client('glue', region_name=settings.aws_region)
             glue_client.delete_table(
-                DatabaseName=instance.dataset.glue_database,
-                Name=instance.glue_table
+                DatabaseName=data_source.dataset.glue_database,
+                Name=data_source.glue_table
             )
+            print("removed glue table: "+data_source.glue_table)
         except Exception as e:
-            pass
+            print("warning no glue table")
+    print("end deleting data source")
+
 
 
 class Tag(models.Model):
