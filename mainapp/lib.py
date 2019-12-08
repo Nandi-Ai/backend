@@ -305,10 +305,10 @@ def create_where_section(field, operator, value):
         return "\"{}\" > {}".format(field, value)
 
     if operator == "<":
-        return "\"{}\" <= {}".format(field, value)
+        return "\"{}\" < {}".format(field, value)
 
     if operator == ">=":
-        return "\"{}\" > {}".format(field, value)
+        return "\"{}\" >= {}".format(field, value)
 
     if operator == "<=":
         return "\"{}\" <= {}".format(field, value)
