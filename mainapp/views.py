@@ -680,6 +680,7 @@ class DatasetViewSet(ModelViewSet):
         def delete_dataset_tree(dataset):
             for child in dataset.children.all():
                 delete_dataset_tree(child)
+                child.delete()
 
         dataset = self.get_object()
 
@@ -797,25 +798,21 @@ class DataSourceViewSet(ModelViewSet):
 
         return super(self.__class__, self).update(request=self.request)
 
-    def destroy(self, request, *args, **kwargs):
-
-        # data_source_serialized = self.serializer_class(data=request.data, allow_null=True)
-        # if data_source_serialized.is_valid():
-
-        data_source = self.get_object()
-
-        if data_source.glue_table:
-            # additional validations only for update:
-            try:
-                glue_client = boto3.client('glue', region_name=settings.aws_region)
-                glue_client.delete_table(
-                    DatabaseName=data_source.dataset.glue_database,
-                    Name=data_source.glue_table
-                )
-            except Exception as e:
-                pass
-
-        return super(self.__class__, self).destroy(request=self.request)
+    # def destroy(self, request, *args, **kwargs): #now handling by a signal
+    #     data_source = self.get_object()
+    #
+    #     if data_source.glue_table:
+    #         # additional validations only for update:
+    #         try:
+    #             glue_client = boto3.client('glue', region_name=settings.aws_region)
+    #             glue_client.delete_table(
+    #                 DatabaseName=data_source.dataset.glue_database,
+    #                 Name=data_source.glue_table
+    #             )
+    #         except Exception as e:
+    #             pass
+    #
+    #     return super(self.__class__, self).destroy(request=self.request)
 
 
 class RunQuery(GenericAPIView):

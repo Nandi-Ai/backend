@@ -8,6 +8,7 @@ from django.db.utils import IntegrityError
 from django.db.models import signals
 import boto3
 from django.dispatch import receiver
+from mainapp import settings
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
@@ -307,6 +308,20 @@ class DataSource(models.Model):
         name = self.dir.translate({ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "})
         name = name.lower()
         return name
+
+
+@receiver(signals.pre_delete, sender=DataSource)
+def delete_data_source(sender, instance, **kwargs):
+    if instance.glue_table:
+        # additional validations only for update:
+        try:
+            glue_client = boto3.client('glue', region_name=settings.aws_region)
+            glue_client.delete_table(
+                DatabaseName=instance.dataset.glue_database,
+                Name=instance.glue_table
+            )
+        except Exception as e:
+            pass
 
 
 class Tag(models.Model):
