@@ -215,6 +215,7 @@ class Study(models.Model):
     def bucket(self):
         return "lynx-workspace-"+str(self.id)
 
+
 class Dataset(models.Model):
     states = (
         ("public", "public"),

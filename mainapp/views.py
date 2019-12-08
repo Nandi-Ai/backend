@@ -1023,7 +1023,7 @@ class Query(GenericAPIView):
                             'Database': dataset.glue_database  # the name of the database in glue/athena
                         },
                         ResultConfiguration={
-                            'OutputLocation': "s3://lynx-dataset-" +str(dataset.id)+"/temp_execution_results",
+                            'OutputLocation': "s3://"+dataset.bucket+"/temp_execution_results",
                         }
                     )
 
@@ -1054,7 +1054,7 @@ class Query(GenericAPIView):
             if limit:
                 final_query +=" LIMIT " + str(limit)
 
-            print("final query:"+final_query)
+            print("final query: "+final_query)
             try:
                 response = client.start_query_execution(
                     QueryString=final_query,
@@ -1062,7 +1062,7 @@ class Query(GenericAPIView):
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        'OutputLocation': "s3://lynx-dataset-" +str(dataset.id)+"/temp_execution_results",
+                        'OutputLocation': "s3://"+dataset.bucket+"/temp_execution_results",
                     }
                 )
 
