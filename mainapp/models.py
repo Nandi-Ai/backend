@@ -5,8 +5,9 @@ from django.contrib.auth.models import PermissionsMixin
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.utils import IntegrityError
-from slugify import slugify
-
+from django.db.models import signals
+import boto3
+from django.dispatch import receiver
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
@@ -265,6 +266,21 @@ class Dataset(models.Model):
         if self.bucket_override:
             return self.bucket_override
         return "lynx-dataset-" + str(self.id)
+
+
+@receiver(signals.pre_delete, sender=Dataset)
+def delete_dataset(sender, instance, **kwargs):
+    print("in pre delete")
+    s3_client = boto3.client("s3")
+    s3_resource = boto3.resource("s3")
+    try:
+        bucket = s3_resource.Bucket(instance.bucket)
+        bucket.objects.all().delete()
+        bucket.delete()
+        print("deleted bucket")
+    except s3_client.exceptions.NoSuchBucket:
+        print("warning no bucket")
+    print("end pre delete")
 
 
 class DataSource(models.Model):
