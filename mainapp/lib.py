@@ -268,11 +268,23 @@ def load_tags(delete_removed_tags=True):
 
 def create_where_section(field, operator, value):
 
-    if operator in ['contains','notcontains']:
+    if operator == 'contains':
         return  "\"{}\" LIKE '%{}%'".format(field, value)
+
+    if operator == "notcontains":
+        return  "\"{}\" NOT LIKE '%{}%'".format(field, value)
 
     if operator == 'startswith':
         return "\"{}\" LIKE '{}%'".format(field, value)
+
+    if operator == 'endswith':
+        return "\"{}\" LIKE '%{}'".format(field, value)
+
+    if operator == "notstartswith":
+        return "\"{}\" NOT LIKE '{}%'".format(field, value)
+
+    if operator == "notendswith":
+        return "\"{}\" NOT LIKE '%{}'".format(field, value)
 
     if operator == "=":
 
