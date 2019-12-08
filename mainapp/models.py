@@ -270,7 +270,8 @@ class Dataset(models.Model):
 
 
 @receiver(signals.pre_delete, sender=Dataset)
-def delete_dataset(sender, dataset, **kwargs):
+def delete_dataset(sender, instance, **kwargs):
+    dataset = instance
     print("deleting dataset: "+str(dataset.id))
     s3_client = boto3.client("s3")
     s3_resource = boto3.resource("s3")
@@ -311,7 +312,8 @@ class DataSource(models.Model):
 
 
 @receiver(signals.pre_delete, sender=DataSource)
-def delete_data_source(sender, data_source, **kwargs):
+def delete_data_source(sender, instance, **kwargs):
+    data_source = instance
     print("deleting data source"+str(data_source.name)+". "+str(data_source.id))
     if data_source.glue_table:
         try:
