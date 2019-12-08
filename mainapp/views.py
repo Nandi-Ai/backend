@@ -1010,7 +1010,7 @@ class Query(GenericAPIView):
                 query, query_no_limit = lib.dev_express_to_sql(table = data_source.glue_table, data_filter=data_filter, columns=columns,limit=limit)
                 _, count_query, _ = lib.get_query_no_limit_and_count_query(query)
 
-            this_req_res = {}
+            req_res = {}
 
             client = boto3.client('athena', region_name=settings.aws_region)
 
@@ -1042,7 +1042,7 @@ class Query(GenericAPIView):
                 count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
                 if return_count:
-                    this_req_res["count_no_limit"] = count
+                    req_res["count_no_limit"] = count
 
             final_query = query_no_limit
 
@@ -1070,16 +1070,16 @@ class Query(GenericAPIView):
                 return Error("error execution the query: "+str(e))
 
 
-            response['query'] = final_query
-            response['count_query'] = count_query
+            req_res['query'] = final_query
+            req_res['count_query'] = count_query
             query_execution_id = response['QueryExecutionId']
-            this_req_res["execution_result"]={"query_execution_id":query_execution_id, "item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}
+            req_res["execution_result"]={"query_execution_id":query_execution_id, "item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}
 
 
             if return_columns_types or (return_result and result_format=="json"):
                 columns_types=lib.get_columns_types(glue_database=dataset.glue_database, glue_table = data_source.glue_table)
                 if return_columns_types:
-                    this_req_res['columns_types'] = columns_types
+                    req_res['columns_types'] = columns_types
 
             if return_result:
                 try:
@@ -1094,11 +1094,11 @@ class Query(GenericAPIView):
 
                 if return_result:
                     if result_format=="json":
-                        this_req_res['result'] = lib.csv_to_json(result_no_quotes, columns_types)
+                        req_res['result'] = lib.csv_to_json(result_no_quotes, columns_types)
                     else:
-                        this_req_res['result'] = result_no_quotes
+                        req_res['result'] = result_no_quotes
 
-            return Response(this_req_res)
+            return Response(req_res)
         else:
             return Error(query_serialized.errors)
 
