@@ -13,7 +13,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
 from mainapp import settings
-from mainapp.models import Tag
+from mainapp import models
 
 import sqlparse
 
@@ -258,12 +258,12 @@ def load_tags(delete_removed_tags=True):
     with open("tags.json") as f:
         tags=json.load(f)
         if delete_removed_tags:
-            Tag.objects.all().delete()
+            models.Tag.objects.all().delete()
 
         for tag in tags:
-            tagdb,created=Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
+            tagdb,created=models.Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
             if not created:
-                print("duplicate:", tag)
+                print("warning, duplicate:", tag)
 
 
 def create_where_section(field, operator, value):
