@@ -310,6 +310,10 @@ class DataSource(models.Model):
         name = name.lower()
         return name
 
+    @property
+    def bucket(self):
+        return self.dataset.bucket
+
 
 @receiver(signals.pre_delete, sender=DataSource)
 def delete_data_source(sender, instance, **kwargs):
@@ -325,6 +329,22 @@ def delete_data_source(sender, instance, **kwargs):
             print("removed glue table: "+data_source.glue_table)
         except Exception as e:
             print("warning no glue table")
+
+    if data_source.dir:
+        if data_source.dir=="":
+            print("warning: data source has no dir")
+
+        else: #delete dir in bucket
+            s3_resource = boto3.resource('s3')
+            s3_client = boto3.client("s3")
+            try:
+                bucket = s3_resource.Bucket(data_source.bucket)
+                bucket.objects.filter(Prefix=data_source.dir+"/").delete()
+            except s3_client.exceptions.NoSuchKey:
+                print("warning: data source dir not exists")
+            except s3_client.exceptions.NoSuchBucket:
+                print("warning no such bucket: "+data_source.bucket)
+
     print("end deleting data source")
 
 

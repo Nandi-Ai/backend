@@ -676,16 +676,14 @@ class DatasetViewSet(ModelViewSet):
             request=self.request)  # will handle the case where serializer is not valid
 
     def destroy(self, request, *args, **kwargs):
+        dataset = self.get_object()
+        if request.user.permission(dataset) != "admin":
+            return Error("this user can't delete the dataset")
 
         def delete_dataset_tree(dataset):
             for child in dataset.children.all():
                 delete_dataset_tree(child)
                 child.delete()
-
-        dataset = self.get_object()
-
-        if request.user.permission(dataset) != "admin":
-            return Error("this user can't delete the dataset")
 
         delete_tree_raw = request.GET.get('delete_tree')
         delete_tree = True if delete_tree_raw == "true" else False
@@ -699,8 +697,8 @@ class DatasetViewSet(ModelViewSet):
                 child.save()
 
         dataset.delete()
-
         return Response(status=204)
+        # return super(self.__class__, self).destroy(request=self.request)
 
 
 class DataSourceViewSet(ModelViewSet):
