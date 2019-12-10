@@ -218,6 +218,20 @@ class Study(models.Model):
     def bucket(self):
         return "lynx-workspace-"+str(self.id)
 
+@receiver(signals.pre_delete, sender=Study)
+def delete_study(sender, instance, **kwargs):
+    study = instance
+    print("deleting study: "+str(study.id))
+    s3_client = boto3.client("s3")
+
+    try:
+        lib.delete_bucket(study.bucket)
+
+        print("deleted bucket: "+study.bucket)
+    except s3_client.exceptions.NoSuchBucket:
+        print("warning no bucket: "+study.bucket)
+    print("end deleting study "+str(study.id))
+
 
 class Dataset(models.Model):
     states = (
