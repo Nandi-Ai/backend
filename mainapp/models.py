@@ -9,6 +9,7 @@ from django.db.models import signals
 import boto3
 from django.dispatch import receiver
 from mainapp import settings
+from mainapp import lib
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):
@@ -276,9 +277,8 @@ def delete_dataset(sender, instance, **kwargs):
     s3_client = boto3.client("s3")
     s3_resource = boto3.resource("s3")
     try:
-        bucket = s3_resource.Bucket(dataset.bucket)
-        bucket.objects.all().delete()
-        bucket.delete()
+        lib.delete_bucket(dataset.bucket)
+
         print("deleted bucket: "+dataset.bucket)
     except s3_client.exceptions.NoSuchBucket:
         print("warning no bucket: "+dataset.bucket)
@@ -332,7 +332,7 @@ def delete_data_source(sender, instance, **kwargs):
 
     if data_source.dir:
         if data_source.dir=="":
-            print("warning: data source has no dir")
+            print("warning: data source has dir is '' (empty string)")
 
         else: #delete dir in bucket
             s3_resource = boto3.resource('s3')
