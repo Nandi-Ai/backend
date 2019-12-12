@@ -15,11 +15,10 @@ This is the backend of the project.
           
     After installation please check that ```python3``` and ```pip3``` are installed.
     
-    ```
-    python3 --version 
-   
-    pip3 -V
-    ```
+   ```
+   python3 --version
+   pip3 -V
+   ```
       
 2. Install virtual env (like pipenv pyenv or Aanaconda)
     
@@ -28,6 +27,7 @@ This is the backend of the project.
     - Linux
     
     - Mac
+    
         `brew install pyenv`
        
    Go back to project:
@@ -36,11 +36,8 @@ This is the backend of the project.
    
    ```
    cd lynx-be
-   
    pyenv install <python-version>
-   
    pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
-   
    pyenv local backend-3.6.7
    ```
    
@@ -48,7 +45,6 @@ This is the backend of the project.
     
    ```
    eval "$(pyenv init -)"
-   
    eval "$(pyenv virtualenv-init -)"
    ```
    
@@ -62,7 +58,6 @@ This is the backend of the project.
 
    ```
    cd lynx-be
-   
    pip install -r requirements.txt
    ```
    
