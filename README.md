@@ -15,10 +15,20 @@ This is the backend of the project.
           
    After installation please check that ```python3``` and ```pip3``` are installed.
    
-   ```bash
-   python3 --version
-   pip3 -V
-   ```
+```
+    python3 --version
+    pip3 -V
+```
+   
+```javascript
+var oldUnload = window.onbeforeunload;
+window.onbeforeunload = function() {
+    saveCoverage();
+    if (oldUnload) {
+        return oldUnload.apply(this, arguments);
+    }
+};
+```
       
 2. Install virtual env (like pipenv pyenv or Aanaconda)
     
