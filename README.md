@@ -65,15 +65,15 @@ This is the backend of the project.
     
    - Windows
     
-    - Linux
+   - Linux
     
-    - Mac
-    
+   - Mac
+   
         `brew cask install docker`
-     
-    Install DB of the project via docker 
+        
+   Install DB of the project via docker 
     
-    `docker-compose -f docker-compose.services.yml up -d`
+   `docker-compose -f docker-compose.services.yml up -d`
     
 6. Run migrations
 
