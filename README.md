@@ -17,6 +17,7 @@ This is the backend of the project.
     
     ```
     python3 --version 
+   
     pip3 -V
     ```
       
@@ -33,16 +34,21 @@ This is the backend of the project.
    
    (recommended to use python version >= 3.6.7)
    
-    ```
-    cd lynx-be
-    pyenv install <python-version>
-    pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
-    pyenv local backend-3.6.7
-    ```
+   ```
+   cd lynx-be
+   
+   pyenv install <python-version>
+   
+   pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
+   
+   pyenv local backend-3.6.7
+   ```
+   
    Update your bash/zsh profile
     
    ```
    eval "$(pyenv init -)"
+   
    eval "$(pyenv virtualenv-init -)"
    ```
    
@@ -56,6 +62,7 @@ This is the backend of the project.
 
    ```
    cd lynx-be
+   
    pip install -r requirements.txt
    ```
    
@@ -69,9 +76,9 @@ This is the backend of the project.
     
         `brew cask install docker`
      
-     Install DB of the project via docker:
-     
-        `docker-compose -f docker-compose.services.yml up -d`
+    Install DB of the project via docker 
+    
+    `docker-compose -f docker-compose.services.yml up -d`
     
 6. Run migrations
 
