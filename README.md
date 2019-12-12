@@ -16,18 +16,8 @@ This is the backend of the project.
    After installation please check that ```python3``` and ```pip3``` are installed.
    
 ```
-    python3 --version
-    pip3 -V
-```
-   
-```javascript
-var oldUnload = window.onbeforeunload;
-window.onbeforeunload = function() {
-    saveCoverage();
-    if (oldUnload) {
-        return oldUnload.apply(this, arguments);
-    }
-};
+  python3 --version
+  pip3 -V
 ```
       
 2. Install virtual env (like pipenv pyenv or Aanaconda)
@@ -44,19 +34,19 @@ window.onbeforeunload = function() {
    
    (recommended to use python version >= 3.6.7)
    
-   ```
+```
    cd lynx-be
    pyenv install <python-version>
    pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
    pyenv local backend-3.6.7
-   ```
+```
    
    Update your bash/zsh profile
    
-   ```
+```
    eval "$(pyenv init -)"
    eval "$(pyenv virtualenv-init -)"
-   ```
+```
    
 3. Go to `cd mainapp`
 
@@ -66,10 +56,10 @@ window.onbeforeunload = function() {
     
 4. Go to project root directory and install project requirements.
 
-   ```
+```
    cd lynx-be
    pip install -r requirements.txt
-   ```
+```
    
 5. Install docker in order to setup the database.
     
