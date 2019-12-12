@@ -935,6 +935,9 @@ class CreateCohort(GenericAPIView):
             new_data_source.id = None
             new_data_source.s3_objects = None
             new_data_source.dataset = destination_dataset
+            new_data_source.ancestor = data_source
+            cohort = {"filter":data_filter,"columns":columns,"limit":limit}
+            new_data_source.cohort = cohort
 
             try:
                 new_data_source.save()

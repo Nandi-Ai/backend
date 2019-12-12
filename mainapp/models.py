@@ -308,10 +308,10 @@ class DataSource(models.Model):
     dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="data_sources")
     type = models.CharField(null=True, blank=True, max_length=32)
     about = models.TextField(null=True, blank=True, max_length=2048)
-    columns = JSONField(null=True, blank=True, default=None)
-    preview = JSONField(null=True, blank=True, default=None)
     state = models.CharField(null=True, blank=True, max_length=32)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
+    ancestor = models.ForeignKey('self', on_delete=models.SET_NULL, related_name="children", null=True)
+    cohort = JSONField(null=True, blank=True, default=None)
 
     class Meta:
         db_table = 'data_sources'
