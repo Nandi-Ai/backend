@@ -258,6 +258,7 @@ class Dataset(models.Model):
                                                max_length=32, null=True)
     bucket_override = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     glue_database_override = models.CharField(max_length=255, blank=True, null=True)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
     organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="datasets", null=True)

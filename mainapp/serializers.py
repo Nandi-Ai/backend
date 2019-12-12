@@ -64,6 +64,8 @@ class DatasetSerializer(ModelSerializer):
             'full_access_users',
             'default_user_permission',
             'user_created',
+            'updated_at',
+            'created_at',
             'tags',
             'readme',
             'description',
@@ -86,6 +88,8 @@ class DatasetSerializer(ModelSerializer):
             'user_created': {'read_only': True},
             'bucket': {'read_only': True},
             'programmatic_name': {'read_only': True},
+            'updated_at': {'read_only': True},
+            'created_at': {'read_only': True}
         }
 
 
