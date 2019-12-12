@@ -69,7 +69,6 @@ class DatasetSerializer(ModelSerializer):
             'tags',
             'readme',
             'description',
-            'updated_at',
             'organization',
             'state',
             'programmatic_name',
