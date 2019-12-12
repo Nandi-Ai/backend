@@ -15,7 +15,7 @@ This is the backend of the project.
           
    After installation please check that ```python3``` and ```pip3``` are installed.
    
-   ```
+   ```bash
    python3 --version
    pip3 -V
    ```
@@ -36,11 +36,8 @@ This is the backend of the project.
    
    ```
    cd lynx-be
-   
    pyenv install <python-version>
-   
    pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
-   
    pyenv local backend-3.6.7
    ```
    
