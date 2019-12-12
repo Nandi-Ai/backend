@@ -14,10 +14,10 @@ This is the backend of the project.
         `brew install python`
           
    After installation please check that ```python3``` and ```pip3``` are installed.
-   ```
-    python3 --version
-    pip3 -V
-   ```
+   
+   `python3 --version`
+   
+    `pip3 -V`
       
 2. Install virtual env (like pipenv pyenv or Aanaconda)
     
@@ -32,6 +32,7 @@ This is the backend of the project.
    Go back to project:
    
    (recommended to use python version >= 3.6.7)
+   
    ```
    cd lynx-be
    pyenv install <python-version>
@@ -40,6 +41,7 @@ This is the backend of the project.
    ```
    
    Update your bash/zsh profile
+   
    ```
    eval "$(pyenv init -)"
    eval "$(pyenv virtualenv-init -)"
@@ -52,6 +54,7 @@ This is the backend of the project.
     Instead of 'XXXX' add valid credentials.
     
 4. Go to project root directory and install project requirements.
+
    ```
    cd lynx-be
    pip install -r requirements.txt
