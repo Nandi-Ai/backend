@@ -495,7 +495,6 @@ class DatasetViewSet(ModelViewSet):
 
             dataset_data = dataset_serialized.validated_data
 
-
             # validations common for create and update:
             error_response = self.logic_validate(request, dataset_data)
             if error_response:
@@ -508,28 +507,10 @@ class DatasetViewSet(ModelViewSet):
             if dataset_data['state'] == "archived":
                 return Error("can't create new dataset with status archived")
 
-            dataset = Dataset.objects.create(name=dataset_data['name'])
+            dataset = Dataset(name=dataset_data['name'])
+            dataset.id = uuid.uuid4()
 
-            dataset.description = dataset_data['description']
-            dataset.readme = dataset_data['readme']
-            req_admin_users = dataset_data['admin_users']
-            dataset.admin_users.set(list(User.objects.filter(id__in=[x.id for x in req_admin_users])))
-            req_aggregated_users = dataset_data['aggregated_users']
-            dataset.aggregated_users.set(list(User.objects.filter(id__in=[x.id for x in req_aggregated_users])))
-            req_full_access_users = dataset_data['full_access_users']
-            dataset.full_access_users.set(list(User.objects.filter(id__in=[x.id for x in req_full_access_users])))
-            dataset.state = dataset_data['state']
-            dataset.default_user_permission = dataset_data['default_user_permission']
-            req_tags = dataset_data['tags']
-            dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
-            dataset.user_created = request.user
-            dataset.ancestor = dataset_data['ancestor'] if 'ancestor' in dataset_data else None
-            dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
-            #dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
-            dataset.save()
-
-            # create the dataset bucket:
+            #aws stuff
             s3 = boto3.client('s3')
             lib.create_s3_bucket(dataset.bucket, s3)
             lib.create_glue_database(dataset)
@@ -585,6 +566,28 @@ class DatasetViewSet(ModelViewSet):
                 RoleName=role_name,
                 PolicyArn=policy_arn
             )
+
+            dataset.save()
+
+            dataset.description = dataset_data['description']
+            dataset.readme = dataset_data['readme']
+            req_admin_users = dataset_data['admin_users']
+            dataset.admin_users.set(list(User.objects.filter(id__in=[x.id for x in req_admin_users])))
+            req_aggregated_users = dataset_data['aggregated_users']
+            dataset.aggregated_users.set(list(User.objects.filter(id__in=[x.id for x in req_aggregated_users])))
+            req_full_access_users = dataset_data['full_access_users']
+            dataset.full_access_users.set(list(User.objects.filter(id__in=[x.id for x in req_full_access_users])))
+            dataset.state = dataset_data['state']
+            dataset.default_user_permission = dataset_data['default_user_permission']
+            req_tags = dataset_data['tags']
+            dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
+            dataset.user_created = request.user
+            dataset.ancestor = dataset_data['ancestor'] if 'ancestor' in dataset_data else None
+            dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
+            #dataset.bucket = 'lynx-dataset-' + str(dataset.id)
+            dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
+
+            dataset.save()
 
             # the role takes this time to be created!
             # it is here in order to prevent calling GetDatasetSTS before creation
