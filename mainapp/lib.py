@@ -118,7 +118,7 @@ class MyTokenAuthentication(TokenAuthentication):
 def create_glue_database(dataset):
     glue_client = boto3.client('glue', region_name=settings.aws_region)
 
-    assert not dataset.glue_database, "this dataset seems to have glue database"
+
     print("creating glue database")
     #dataset.glue_database = "dataset-" + str(dataset.id)
     glue_client.create_database(
@@ -130,8 +130,7 @@ def create_glue_database(dataset):
     dataset.save()
 
 def create_catalog(data_source):
-    if not data_source.dataset.glue_database:
-        create_glue_database(data_source.dataset)
+
     glue_client = boto3.client('glue', region_name=settings.aws_region)
     print("creating database crawler")
     create_glue_crawler(data_source)  # if no dataset no crawler

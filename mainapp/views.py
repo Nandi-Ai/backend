@@ -532,6 +532,7 @@ class DatasetViewSet(ModelViewSet):
             # create the dataset bucket:
             s3 = boto3.client('s3')
             lib.create_s3_bucket(dataset.bucket, s3)
+            lib.create_glue_database(dataset)
             time.sleep(1)  # wait for the bucket to be created
 
             cors_configuration = {
