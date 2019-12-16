@@ -935,7 +935,6 @@ class CreateCohort(GenericAPIView):
             new_data_source.id = None
             new_data_source.s3_objects = None
             new_data_source.dataset = destination_dataset
-            new_data_source.ancestor = data_source
             cohort = {"filter":data_filter,"columns":columns,"limit":limit}
             new_data_source.cohort = cohort
 
@@ -943,6 +942,9 @@ class CreateCohort(GenericAPIView):
                 new_data_source.save()
             except IntegrityError:
                 return Error("this dataset already has data source with the same name")
+
+            new_data_source.ancestor = data_source
+            new_data_source.save()
 
             req_res = {"query":query,"ctas_query":ctas_query}
             return Response(req_res,status=201)
