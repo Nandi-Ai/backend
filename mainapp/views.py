@@ -1213,7 +1213,6 @@ class Version(APIView):
 class DocumentationViewSet(ModelViewSet):
     http_method_names = ['get', 'head', 'post', 'put', 'delete']
     serializer_class = DocumentationSerializer
-    queryset = Documentation.objects.all()
 
     def get_serializer(self, *args, **kwargs):
         if "data" in kwargs:
@@ -1223,3 +1222,14 @@ class DocumentationViewSet(ModelViewSet):
             if isinstance(data, list):
                 kwargs["many"] = True
         return super(DocumentationViewSet, self).get_serializer(*args, **kwargs)
+
+    def get_queryset(self):
+        return self.get_documentation_obj()
+
+    def get_documentation_obj(self):
+        if len(self.request.query_params) > 0:
+            dataset_id = self.request.query_params['dataset']
+            return Documentation.objects.filter(dataset_id=dataset_id)
+        else:
+            id = self.request.parser_context['kwargs']['pk']
+            return Documentation.objects.filter(id=id)
