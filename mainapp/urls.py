@@ -44,6 +44,7 @@ router.register(r'studies', views.StudyViewSet, 'studies')
 router.register(r'activities', views.ActivityViewSet, 'activities')
 router.register(r'requests', views.RequestViewSet, 'requests')
 router.register(r'my_requests', views.MyRequestsViewSet, 'my_requests')
+router.register(r'documentation', views.DocumentationViewSet, 'documentation')
 
 urlpatterns = [
     url('', include(router.urls)),

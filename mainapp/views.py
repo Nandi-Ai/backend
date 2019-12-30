@@ -325,6 +325,7 @@ class GetDatasetSTS(APIView):  # for frontend uploads
 
         return Response(config)
 
+
 class GetStudySTS(APIView):  # for frontend uploads
 
     def get(self, request, study_id):
@@ -1209,3 +1210,16 @@ class Version(APIView):
         return Response(items)
 
 
+class DocumentationViewSet(ModelViewSet):
+    http_method_names = ['get', 'head', 'post', 'put', 'delete']
+    serializer_class = DocumentationSerializer
+    queryset = Documentation.objects.all()
+
+    def get_serializer(self, *args, **kwargs):
+        if "data" in kwargs:
+            data = kwargs["data"]
+
+            # check if many is required
+            if isinstance(data, list):
+                kwargs["many"] = True
+        return super(DocumentationViewSet, self).get_serializer(*args, **kwargs)
