@@ -447,6 +447,11 @@ class MyRequestsViewSet(ReadOnlyModelViewSet):
         return self.request.user.my_requests
 
 
+class AWSHealthCheck(APIView):
+    def get(self, request):
+        return Response()
+
+
 class CurrentUserView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)

@@ -51,6 +51,7 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     path('admin/', admin.site.urls),
     url(r'^docs/', schema_view),
+    url(r'^health_check_aws/?$', views.AWSHealthCheck.as_view(), name='health_check_aws'),
     url(r'^me/?$', views.CurrentUserView.as_view(), name='me'),
     url(r'^get_dataset_sts/(?P<dataset_id>[^/]+)/?$', views.GetDatasetSTS.as_view(), name='get_dataset_sts'), #for fronted
     url(r'^get_execution/?$', views.GetExecution.as_view(), name='get_execution'), #for forntend
