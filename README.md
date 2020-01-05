@@ -90,14 +90,18 @@ This is the backend of the project.
 
 ### Deployment
 
-1. cd to lynx_be folder
+```
+1. ssh to prod backend instance 
 
-2. run docker-compose exec lynx_be bash
+2. cd to `/home/ec2-user/lynx-configs/v2`
 
-3. cd `/root/lynx_be`
+3. run `docker-compose exec lynx_be bash`
 
-4. git pull 
+4. cd `lynx_be`
 
-5. run `exit`
+5. run `git pull`
 
-6. run docker-compose restart
+6. run `exit`
+
+7. run docker-compose restart
+```
