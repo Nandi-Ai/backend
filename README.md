@@ -88,4 +88,16 @@ This is the backend of the project.
     
     It will request from your to create new password
 
-    
+### Deployment
+
+1. cd to lynx_be folder
+
+2. run docker-compose exec lynx_be bash
+
+3. cd `/root/lynx_be`
+
+4. git pull 
+
+5. run `exit`
+
+6. run docker-compose restart
