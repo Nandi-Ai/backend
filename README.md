@@ -93,15 +93,17 @@ This is the backend of the project.
 ```
 1. ssh to prod backend instance 
 
-2. cd to `/home/ec2-user/lynx-configs/v2`
+2. cd  /home/ec2-user/lynx-configs/v2
 
-3. run `docker-compose exec lynx_be bash`
+3. run docker-compose exec lynx_be bash
 
-4. cd `lynx_be`
+4. cd lynx_be
 
-5. run `git pull`
+5. run git pull
 
-6. run `exit`
+6. run migration if needed - python mange.py migrate
 
-7. run docker-compose restart
+7. run exit
+
+8. run docker-compose restart
 ```
