@@ -1,0 +1,23 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: lynx-be
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+spec:
+  selector:
+    matchLabels:
+      app: lynx-be
+  replicas: 1 # tells deployment to run 2 pods matching the template
+  template:
+    metadata:
+      labels:
+        app: lynx-be
+    spec:
+      containers:
+        - name: lynx-be
+          image: 326927467864.dkr.ecr.eu-west-1.amazonaws.com/lynx_be:1.0.0
+          ports:
+            - containerPort: 80
+
+
