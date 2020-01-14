@@ -127,7 +127,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
         # for authentication the api from browser using x-csrf header. (feedback api)
         'django_cognito_jwt.JSONWebTokenAuthentication',
-        'mainapp.lib.MyTokenAuthentication',
+        'mainapp.utils.lib.MyTokenAuthentication',
 
     )
 }

@@ -8,8 +8,10 @@ from django.db.utils import IntegrityError
 from django.db.models import signals
 import boto3
 from django.dispatch import receiver
+
 from mainapp import settings
-from mainapp import lib
+from mainapp.utils import lib
+
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None):

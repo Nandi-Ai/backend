@@ -19,7 +19,7 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from mainapp import views
-from mainapp.lib import startup
+from mainapp.utils.lib import startup
 from mainapp.views import schema_view
 
 

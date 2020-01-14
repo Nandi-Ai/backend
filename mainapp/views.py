@@ -6,12 +6,10 @@ import threading
 import time
 from multiprocessing import Process
 
-import boto3
 import dateparser
 import pyreadstat
-import requests
-import sqlparse
 from django.core import exceptions
+from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,20 +17,20 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework_swagger.views import get_swagger_view
 from slugify import slugify
 
-from mainapp import lib
 from mainapp import resources
-from mainapp import settings
+from mainapp.exceptions import *
 from mainapp.serializers import *
+from mainapp.utils import lib
+from mainapp.utils import statistics
 
 schema_view = get_swagger_view(title='Lynx API')
 
 
 class Error(Response):
-
-    def __init__(self, error_text, status_code=400):
+    def __init__(self, error, status_code=400):
         super().__init__()
         self.status_code = status_code
-        self.data = {"error": error_text}
+        self.data = {"error": str(error)}
 
 
 class SendSyncSignal(APIView):  # from execution
@@ -99,7 +97,6 @@ class GetStaticSTS(APIView):  # from execution
 
 class Dummy(APIView):
     def get(self, request):
-
         return Response()
 
 
@@ -516,7 +513,7 @@ class DatasetViewSet(ModelViewSet):
             dataset = Dataset(name=dataset_data['name'])
             dataset.id = uuid.uuid4()
 
-            #aws stuff
+            # aws stuff
             s3 = boto3.client('s3')
             lib.create_s3_bucket(dataset.bucket, s3)
             lib.create_glue_database(dataset)
@@ -590,7 +587,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.user_created = request.user
             dataset.ancestor = dataset_data['ancestor'] if 'ancestor' in dataset_data else None
             dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
-            #dataset.bucket = 'lynx-dataset-' + str(dataset.id)
+            # dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
 
             dataset.save()
@@ -715,6 +712,42 @@ class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ['get', 'head', 'post', 'put', 'delete']
     filter_fields = ('dataset',)
+
+    @action(detail=True, methods=['get'])
+    def statistics(self, request, pk=None):
+        data_source = self.get_object()
+        if data_source.state == 'ready':
+            glue_database = data_source.dataset.glue_database
+            bucket_name = 'lynx-' + glue_database
+            glue_table = data_source.glue_table
+
+            try:
+                columns_types = lib.get_columns_types(glue_database=glue_database, glue_table=glue_table)
+            except UnableToGetGlueColumns as e:
+                return Error(e, status_code=501)
+
+            try:
+                query = statistics.sql_builder_by_columns_types(glue_table, columns_types)
+            except UnsupportedColumnTypeError as e:
+                return Error(e, status_code=501)
+            except Exception as e:
+                return Error(e, status_code=500)
+
+            try:
+                response = statistics.count_all_values_query(query, glue_database, bucket_name)
+                data_per_column = statistics.sql_response_processing(response)
+            except QueryExecutionError as e:
+                return Error(e, status_code=502)
+            except InvalidExecutionId as e:
+                return Error(e, status_code=500)
+            except MaxExecutionReactedError as e:
+                return Error(e, status_code=504)
+            except KeyError:
+                return Error("unexpected error: invalid or missing query result set", status_code=500)
+            except Exception as e:
+                return Error(e, status_code=500)
+
+            return Response(data_per_column)
 
     def get_queryset(self):
         return self.request.user.data_sources
@@ -911,18 +944,18 @@ class CreateCohort(GenericAPIView):
             limit = query_serialized.validated_data['limit']
 
             data_filter = json.loads(query_serialized.validated_data[
-                'filter']) if 'filter' in query_serialized.validated_data else None
+                                         'filter']) if 'filter' in query_serialized.validated_data else None
             columns = json.loads(query_serialized.validated_data[
-                                         'columns']) if 'columns' in query_serialized.validated_data else None
+                                     'columns']) if 'columns' in query_serialized.validated_data else None
 
-            query, _ = lib.dev_express_to_sql(table = data_source.glue_table, schema=dataset.glue_database, data_filter=data_filter, columns=columns,limit=limit)
+            query, _ = lib.dev_express_to_sql(table=data_source.glue_table, schema=dataset.glue_database,
+                                              data_filter=data_filter, columns=columns, limit=limit)
 
             if not destination_dataset.glue_database:
                 lib.create_glue_database(destination_dataset)
 
-            ctas_query = 'CREATE TABLE "'+destination_dataset.glue_database+'"."'+data_source.glue_table+'"'+" WITH (format = 'TEXTFILE', external_location = 's3://"+destination_dataset.bucket+"/"+data_source.glue_table+"/') AS "+query+";"
+            ctas_query = 'CREATE TABLE "' + destination_dataset.glue_database + '"."' + data_source.glue_table + '"' + " WITH (format = 'TEXTFILE', external_location = 's3://" + destination_dataset.bucket + "/" + data_source.glue_table + "/') AS " + query + ";"
             print(ctas_query)
-
 
             client = boto3.client('athena', region_name=settings.aws_region)
             try:
@@ -932,12 +965,13 @@ class CreateCohort(GenericAPIView):
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        'OutputLocation': "s3://"+destination_dataset.bucket+"/ctas_results/",
+                        'OutputLocation': "s3://" + destination_dataset.bucket + "/ctas_results/",
                     }
                 )
 
             except Exception as e:
-                return Error("failed executing the CTAS query: "+ctas_query+". error: "+str(e)+". query string: "+query)
+                return Error("failed executing the CTAS query: " + ctas_query + ". error: " + str(
+                    e) + ". query string: " + query)
 
             print(str(response))
 
@@ -945,7 +979,7 @@ class CreateCohort(GenericAPIView):
             new_data_source.id = None
             new_data_source.s3_objects = None
             new_data_source.dataset = destination_dataset
-            cohort = {"filter":data_filter,"columns":columns,"limit":limit}
+            cohort = {"filter": data_filter, "columns": columns, "limit": limit}
             new_data_source.cohort = cohort
 
             try:
@@ -956,8 +990,8 @@ class CreateCohort(GenericAPIView):
             new_data_source.ancestor = data_source
             new_data_source.save()
 
-            req_res = {"query":query,"ctas_query":ctas_query}
-            return Response(req_res,status=201)
+            req_res = {"query": query, "ctas_query": ctas_query}
+            return Response(req_res, status=201)
 
         else:
             return Error(query_serialized.errors)
@@ -973,7 +1007,7 @@ class Query(GenericAPIView):
 
             user = request.user
             req_dataset_id = query_serialized.validated_data['dataset_id']
-            return_result=True if request.GET.get('return_result') == "true" else False
+            return_result = True if request.GET.get('return_result') == "true" else False
             result_format = request.GET.get('result_format')
 
             if result_format and not return_result:
@@ -999,13 +1033,13 @@ class Query(GenericAPIView):
                 return Error("no permission to query this dataset")
 
             # if access == "aggregated access":
-            #    if not lib.is_aggregated(query_string):
+            #    if not utils.is_aggregated(query_string):
             #        return Error("this is not an aggregated query. only aggregated queries are allowed")
 
             if query_serialized.validated_data['query']:
 
                 query = query_serialized.validated_data['query']
-                query_no_limit, count_query, limit =lib.get_query_no_limit_and_count_query(query)
+                query_no_limit, count_query, limit = lib.get_query_no_limit_and_count_query(query)
                 sample_aprx = None
 
             else:
@@ -1013,11 +1047,12 @@ class Query(GenericAPIView):
                 sample_aprx = query_serialized.validated_data['sample_aprx']
 
                 data_filter = json.loads(query_serialized.validated_data[
-                    'filter']) if 'filter' in query_serialized.validated_data else None
+                                             'filter']) if 'filter' in query_serialized.validated_data else None
                 columns = json.loads(query_serialized.validated_data[
-                                             'columns']) if 'columns' in query_serialized.validated_data else None
+                                         'columns']) if 'columns' in query_serialized.validated_data else None
 
-                query, query_no_limit = lib.dev_express_to_sql(table = data_source.glue_table, data_filter=data_filter, columns=columns,limit=limit)
+                query, query_no_limit = lib.dev_express_to_sql(table=data_source.glue_table, data_filter=data_filter,
+                                                               columns=columns, limit=limit)
                 _, count_query, _ = lib.get_query_no_limit_and_count_query(query)
 
             req_res = {}
@@ -1025,7 +1060,7 @@ class Query(GenericAPIView):
             client = boto3.client('athena', region_name=settings.aws_region)
 
             if sample_aprx or return_count:
-                print("count query: "+count_query)
+                print("count query: " + count_query)
                 try:
                     response = client.start_query_execution(
                         QueryString=count_query,
@@ -1033,21 +1068,23 @@ class Query(GenericAPIView):
                             'Database': dataset.glue_database  # the name of the database in glue/athena
                         },
                         ResultConfiguration={
-                            'OutputLocation': "s3://"+dataset.bucket+"/temp_execution_results",
+                            'OutputLocation': "s3://" + dataset.bucket + "/temp_execution_results",
                         }
                     )
 
 
                 except Exception as e:
-                    return Error("failed executing the count query: "+count_query+". error: "+str(e)+". original query: "+query)
+                    return Error("failed executing the count query: " + count_query + ". error: " + str(
+                        e) + ". original query: " + query)
 
                 query_execution_id = response['QueryExecutionId']
                 s3_client = boto3.client('s3')
 
                 try:
-                    obj=lib.get_s3_object(bucket=dataset.bucket, key="temp_execution_results/" + query_execution_id + ".csv")
+                    obj = lib.get_s3_object(bucket=dataset.bucket,
+                                            key="temp_execution_results/" + query_execution_id + ".csv")
                 except s3_client.exceptions.NoSuchKey:
-                    return Error("count query result file doesn't seem to exist in bucket. query string: "+query)
+                    return Error("count query result file doesn't seem to exist in bucket. query string: " + query)
 
                 count = int(obj['Body'].read().decode('utf-8').split("\n")[1].strip('"'))
 
@@ -1059,12 +1096,12 @@ class Query(GenericAPIView):
             if sample_aprx:
                 if count > sample_aprx:
                     percentage = int((sample_aprx / count) * 100)
-                    final_query = query_no_limit + " TABLESAMPLE BERNOULLI("+str(percentage)+")"
+                    final_query = query_no_limit + " TABLESAMPLE BERNOULLI(" + str(percentage) + ")"
 
             if limit:
-                final_query +=" LIMIT " + str(limit)
+                final_query += " LIMIT " + str(limit)
 
-            print("final query: "+final_query)
+            print("final query: " + final_query)
             try:
                 response = client.start_query_execution(
                     QueryString=final_query,
@@ -1072,22 +1109,22 @@ class Query(GenericAPIView):
                         'Database': dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        'OutputLocation': "s3://"+dataset.bucket+"/temp_execution_results",
+                        'OutputLocation': "s3://" + dataset.bucket + "/temp_execution_results",
                     }
                 )
 
             except Exception as e:
-                return Error("error execution the query: "+str(e))
-
+                return Error("error execution the query: " + str(e))
 
             req_res['query'] = final_query
             req_res['count_query'] = count_query
             query_execution_id = response['QueryExecutionId']
-            req_res["execution_result"]={"query_execution_id":query_execution_id, "item":{"bucket":dataset.bucket,'key':"temp_execution_results/"+query_execution_id+".csv"}}
+            req_res["execution_result"] = {"query_execution_id": query_execution_id, "item": {"bucket": dataset.bucket,
+                                                                                              'key': "temp_execution_results/" + query_execution_id + ".csv"}}
 
-
-            if return_columns_types or (return_result and result_format=="json"):
-                columns_types=lib.get_columns_types(glue_database=dataset.glue_database, glue_table = data_source.glue_table)
+            if return_columns_types or (return_result and result_format == "json"):
+                columns_types = lib.get_columns_types(glue_database=dataset.glue_database,
+                                                      glue_table=data_source.glue_table)
                 if return_columns_types:
                     req_res['columns_types'] = columns_types
 
@@ -1096,14 +1133,13 @@ class Query(GenericAPIView):
                     result_obj = lib.get_s3_object(bucket=dataset.bucket,
                                                    key="temp_execution_results/" + query_execution_id + ".csv")
                 except s3_client.exceptions.NoSuchKey:
-                    return Error("query result file doesnt seem to exist in bucket. query: "+query)
+                    return Error("query result file doesnt seem to exist in bucket. query: " + query)
 
                 result = result_obj['Body'].read().decode('utf-8')
                 result_no_quotes = result.replace('"\n"', '\n').replace('","', ',').strip('"').strip('\n"')
 
-
                 if return_result:
-                    if result_format=="json":
+                    if result_format == "json":
                         req_res['result'] = lib.csv_to_json(result_no_quotes, columns_types)
                     else:
                         req_res['result'] = result_no_quotes
