@@ -723,11 +723,12 @@ class DataSourceViewSet(ModelViewSet):
 
             try:
                 columns_types = lib.get_columns_types(glue_database=glue_database, glue_table=glue_table)
+                default_athena_col_names = statistics.create_default_column_names(columns_types)
             except UnableToGetGlueColumns as e:
                 return Error(e, status_code=501)
 
             try:
-                query = statistics.sql_builder_by_columns_types(glue_table, columns_types)
+                query = statistics.sql_builder_by_columns_types(glue_table, columns_types, default_athena_col_names)
             except UnsupportedColumnTypeError as e:
                 return Error(e, status_code=501)
             except Exception as e:
@@ -735,7 +736,7 @@ class DataSourceViewSet(ModelViewSet):
 
             try:
                 response = statistics.count_all_values_query(query, glue_database, bucket_name)
-                data_per_column = statistics.sql_response_processing(response)
+                data_per_column = statistics.sql_response_processing(response, default_athena_col_names)
             except QueryExecutionError as e:
                 return Error(e, status_code=502)
             except InvalidExecutionId as e:
