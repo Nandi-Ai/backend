@@ -56,7 +56,7 @@ def max_count(response):
     return max([
         int(metric_value['VarCharValue'])
         for metric_name, metric_value in zip(metric_names, metric_values)
-        if metric_name['VarCharValue'].rplit('_', 1)[1] == 'Count'
+        if metric_name['VarCharValue'].rsplit('_', 1)[1] == 'Count'
     ])
 
 
