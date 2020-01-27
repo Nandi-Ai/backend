@@ -326,7 +326,7 @@ def create_where_section_from_array(data_filter):
     return create_where_section(field, operator, value)
 
 
-def dev_express_to_sql(table, data_filter, columns,schema=None,limit = None):
+def dev_express_to_sql(table, data_filter, columns, schema=None, limit=None):
 
     select = '"'+('","'.join(columns))+'"' if columns else "*"
 
@@ -336,32 +336,38 @@ def dev_express_to_sql(table, data_filter, columns,schema=None,limit = None):
         query = 'SELECT %s FROM "%s"' % (select, table)
 
     if data_filter:
-        query += " WHERE "
-
-        if not isinstance(data_filter, list):
-            raise Exception("invalid data filters")
-
-        # only one filter
-        if isinstance(data_filter[0], str) and isinstance(data_filter[0], str):
-            query += create_where_section_from_array(data_filter)
-
-        # in case there is one filter if "is none of" - [ "!",  [[x, =, x], "and", [x, =, x] ]
-        # if isinstance(data_filter[0], str) and isinstance(data_filter[0], list):
-
-        # multiple filters
-        if isinstance(data_filter[0], list) and isinstance(data_filter[1], str):
-            for data in data_filter:
-                if isinstance(data, list):
-                    query += create_where_section_from_array(data)
-                elif isinstance(data, str):
-                    query += " " + data + " "
+        query += f' {generate_where_sql_query(data_filter)}'
 
     query_no_limit = query
 
     if limit:
-        query+=" LIMIT "+str(limit)
+        query += " LIMIT " + str(limit)
 
     return query, query_no_limit
+
+
+def generate_where_sql_query(data_filter):
+    query = "WHERE "
+
+    if not isinstance(data_filter, list):
+        raise Exception("invalid data filters")
+
+    # only one filter
+    if isinstance(data_filter[0], str) and isinstance(data_filter[0], str):
+        query += create_where_section_from_array(data_filter)
+
+    # in case there is one filter if "is none of" - [ "!",  [[x, =, x], "and", [x, =, x] ]
+    # if isinstance(data_filter[0], str) and isinstance(data_filter[0], list):
+
+    # multiple filters
+    elif isinstance(data_filter[0], list) and isinstance(data_filter[1], str):
+        for data in data_filter:
+            if isinstance(data, list):
+                query += create_where_section_from_array(data)
+            elif isinstance(data, str):
+                query += " " + data + " "
+    return query
+
 
 def get_s3_object(bucket,key,s3_client=None,retries=60):
     if not s3_client:

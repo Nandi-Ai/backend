@@ -720,6 +720,9 @@ class DataSourceViewSet(ModelViewSet):
             glue_database = data_source.dataset.glue_database
             bucket_name = 'lynx-' + glue_database
             glue_table = data_source.glue_table
+            query_from_front = request.query_params.get('grid_filter')
+            if query_from_front:
+                query_from_front = json.loads(query_from_front)
 
             try:
                 columns_types = lib.get_columns_types(glue_database=glue_database, glue_table=glue_table)
@@ -728,7 +731,13 @@ class DataSourceViewSet(ModelViewSet):
                 return Error(e, status_code=501)
 
             try:
-                query = statistics.sql_builder_by_columns_types(glue_table, columns_types, default_athena_col_names)
+                filter_query = None if not query_from_front else lib.generate_where_sql_query(query_from_front)
+                query = statistics.sql_builder_by_columns_types(
+                    glue_table,
+                    columns_types,
+                    default_athena_col_names,
+                    filter_query,
+                )
             except UnsupportedColumnTypeError as e:
                 return Error(e, status_code=501)
             except Exception as e:
@@ -737,6 +746,7 @@ class DataSourceViewSet(ModelViewSet):
             try:
                 response = statistics.count_all_values_query(query, glue_database, bucket_name)
                 data_per_column = statistics.sql_response_processing(response, default_athena_col_names)
+                final_result = {'result': data_per_column, 'columns_types': columns_types}
             except QueryExecutionError as e:
                 return Error(e, status_code=502)
             except InvalidExecutionId as e:
@@ -748,7 +758,15 @@ class DataSourceViewSet(ModelViewSet):
             except Exception as e:
                 return Error(e, status_code=500)
 
-            return Response(data_per_column)
+            if request.user in data_source.dataset.aggregated_users.all():
+                max_rows_after_filter = statistics.max_count(response)
+                if max_rows_after_filter < 100:
+                    return Error(
+                        'Sorry, we can not show you the results, the cohort is too small',
+                        status_code=403
+                    )
+
+            return Response(final_result)
 
     def get_queryset(self):
         return self.request.user.data_sources

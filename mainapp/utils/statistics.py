@@ -48,6 +48,18 @@ def get_result_query(client, query_execution_result):
 
     raise MaxExecutionReactedError
 
+
+def max_count(response):
+    metric_names = response['ResultSet']['Rows'][0]['Data']
+    metric_values = response['ResultSet']['Rows'][1]['Data']
+
+    return max([
+        int(metric_value['VarCharValue'])
+        for metric_name, metric_value in zip(metric_names, metric_values)
+        if metric_name['VarCharValue'].rsplit('_', 1)[1] == 'Count'
+    ])
+
+
 def create_sql_for_column(column):
     numeric_types = ['bigint', 'double']
     column_name_as_in_file = column[0]['Name']
@@ -58,11 +70,11 @@ def create_sql_for_column(column):
     if column_type_from_athena in numeric_types and column_name_as_in_file == column_name_from_athena:
         return f"""
             COUNT("{column_name_from_athena}") as {sql_as_column_name}_Count,
-            AVG("{column_name_from_athena}") as {sql_as_column_name}_AVG,
+            AVG("{column_name_from_athena}") as {sql_as_column_name}_Average,
             COUNT(DISTINCT "{column_name_from_athena}") as {sql_as_column_name}_Unique,
-            APPROX_PERCENTILE("{column_name_from_athena}",0.25) as {sql_as_column_name}_25_Percentile,
-            APPROX_PERCENTILE("{column_name_from_athena}",0.50) as {sql_as_column_name}_Median,
-            APPROX_PERCENTILE("{column_name_from_athena}",0.75) as {sql_as_column_name}_75_Percentile
+            APPROX_PERCENTILE("{column_name_from_athena}",0.25) as "{sql_as_column_name}_25%",
+            APPROX_PERCENTILE("{column_name_from_athena}",0.50) as "{sql_as_column_name}_50%",
+            APPROX_PERCENTILE("{column_name_from_athena}",0.75) as "{sql_as_column_name}_75%"
             """
 
     elif column_type_from_athena == 'string':
@@ -72,26 +84,33 @@ def create_sql_for_column(column):
         raise UnsupportedColumnTypeError
 
 
-def sql_builder_by_columns_types(glue_table, columns_types, default_athena_col_names):
+def sql_builder_by_columns_types(glue_table, columns_types, default_athena_col_names, filter_query):
     queries = list(map(create_sql_for_column, zip(default_athena_col_names, columns_types)))
-    return f"SELECT {', '.join(queries)} FROM {glue_table};"
+    final_query = f"""SELECT {', '.join(queries)} FROM "{glue_table}" """
+    if filter_query:
+        final_query += f""" {filter_query}"""
+    return f"""{final_query};"""
 
 
 def sql_response_processing(query_response, default_athena_col_names):
-    sql_metric_names = ['Count', 'AVG', 'Unique', '25_Percentile', 'Median', '75_Percentile']
     metric_names = query_response['ResultSet']['Rows'][0]['Data']
     metric_values = query_response['ResultSet']['Rows'][1]['Data']
 
-    data = [{'sql_metric_name': name} for name in sql_metric_names]
-
+    temp_result = {}
     for metric_name, metric_value in zip(metric_names, metric_values):
-        for metric in data:
-            if metric_name['VarCharValue'].endswith(metric['sql_metric_name']):
-                for col_name in default_athena_col_names:
-                    if metric_name['VarCharValue'].startswith(col_name['Col_Name']):
-                        varCharValue = col_name['Name'].capitalize()
-                        metric.update({varCharValue: metric_value['VarCharValue']})
-    return data
+        if metric_value:
+            metric_name_list = metric_name['VarCharValue'].rsplit('_', 1)
+            metric_col_name, metric = metric_name_list[0], metric_name_list[1]
+            for col_name in default_athena_col_names:
+                if metric_col_name == col_name['Col_Name']:
+                    if metric not in temp_result:
+                        temp_result[metric] = {}
+
+                    varCharValue = col_name['Name']
+                    temp_result[metric][varCharValue] = metric_value['VarCharValue']
+
+    return [x for x in temp_result.values()]
+
 
 def replace_given_column_name(column_name):
     return re.sub(r"[�()-]", " ", column_name).replace(" ", "_")
