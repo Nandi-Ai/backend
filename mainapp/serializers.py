@@ -20,6 +20,7 @@ class OrganizationSerializer(ModelSerializer):
         model = Organization
         fields = ('id', 'name', 'logo',)
 
+
 class DocumentationSerializer(ModelSerializer):
     def __init__(self, *args, **kwargs):
         many = kwargs.pop('many', True)
@@ -28,6 +29,7 @@ class DocumentationSerializer(ModelSerializer):
     class Meta:
         model = Documentation
         fields = ('id', 'dataset', 'file_name')
+
 
 class TagSerializer(ModelSerializer):
     class Meta:
@@ -72,6 +74,7 @@ class DatasetSerializer(ModelSerializer):
             'admin_users',
             'aggregated_users',
             'full_access_users',
+            'is_discoverable',
             'default_user_permission',
             'user_created',
             'updated_at',
