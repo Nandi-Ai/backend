@@ -70,8 +70,8 @@ def create_sql_for_column(column):
     if column_type_from_athena in numeric_types and column_name_as_in_file == column_name_from_athena:
         return f"""
             COUNT("{column_name_from_athena}") as {sql_as_column_name}_Count,
-            AVG("{column_name_from_athena}") as {sql_as_column_name}_Average,
             COUNT(DISTINCT "{column_name_from_athena}") as {sql_as_column_name}_Unique,
+            AVG("{column_name_from_athena}") as {sql_as_column_name}_Average,
             APPROX_PERCENTILE("{column_name_from_athena}",0.25) as "{sql_as_column_name}_25%",
             APPROX_PERCENTILE("{column_name_from_athena}",0.50) as "{sql_as_column_name}_50%",
             APPROX_PERCENTILE("{column_name_from_athena}",0.75) as "{sql_as_column_name}_75%"
