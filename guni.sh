@@ -2,10 +2,10 @@
 
 
 NAME="lynx-be"                                  # Name of the application
-DJANGODIR=/root/lynx-be             # Django project directory
-SOCKFILE=/root/gunicorn.sock  # we will communicte using this unix socket
-USER=root                                        # the user to run as
-GROUP=root                             # the group to run as
+DJANGODIR=/home/lynx/lynx-be             # Django project directory
+SOCKFILE=/home/lynx/gunicorn.sock  # we will communicte using this unix socket
+USER=lynx                                        # the user to run as
+GROUP=lynx                             # the group to run as
 NUM_WORKERS=3                                     # how many worker processes should Gunicorn spawn
 DJANGO_SETTINGS_MODULE=mainapp.settings             # which settings file should Django use
 DJANGO_WSGI_MODULE=mainapp.wsgi                     # WSGI module name

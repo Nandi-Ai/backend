@@ -8,7 +8,7 @@ import re
 
 
 def count_all_values_query(query, glue_database, bucket_name):
-    client = boto3.client('athena', region_name=settings.aws_region)
+    client = boto3.client('athena', region_name=settings.AWS['AWS_REGION'])
     response = client.start_query_execution(
         QueryString=query,
         QueryExecutionContext={

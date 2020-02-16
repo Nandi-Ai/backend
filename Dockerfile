@@ -1,34 +1,30 @@
-FROM python:3.7.4-alpine3.10
-COPY requirements.txt ./
-RUN \
-    apk add --no-cache postgresql-libs && \
-    apk add --no-cache --virtual .build-deps gcc musl-dev libressl-dev libffi-dev postgresql-dev python3-dev g++ jpeg-dev zlib-dev libstdc++
-ENV LIBRARY_PATH=/lib:/usr/lib
-RUN \
-    /usr/local/bin/python3 -m pip install cython numpy && \
-    /usr/local/bin/python3 -m pip install --no-cache-dir -r requirements.txt && \
-    apk --purge del .build-deps
+FROM python:3.7.6-buster
 
-# install kubctl
-ADD https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl /usr/local/bin/kubectl
-ENV HOME=/config
-RUN set -x && \
-    apk add --no-cache curl ca-certificates  && \
-    chmod +x /usr/local/bin/kubectl && \
-    \
-    # Create non-root user (with a randomly chosen UID/GUI).
-    adduser kubectl -Du 2342 -h /config && \
-    \
-    # Basic check it works.
-    kubectl version --client
+ENV USER_NAME lynx
+ENV APP lynx-be
+ENV APP_HOME /home/${USER_NAME}
+ENV APP_DIR /home/${USER_NAME}/${APP}
 
+RUN apt update && apt install -y zip unzip locate gcc python3-dev git curl gnupg jq 
 
-RUN apk add --no-cache py3-gunicorn git openssh bash
-COPY ssh /root/.ssh
-RUN \
-    echo $(ls -a /root/.ssh) && \
-    ssh-keyscan -t rsa bitbucket.org > /root/.ssh/known_hosts && \
-    git clone git@bitbucket.org:lynxmd/lynx-be.git /root/lynx-be
-WORKDIR /root
-COPY guni.sh ./
-CMD bash ./guni.sh
+RUN curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+RUN echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list
+
+RUN apt update && apt install -y kubectl
+
+RUN useradd -ms /bin/bash ${USER_NAME}
+
+WORKDIR ${APP_HOME}
+
+COPY requirements.txt ${APP}/ 
+
+RUN pip3 install -r ${APP_DIR}/requirements.txt 
+
+RUN pip3 install awscli --upgrade
+
+ADD . ${APP} 
+
+EXPOSE 80
+
+ENTRYPOINT ["/home/lynx/lynx-be/guni.sh"]

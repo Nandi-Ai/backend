@@ -26,15 +26,15 @@ def break_s3_object(obj):
 
     return path, file_name, file_name_no_ext, ext
 
-def create_s3_bucket(name, s3_client=None, encrypt = settings.secured_bucket, https_only = settings.secured_bucket):
+def create_s3_bucket(name, s3_client=None, encrypt = settings.secured_bucket, https_only = settings.AWS['SECURED_BUCKET']):
     if not s3_client:
         s3_client = boto3.client('s3')
     #https://github.com/boto/boto3/issues/125
-    if settings.aws_region == 'us-east-1':
+    if settings.AWS['AWS_REGION'] == 'us-east-1':
         s3_client.create_bucket(Bucket=name)
     else:
         s3_client.create_bucket(Bucket=name,
-                         CreateBucketConfiguration={'LocationConstraint': settings.aws_region}, )
+                         CreateBucketConfiguration={'LocationConstraint': settings.AWS['AWS_REGION']}, )
 
     if encrypt:
         s3_client.put_bucket_encryption(
@@ -44,7 +44,7 @@ def create_s3_bucket(name, s3_client=None, encrypt = settings.secured_bucket, ht
                     {
                         'ApplyServerSideEncryptionByDefault': {
                             'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': settings.aws_kms_key_id
+                            'KMSMasterKeyID': settings.AWS['AWS_KMS_KEY_ID']
                         }
                     },
                 ]
@@ -69,11 +69,6 @@ def create_s3_bucket(name, s3_client=None, encrypt = settings.secured_bucket, ht
                 ]
             })
         )
-
-def startup():
-    os.environ["AWS_ACCESS_KEY_ID"] = settings.aws_access_key_id
-    os.environ["AWS_SECRET_ACCESS_KEY"] = settings.aws_secret_access_key
-    os.environ["AWS_REGION"] = settings.aws_region
 
 
 def is_aggregated(query):
@@ -116,7 +111,7 @@ class MyTokenAuthentication(TokenAuthentication):
         return token.user, token
 
 def create_glue_database(dataset):
-    glue_client = boto3.client('glue', region_name=settings.aws_region)
+    glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
 
 
     print("creating glue database")
@@ -131,7 +126,7 @@ def create_glue_database(dataset):
 
 def create_catalog(data_source):
 
-    glue_client = boto3.client('glue', region_name=settings.aws_region)
+    glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
     print("creating database crawler")
     create_glue_crawler(data_source)  # if no dataset no crawler
 
@@ -164,12 +159,12 @@ def create_catalog(data_source):
 
 
 def create_glue_crawler(data_source):
-    glue_client = boto3.client('glue', region_name=settings.aws_region)
+    glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
 
     path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0]['key'])
     glue_client.create_crawler(
         Name="data_source-" + str(data_source.id),
-        Role=settings.aws_glue_service_role,
+        Role=settings.GLUE['AWS_GLUE_SERVICE_ROLE'],
         DatabaseName="dataset-" + str(data_source.dataset.id),
         Description='',
         Targets={
@@ -233,8 +228,8 @@ def calc_access_to_database(user, dataset):
 def close_all_jh_running_servers(idle_for_hours=0):
     import dateparser
     from datetime import datetime as dt, timedelta as td
-    headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
-    res = requests.get(settings.jh_url + 'hub/api/users', headers=headers,verify=False)
+    headers = {"Authorization": "Bearer " + settings['JH_API_ADMIN_TOKEN'], "ALBTOKEN": settings['JH_ALB_TOKEN']}
+    res = requests.get(settings['JH_URL'] + 'hub/api/users', headers=headers, verify=False)
     assert res.status_code == 200, "error getting users: " + res.text
     users = json.loads(res.text)
 
@@ -247,7 +242,7 @@ def close_all_jh_running_servers(idle_for_hours=0):
             idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
             # print(user)
             if idle_time > td(hours=idle_for_hours):
-                res = requests.delete(settings.jh_url + 'hub/api/users/' + user['name'] + '/server', headers=headers,verify=False)
+                res = requests.delete(settings['JH_URL'] + 'hub/api/users/' + user['name'] + '/server', headers=headers,verify=False)
                 print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
             else:
                 print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
@@ -416,7 +411,7 @@ def csv_to_json(csv,columns_types):
 
 
 def get_columns_types(glue_database, glue_table):
-    glue_client = boto3.client("glue", region_name=settings.aws_region)
+    glue_client = boto3.client("glue", region_name=settings.AWS['AWS_REGION'])
 
     response = glue_client.get_table(
         DatabaseName=glue_database,

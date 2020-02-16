@@ -19,7 +19,6 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from mainapp import views
-# from mainapp.utils.lib import startup
 from mainapp.views import schema_view
 
 
@@ -30,7 +29,6 @@ class OptionalSlashRouter(SimpleRouter):
     def __init__(self):
         self.trailing_slash = '/?'
         super(SimpleRouter, self).__init__()
-#
 
 
 router = OptionalSlashRouter()
@@ -67,5 +65,3 @@ urlpatterns = [
     url(r'^requests/respond/(?P<user_request_id>[^/]+)/?$', views.HandleDatasetAccessRequest.as_view(),
         name='respond_request'),
 ]
-
-# startup()

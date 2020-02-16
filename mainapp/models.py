@@ -338,7 +338,7 @@ def delete_data_source(sender, instance, **kwargs):
     print("deleting data source"+str(data_source.name)+". "+str(data_source.id))
     if data_source.glue_table:
         try:
-            glue_client = boto3.client('glue', region_name=settings.aws_region)
+            glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
             glue_client.delete_table(
                 DatabaseName=data_source.dataset.glue_database,
                 Name=data_source.glue_table

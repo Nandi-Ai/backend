@@ -65,7 +65,7 @@ class GetSTS(APIView):  # from execution
         workspace_bucket_name = "lynx-workspace-" + str(study.id)
 
         role_name = "lynx-workspace-" + str(study.id)
-        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
+        role_to_assume_arn = 'arn:aws:iam::' + settings.AWS['AWS_ACCOUNT_NUMBER'] + ':role/' + role_name
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -82,8 +82,8 @@ class GetSTS(APIView):  # from execution
 class GetStaticSTS(APIView):  # from execution
     def get(self, request):
         sts_default_provider_chain = boto3.client('sts')
-        static_bucket_name = settings.lynx_front_static_bucket
-        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + settings.static_role_name
+        static_bucket_name = settings.AWS['LYNX_FRONT_STATIC_BUCKET']
+        role_to_assume_arn = 'arn:aws:iam::' + settings.AWS['AWS_ACCOUNT_NUMBER'] + ':role/' + settings.AWS['AWS_STATIC_ROLE_NAME']
 
         response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -116,7 +116,7 @@ class GetExecution(APIView):  # from frontend
         if not study.execution:
             id = uuid.uuid4()
 
-            # headers = {"Authorization": "Bearer " + settings.jh_api_admin_token,"ALBTOKEN":settings.jh_alb_token}
+            # headers = {"Authorization": "Bearer " + settings['JH_API_ADMIN_TOKEN'], "ALBTOKEN": settings['JH_ALB_TOKEN']}
             #
             # data = {
             #     "usernames": [
@@ -241,7 +241,7 @@ class StudyViewSet(ModelViewSet):
                 return Error("only the study creator can edit a study")
 
             client = boto3.client('iam')
-            policy_arn = "arn:aws:iam::" + settings.aws_account_number + ":policy/lynx-workspace-" + str(study.id)
+            policy_arn = "arn:aws:iam::" + settings.AWS['AWS_ACCOUNT_NUMBER'] + ":policy/lynx-workspace-" + str(study.id)
 
             role_name = "lynx-workspace-" + str(study.id)
 
@@ -307,7 +307,7 @@ class GetDatasetSTS(APIView):  # for frontend uploads
         sts_default_provider_chain = boto3.client('sts')
 
         role_name = "lynx-dataset-" + str(dataset.id)
-        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
+        role_to_assume_arn = 'arn:aws:iam::' + settings.AWS['AWS_ACCOUNT_NUMBER'] + ':role/' + role_name
 
         sts_response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -335,7 +335,7 @@ class GetStudySTS(APIView):  # for frontend uploads
         sts_default_provider_chain = boto3.client('sts')
 
         role_name = "lynx-workspace-" + str(study.id)
-        role_to_assume_arn = 'arn:aws:iam::' + settings.aws_account_number + ':role/' + role_name
+        role_to_assume_arn = 'arn:aws:iam::' + settings.AWS['AWS_ACCOUNT_NUMBER'] + ':role/' + role_name
 
         sts_response = sts_default_provider_chain.assume_role(
             RoleArn=role_to_assume_arn,
@@ -445,6 +445,9 @@ class MyRequestsViewSet(ReadOnlyModelViewSet):
 
 
 class AWSHealthCheck(APIView):
+    authentication_classes = []
+    permission_classes = []
+
     def get(self, request):
         return Response()
 
@@ -864,7 +867,7 @@ class DataSourceViewSet(ModelViewSet):
     #     if data_source.glue_table:
     #         # additional validations only for update:
     #         try:
-    #             glue_client = boto3.client('glue', region_name=settings.aws_region)
+    #             glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
     #             glue_client.delete_table(
     #                 DatabaseName=data_source.dataset.glue_database,
     #                 Name=data_source.glue_table
@@ -909,7 +912,7 @@ class RunQuery(GenericAPIView):
             if access == "no access":
                 return Error("no permission to query this dataset")
 
-            client = boto3.client('athena', region_name=settings.aws_region)
+            client = boto3.client('athena', region_name=settings.AWS['AWS_REGION'])
             try:
                 response = client.start_query_execution(
                     QueryString=query_string,
@@ -976,7 +979,7 @@ class CreateCohort(GenericAPIView):
             ctas_query = 'CREATE TABLE "' + destination_dataset.glue_database + '"."' + data_source.glue_table + '"' + " WITH (format = 'TEXTFILE', external_location = 's3://" + destination_dataset.bucket + "/" + data_source.glue_table + "/') AS " + query + ";"
             print(ctas_query)
 
-            client = boto3.client('athena', region_name=settings.aws_region)
+            client = boto3.client('athena', region_name=settings.AWS['AWS_REGION'])
             try:
                 response = client.start_query_execution(
                     QueryString=ctas_query,
@@ -1076,7 +1079,7 @@ class Query(GenericAPIView):
 
             req_res = {}
 
-            client = boto3.client('athena', region_name=settings.aws_region)
+            client = boto3.client('athena', region_name=settings.AWS['AWS_REGION'])
 
             if sample_aprx or return_count:
                 print("count query: " + count_query)
