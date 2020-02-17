@@ -26,7 +26,8 @@ def break_s3_object(obj):
 
     return path, file_name, file_name_no_ext, ext
 
-def create_s3_bucket(name, s3_client=None, encrypt = settings.secured_bucket, https_only = settings.AWS['SECURED_BUCKET']):
+
+def create_s3_bucket(name, s3_client=None, encrypt=settings.secured_bucket, https_only=settings.AWS['SECURED_BUCKET']):
     if not s3_client:
         s3_client = boto3.client('s3')
     #https://github.com/boto/boto3/issues/125
@@ -54,8 +55,8 @@ def create_s3_bucket(name, s3_client=None, encrypt = settings.secured_bucket, ht
     if https_only:
         s3_client.put_bucket_policy(
             Bucket=name,
-            Policy = json.dumps({
-                "Statement":[
+            Policy=json.dumps({
+                "Statement": [
                     {
                         "Action": "s3:*",
                         "Effect": "Deny",
@@ -110,6 +111,7 @@ class MyTokenAuthentication(TokenAuthentication):
 
         return token.user, token
 
+
 def create_glue_database(dataset):
     glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
 
@@ -123,6 +125,7 @@ def create_glue_database(dataset):
     )
 
     dataset.save()
+
 
 def create_catalog(data_source):
 
@@ -143,7 +146,6 @@ def create_catalog(data_source):
         crawler_ready = True if res['Crawler']['State'] == 'READY' else False
         sleep(5)
         retries -= 1
-
 
     print("is crawler finished: ", crawler_ready)
     if not crawler_ready:
@@ -240,9 +242,12 @@ def close_all_jh_running_servers(idle_for_hours=0):
             last_activity = user['last_activity'] or user['created']
 
             idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
-            # print(user)
             if idle_time > td(hours=idle_for_hours):
-                res = requests.delete(settings['JH_URL'] + 'hub/api/users/' + user['name'] + '/server', headers=headers,verify=False)
+                res = requests.delete(
+                    settings['JH_URL'] + 'hub/api/users/' + user['name'] + '/server',
+                    headers=headers,
+                    verify=False
+                )
                 print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
             else:
                 print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
@@ -250,68 +255,67 @@ def close_all_jh_running_servers(idle_for_hours=0):
 
 def load_tags(delete_removed_tags=True):
     with open("tags.json") as f:
-        tags=json.load(f)
+        tags = json.load(f)
         if delete_removed_tags:
             models.Tag.objects.all().delete()
 
         for tag in tags:
-            tagdb,created=models.Tag.objects.get_or_create(name = tag['tag_name'], category=tag['category'])
+            tag_db, created = models.Tag.objects.get_or_create(name=tag['tag_name'], category=tag['category'])
             if not created:
                 print("warning, duplicate:", tag)
 
 
 def create_where_section(field, operator, value):
-
+    dev_express_value = value.lower()
     if operator == 'contains':
-        return  "\"{}\" LIKE '%{}%'".format(field, value)
+        return f"lower(\"{field}\") LIKE '%{dev_express_value}%'"
 
     if operator == "notcontains":
-        return  "\"{}\" NOT LIKE '%{}%'".format(field, value)
+        return f"lower(\"{field}\") NOT LIKE '%{dev_express_value}%'"
 
     if operator == 'startswith':
-        return "\"{}\" LIKE '{}%'".format(field, value)
+        return f"lower(\"{field}\") LIKE '{dev_express_value}%'"
 
     if operator == 'endswith':
-        return "\"{}\" LIKE '%{}'".format(field, value)
+        return f"lower(\"{field}\") LIKE '%{dev_express_value}'"
 
     if operator == "notstartswith":
-        return "\"{}\" NOT LIKE '{}%'".format(field, value)
+        return f"lower(\"{field}\") NOT LIKE '{dev_express_value}%'"
 
     if operator == "notendswith":
-        return "\"{}\" NOT LIKE '%{}'".format(field, value)
+        return f"lower(\"{field}\") NOT LIKE '%{dev_express_value}'"
 
     if operator == "=":
 
         if value is None:
-            return "\"{}\" is null".format(field, value)
+            return f"\"{field}\" is null"
 
         if isinstance(value, str):
-            return "\"{}\" = '{}'".format(field, value)
-
-        return "\"{}\" = {}".format(field, value) #not string.
+            return f"\"{field}\" = '{value}'"
+        return f"\"{field}\" = {value}"
 
     elif operator == "<>":
         if value is None:
-            return "\"{}\" is not null".format(field, value)
+            return f"\"{field}\" is not null"
 
         if isinstance(value, str):
-            return "\"{}\" <> '{}'".format(field, value)
+            return f"\"{field}\" <> '{value}'"
 
-        return "\"{}\" <> {}".format(field, value)
+        return f"\"{field}\" <> {value}"
 
     if operator == ">":
-        return "\"{}\" > {}".format(field, value)
+        return f"\"{field}\" > {value}"
 
     if operator == "<":
-        return "\"{}\" < {}".format(field, value)
+        return f"\"{field}\" < {value}"
 
     if operator == ">=":
-        return "\"{}\" >= {}".format(field, value)
+        return f"\"{field}\" >= {value}"
 
     if operator == "<=":
-        return "\"{}\" <= {}".format(field, value)
+        return f"\"{field}\" <= {value}"
 
-    raise TypeError("unknown operator: "+operator)
+    raise TypeError("unknown operator: " + operator)
 
 
 def create_where_section_from_array(data_filter):
@@ -364,9 +368,9 @@ def generate_where_sql_query(data_filter):
     return query
 
 
-def get_s3_object(bucket,key,s3_client=None,retries=60):
+def get_s3_object(bucket, key, s3_client=None, retries=60):
     if not s3_client:
-        s3_client=boto3.client('s3')
+        s3_client = boto3.client('s3')
 
     while True:
         try:
@@ -374,14 +378,15 @@ def get_s3_object(bucket,key,s3_client=None,retries=60):
                                        Key=key)
             return obj
         except s3_client.exceptions.NoSuchKey:
-            if retries>0:
+            if retries > 0:
                 sleep(1)
-                retries-=1
+                retries -= 1
 
                 continue
             raise
 
-def csv_to_json(csv,columns_types):
+
+def csv_to_json(csv, columns_types):
     def convert(value, type):
 
         if value in ('', '""'):
@@ -396,7 +401,7 @@ def csv_to_json(csv,columns_types):
 
         return str(value)
 
-    dic={}
+    dic = {}
 
     rows = csv.split('\n')
     columns_name = rows[0].split(',')
@@ -442,13 +447,13 @@ def get_query_no_limit_and_count_query(query):
     return query_no_limit, count_query, limit
 
 
-def list_objects_version(bucket,filter = None,exclude = None,start = None, end = None,prefix = ""):
+def list_objects_version(bucket, filter=None, exclude=None, start=None, end=None, prefix=""):
 
     import fnmatch
     import pytz
 
     s3_client = boto3.client('s3')
-    items=s3_client.list_object_versions(Bucket = bucket, Prefix = prefix)['Versions']
+    items = s3_client.list_object_versions(Bucket=bucket, Prefix=prefix)['Versions']
 
     if start and end:
         assert start <= end, "start is has to be before end"
@@ -461,18 +466,18 @@ def list_objects_version(bucket,filter = None,exclude = None,start = None, end =
 
     if start:
         if not start.tzinfo:
-            start=start.replace(tzinfo = pytz.utc)
+            start = start.replace(tzinfo=pytz.utc)
         items = [x for x in items if x['LastModified'] >= start]
 
     if end:
         if not end.tzinfo:
-            end=end.replace(tzinfo = pytz.utc)
+            end = end.replace(tzinfo=pytz.utc)
         items = [x for x in items if x['LastModified'] <= end]
 
     return items
 
 
-def delete_bucket(bucket_name,s3_resource = None):
+def delete_bucket(bucket_name, s3_resource=None):
     if not s3_resource:
         s3_resource = boto3.resource("s3")
     bucket = s3_resource.Bucket(bucket_name)

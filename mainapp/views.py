@@ -1093,8 +1093,6 @@ class Query(GenericAPIView):
                             'OutputLocation': "s3://" + dataset.bucket + "/temp_execution_results",
                         }
                     )
-
-
                 except Exception as e:
                     return Error("failed executing the count query: " + count_query + ". error: " + str(
                         e) + ". original query: " + query)
