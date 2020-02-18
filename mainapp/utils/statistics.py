@@ -1,10 +1,15 @@
+import re
 from time import sleep
-from mainapp import settings
-from mainapp.exceptions import InvalidExecutionId, QueryExecutionError, MaxExecutionReactedError, \
-    UnsupportedColumnTypeError
 
 import boto3
-import re
+
+from mainapp import settings
+from mainapp.exceptions import (
+    InvalidExecutionId,
+    QueryExecutionError,
+    MaxExecutionReactedError,
+    UnsupportedColumnTypeError,
+)
 
 
 def count_all_values_query(query, glue_database, bucket_name):

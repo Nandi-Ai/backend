@@ -1,6 +1,17 @@
 from rest_framework.serializers import *
 
-from mainapp.models import *
+from mainapp.models import (
+    Organization,
+    Execution,
+    User,
+    Documentation,
+    Tag,
+    DataSource,
+    Activity,
+    Study,
+    Request,
+    Dataset
+)
 
 
 class ExecutionSerializer(ModelSerializer):
@@ -41,7 +52,8 @@ class DataSourceSerializer(ModelSerializer):
     class Meta:
         model = DataSource
         fields = (
-            'id', 'name', 'dir', 's3_objects', 'type', 'about', 'programmatic_name', 'dataset', 'state', 'glue_table','children','ancestor','cohort')
+            'id', 'name', 'dir', 's3_objects', 'type', 'about', 'programmatic_name', 'dataset', 'state', 'glue_table',
+            'children', 'ancestor', 'cohort')
         extra_kwargs = {
             'state': {'read_only': True},
             'cohort': {'read_only': True},
@@ -134,7 +146,7 @@ class SimpleQuerySerializer(Serializer):
 
 
 class QuerySerializer(Serializer):
-    query = CharField(max_length=2048,required=False,default=None)
+    query = CharField(max_length=2048, required=False, default=None)
     filter = CharField(max_length=2048, required=False)
     columns = CharField(max_length=2048, required=False)
     limit = IntegerField(required=False, default=None)

@@ -9,13 +9,12 @@ from time import sleep
 import boto3
 import pytz
 import requests
+import sqlparse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from mainapp import settings
 from mainapp import models
-
-import sqlparse
+from mainapp import settings
 
 
 def break_s3_object(obj):
