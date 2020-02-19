@@ -266,7 +266,8 @@ def load_tags(delete_removed_tags=True):
 
 
 def create_where_section(field, operator, value):
-    dev_express_value = value.lower()
+    dev_express_value = value if isinstance(value, int) else value.lower()
+
     if operator == 'contains':
         return f"lower(\"{field}\") LIKE '%{dev_express_value}%'"
 
