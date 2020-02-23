@@ -87,23 +87,3 @@ This is the backend of the project.
     `python manage.py createsuperuser --email=<your_email>`
     
     It will request from your to create new password
-
-### Deployment
-
-```
-1. ssh to prod backend instance 
-
-2. cd  /home/ec2-user/lynx-configs/v2
-
-3. run docker-compose exec lynx_be bash
-
-4. cd lynx_be
-
-5. run git pull
-
-6. run migration if needed - python mange.py migrate
-
-7. run exit
-
-8. run docker-compose restart
-```
