@@ -719,57 +719,59 @@ class DataSourceViewSet(ModelViewSet):
     @action(detail=True, methods=['get'])
     def statistics(self, request, pk=None):
         data_source = self.get_object()
-        if data_source.state == 'ready':
-            glue_database = data_source.dataset.glue_database
-            bucket_name = 'lynx-' + glue_database
-            glue_table = data_source.glue_table
-            query_from_front = request.query_params.get('grid_filter')
-            if query_from_front:
-                query_from_front = json.loads(query_from_front)
+        if data_source.state != 'ready':
+            return Error('Data is still in processing', status_code=503)
 
-            try:
-                columns_types = lib.get_columns_types(glue_database=glue_database, glue_table=glue_table)
-                default_athena_col_names = statistics.create_default_column_names(columns_types)
-            except UnableToGetGlueColumns as e:
-                return Error(e, status_code=501)
+        glue_database = data_source.dataset.glue_database
+        bucket_name = 'lynx-' + glue_database
+        glue_table = data_source.glue_table
+        query_from_front = request.query_params.get('grid_filter')
+        if query_from_front:
+            query_from_front = json.loads(query_from_front)
 
-            try:
-                filter_query = None if not query_from_front else lib.generate_where_sql_query(query_from_front)
-                query = statistics.sql_builder_by_columns_types(
-                    glue_table,
-                    columns_types,
-                    default_athena_col_names,
-                    filter_query,
+        try:
+            columns_types = lib.get_columns_types(glue_database=glue_database, glue_table=glue_table)
+            default_athena_col_names = statistics.create_default_column_names(columns_types)
+        except UnableToGetGlueColumns as e:
+            return Error(e, status_code=501)
+
+        try:
+            filter_query = None if not query_from_front else lib.generate_where_sql_query(query_from_front)
+            query = statistics.sql_builder_by_columns_types(
+                glue_table,
+                columns_types,
+                default_athena_col_names,
+                filter_query,
+            )
+        except UnsupportedColumnTypeError as e:
+            return Error(e, status_code=501)
+        except Exception as e:
+            return Error(e, status_code=500)
+
+        try:
+            response = statistics.count_all_values_query(query, glue_database, bucket_name)
+            data_per_column = statistics.sql_response_processing(response, default_athena_col_names)
+            final_result = {'result': data_per_column, 'columns_types': columns_types}
+        except QueryExecutionError as e:
+            return Error(e, status_code=502)
+        except InvalidExecutionId as e:
+            return Error(e, status_code=500)
+        except MaxExecutionReactedError as e:
+            return Error(e, status_code=504)
+        except KeyError:
+            return Error("unexpected error: invalid or missing query result set", status_code=500)
+        except Exception as e:
+            return Error(e, status_code=500)
+
+        if request.user in data_source.dataset.aggregated_users.all():
+            max_rows_after_filter = statistics.max_count(response)
+            if max_rows_after_filter < 100:
+                return Error(
+                    'Sorry, we can not show you the results, the cohort is too small',
+                    status_code=403
                 )
-            except UnsupportedColumnTypeError as e:
-                return Error(e, status_code=501)
-            except Exception as e:
-                return Error(e, status_code=500)
 
-            try:
-                response = statistics.count_all_values_query(query, glue_database, bucket_name)
-                data_per_column = statistics.sql_response_processing(response, default_athena_col_names)
-                final_result = {'result': data_per_column, 'columns_types': columns_types}
-            except QueryExecutionError as e:
-                return Error(e, status_code=502)
-            except InvalidExecutionId as e:
-                return Error(e, status_code=500)
-            except MaxExecutionReactedError as e:
-                return Error(e, status_code=504)
-            except KeyError:
-                return Error("unexpected error: invalid or missing query result set", status_code=500)
-            except Exception as e:
-                return Error(e, status_code=500)
-
-            if request.user in data_source.dataset.aggregated_users.all():
-                max_rows_after_filter = statistics.max_count(response)
-                if max_rows_after_filter < 100:
-                    return Error(
-                        'Sorry, we can not show you the results, the cohort is too small',
-                        status_code=403
-                    )
-
-            return Response(final_result)
+        return Response(final_result)
 
     def get_queryset(self):
         return self.request.user.data_sources

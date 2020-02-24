@@ -25,7 +25,7 @@ def get_result_query(client, query_execution_result):
     max_execution = 10
     state = 'RUNNING'
 
-    while max_execution > 0 and state == 'RUNNING':
+    while max_execution > 0 and (state in ['RUNNING', 'QUEUED']):
         max_execution -= 1
         query_execution_id = query_execution_result.get('QueryExecutionId')
 
