@@ -513,7 +513,7 @@ class DatasetViewSet(ModelViewSet):
             if dataset_data['state'] == "archived":
                 return Error("can't create new dataset with status archived")
 
-            dataset = Dataset(name=dataset_data['name'])
+            dataset = Dataset(name=dataset_data['name'], is_discoverable=dataset_data['is_discoverable'])
             dataset.id = uuid.uuid4()
 
             # aws stuff
@@ -589,6 +589,11 @@ class DatasetViewSet(ModelViewSet):
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
             dataset.ancestor = dataset_data['ancestor'] if 'ancestor' in dataset_data else None
+            if 'ancestor' in dataset_data:
+                dataset.is_discoverable = False
+                dataset.state = "private"
+                if dataset.default_user_permission == 'aggregated_access':
+                    dataset.aggregated_users.add(request.user.id)
             dataset.organization = dataset.ancestor.organization if dataset.ancestor else request.user.organization
             # dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]

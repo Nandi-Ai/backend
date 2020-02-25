@@ -127,12 +127,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def datasets(self):
-        # all public datasets, datasets that the user have aggregated access accept archived,
-        # datasets that the user has admin access, datasets that the user have full access permission accept archived.
 
-        datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state="archived")).distinct()
-        # datasets = Dataset.objects.exclude(state="archived").union(self.admin_datasets.filter(state = "archived"))
-        return datasets
+        discoverable_datasets = (Dataset.objects.exclude(is_discoverable=False)
+                                | self.full_access_datasets.filter(is_discoverable=False)
+                                | self.aggregated_datasets.filter(is_discoverable=False)
+                                | self.admin_datasets.filter(is_discoverable=False)).distinct()
+        not_archived_datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state="archived")).distinct()
+
+        return discoverable_datasets & not_archived_datasets
 
     @property
     def requests_for_me(self):
@@ -256,6 +258,7 @@ class Dataset(models.Model):
     user_created = models.ForeignKey('User', on_delete=models.SET_NULL, related_name="datasets_created", null=True)
     tags = models.ManyToManyField('Tag', related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
+    is_discoverable = models.BooleanField(blank=False, null=False)
     default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset,
                                                max_length=32, null=True)
     bucket_override = models.CharField(max_length=255, blank=True, null=True)
