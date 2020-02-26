@@ -21,7 +21,13 @@ from rest_framework_swagger.views import get_swagger_view
 from slugify import slugify
 
 from mainapp import resources, settings
-from mainapp.exceptions import *
+from mainapp.exceptions import (
+    UnableToGetGlueColumns,
+    UnsupportedColumnTypeError,
+    QueryExecutionError,
+    InvalidExecutionId,
+    MaxExecutionReactedError,
+)
 from mainapp.models import (
     User,
     Organization,
