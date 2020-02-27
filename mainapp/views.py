@@ -22,6 +22,7 @@ from mainapp.exceptions import *
 from mainapp.serializers import *
 from mainapp.utils import lib
 from mainapp.utils import statistics
+from mainapp.utils import devexpress_filtering
 
 schema_view = get_swagger_view(title='Lynx API')
 
@@ -741,7 +742,7 @@ class DataSourceViewSet(ModelViewSet):
             return Error(e, status_code=501)
 
         try:
-            filter_query = None if not query_from_front else lib.generate_where_sql_query(query_from_front)
+            filter_query = None if not query_from_front else devexpress_filtering.generate_where_sql_query(query_from_front)
             query = statistics.sql_builder_by_columns_types(
                 glue_table,
                 columns_types,
@@ -977,13 +978,20 @@ class CreateCohort(GenericAPIView):
             columns = json.loads(query_serialized.validated_data[
                                      'columns']) if 'columns' in query_serialized.validated_data else None
 
-            query, _ = lib.dev_express_to_sql(table=data_source.glue_table, schema=dataset.glue_database,
-                                              data_filter=data_filter, columns=columns, limit=limit)
+            query, _ = devexpress_filtering.dev_express_to_sql(
+                table=data_source.glue_table,
+                schema=dataset.glue_database,
+                data_filter=data_filter,
+                columns=columns,
+                limit=limit
+            )
 
             if not destination_dataset.glue_database:
                 lib.create_glue_database(destination_dataset)
 
-            ctas_query = 'CREATE TABLE "' + destination_dataset.glue_database + '"."' + data_source.glue_table + '"' + " WITH (format = 'TEXTFILE', external_location = 's3://" + destination_dataset.bucket + "/" + data_source.glue_table + "/') AS " + query + ";"
+            ctas_query = 'CREATE TABLE "' + destination_dataset.glue_database + '"."' + data_source.glue_table + '"' + \
+                         " WITH (format = 'TEXTFILE', external_location = 's3://" + destination_dataset.bucket + "/" + \
+                         data_source.glue_table + "/') AS " + query + ";"
             print(ctas_query)
 
             client = boto3.client('athena', region_name=settings.AWS['AWS_REGION'])
@@ -1080,8 +1088,12 @@ class Query(GenericAPIView):
                 columns = json.loads(query_serialized.validated_data[
                                          'columns']) if 'columns' in query_serialized.validated_data else None
 
-                query, query_no_limit = lib.dev_express_to_sql(table=data_source.glue_table, data_filter=data_filter,
-                                                               columns=columns, limit=limit)
+                query, query_no_limit = devexpress_filtering.dev_express_to_sql(
+                    table=data_source.glue_table,
+                    data_filter=data_filter,
+                    columns=columns,
+                    limit=limit
+                )
                 _, count_query, _ = lib.get_query_no_limit_and_count_query(query)
 
             req_res = {}
