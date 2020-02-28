@@ -1,12 +1,12 @@
 import uuid
 
+import boto3
 from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
 from django.contrib.auth.models import PermissionsMixin
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.db.utils import IntegrityError
 from django.db.models import signals
-import boto3
+from django.db.utils import IntegrityError
 from django.dispatch import receiver
 
 from mainapp import settings

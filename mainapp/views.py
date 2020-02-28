@@ -4,11 +4,14 @@ import shutil
 import subprocess
 import threading
 import time
+import uuid
 from multiprocessing import Process
 
+import boto3
 import dateparser
 import pyreadstat
 from django.core import exceptions
+from django.db.utils import IntegrityError
 from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
@@ -17,12 +20,42 @@ from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework_swagger.views import get_swagger_view
 from slugify import slugify
 
-from mainapp import resources
-from mainapp.exceptions import *
-from mainapp.serializers import *
-from mainapp.utils import lib
-from mainapp.utils import statistics
+from mainapp import resources, settings
+from mainapp.exceptions import (
+    UnableToGetGlueColumns,
+    UnsupportedColumnTypeError,
+    QueryExecutionError,
+    InvalidExecutionId,
+    MaxExecutionReactedError,
+)
+from mainapp.models import (
+    User,
+    Organization,
+    Study,
+    Dataset,
+    DataSource,
+    Tag,
+    Execution,
+    Activity,
+    Request,
+    Documentation,
+)
+from mainapp.serializers import (
+    UserSerializer,
+    OrganizationSerializer,
+    DocumentationSerializer,
+    TagSerializer,
+    DataSourceSerializer,
+    ActivitySerializer,
+    RequestSerializer,
+    DatasetSerializer,
+    StudySerializer,
+    SimpleQuerySerializer,
+    QuerySerializer,
+    CohortSerializer,
+)
 from mainapp.utils import devexpress_filtering
+from mainapp.utils import statistics, lib
 
 schema_view = get_swagger_view(title='Lynx API')
 
