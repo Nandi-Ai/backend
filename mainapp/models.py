@@ -1,7 +1,7 @@
 import uuid
 
 import boto3
-from django.contrib.auth.models import (BaseUserManager, AbstractBaseUser)
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -20,18 +20,16 @@ class UserManager(BaseUserManager):
         birth and password.
         """
         if not email:
-            raise ValueError('Users must have an email address')
+            raise ValueError("Users must have an email address")
 
-        user = self.model(
-            email=self.normalize_email(email),
-        )
+        user = self.model(email=self.normalize_email(email))
 
         try:
             org = Organization.objects.get(default=True)
         except Organization.DoesNotExist:
             org = Organization.objects.create(name="default", default=True)
 
-        user.organization=org
+        user.organization = org
 
         user.set_password(password)
 
@@ -44,10 +42,7 @@ class UserManager(BaseUserManager):
         birth and password.
         """
 
-        user = self.create_user(
-            email,
-            password=password,
-        )
+        user = self.create_user(email, password=password)
         user.is_superuser = True
         user.is_admin = True
         user.save(using=self._db)
@@ -55,7 +50,7 @@ class UserManager(BaseUserManager):
 
     def get_or_create_for_cognito(self, payload):
 
-        cognito_id = payload['sub']
+        cognito_id = payload["sub"]
 
         try:
             return self.get(cognito_id=cognito_id)
@@ -66,21 +61,23 @@ class UserManager(BaseUserManager):
             try:
                 org = Organization.objects.get(default=True)
             except Organization.DoesNotExist:
-                org,_ = Organization.objects.create(name="default", default=True)
+                org, _ = Organization.objects.create(name="default", default=True)
             user = self.create(
                 cognito_id=cognito_id,
-                email=payload['email'],
-                is_active=True, organization = org)
+                email=payload["email"],
+                is_active=True,
+                organization=org,
+            )
         except IntegrityError:
-            user = self.get(email=payload['email'])
+            user = self.get(email=payload["email"])
             user.cognito_id = cognito_id
             user.save()
 
-        #doesn't seem that cognito send any of those field in payload...
-        if 'name' in payload:
-            user.name = payload['name']
-        elif 'custom:name' in payload:
-            user.name = payload['custom:name']
+        # doesn't seem that cognito send any of those field in payload...
+        if "name" in payload:
+            user.name = payload["name"]
+        elif "custom:name" in payload:
+            user.name = payload["custom:name"]
 
         user.save()
 
@@ -89,11 +86,7 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(
-        verbose_name='email address',
-        max_length=255,
-        unique=True,
-    )
+    email = models.EmailField(verbose_name="email address", max_length=255, unique=True)
 
     is_active = models.BooleanField(default=True)
     is_superuser = models.BooleanField(default=False)
@@ -102,7 +95,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_login = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name="users", null=True)
+    organization = models.ForeignKey(
+        "Organization", on_delete=models.CASCADE, related_name="users", null=True
+    )
     cognito_id = models.CharField(max_length=255, blank=True, null=True)
     is_execution = models.BooleanField(default=False)
 
@@ -122,17 +117,23 @@ class User(AbstractBaseUser, PermissionsMixin):
         for dataset in self.admin_datasets.all():
             studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
         studies = Study.objects.filter(
-            id__in=studies_ids)  # no need set. return one item even if id appears multiple times.
+            id__in=studies_ids
+        )  # no need set. return one item even if id appears multiple times.
         return studies
 
     @property
     def datasets(self):
 
-        discoverable_datasets = (Dataset.objects.exclude(is_discoverable=False)
-                                | self.full_access_datasets.filter(is_discoverable=False)
-                                | self.aggregated_datasets.filter(is_discoverable=False)
-                                | self.admin_datasets.filter(is_discoverable=False)).distinct()
-        not_archived_datasets = (Dataset.objects.exclude(state="archived") | self.admin_datasets.filter(state="archived")).distinct()
+        discoverable_datasets = (
+            Dataset.objects.exclude(is_discoverable=False)
+            | self.full_access_datasets.filter(is_discoverable=False)
+            | self.aggregated_datasets.filter(is_discoverable=False)
+            | self.admin_datasets.filter(is_discoverable=False)
+        ).distinct()
+        not_archived_datasets = (
+            Dataset.objects.exclude(state="archived")
+            | self.admin_datasets.filter(state="archived")
+        ).distinct()
 
         return discoverable_datasets & not_archived_datasets
 
@@ -152,7 +153,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD = "email"
 
     # REQUIRED_FIELDS = []
 
@@ -176,7 +177,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.is_admin
 
     class Meta:
-        db_table = 'users'
+        db_table = "users"
 
     def permission(self, dataset):
         if self in dataset.admin_users.all():
@@ -192,57 +193,58 @@ class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     logo = models.CharField(max_length=255, null=True)
-    default = models.BooleanField(default = False)
+    default = models.BooleanField(default=False)
 
     def set_default(self):
-        Organization.objects.all().update(default = False)
+        Organization.objects.all().update(default=False)
         self.default = True
         self.save()
 
     class Meta:
-        db_table = 'organizations'
+        db_table = "organizations"
 
 
 class Study(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
-    datasets = models.ManyToManyField('Dataset', related_name="studies")
-    users = models.ManyToManyField('User', related_name="studies")
-    user_created = models.ForeignKey('User', on_delete=models.SET_NULL, related_name="studies_created", null=True)
-    execution = models.ForeignKey("Execution", on_delete=models.CASCADE, related_name="studies", null=True)
-    tags = models.ManyToManyField('Tag', related_name="study_tags")
+    datasets = models.ManyToManyField("Dataset", related_name="studies")
+    users = models.ManyToManyField("User", related_name="studies")
+    user_created = models.ForeignKey(
+        "User", on_delete=models.SET_NULL, related_name="studies_created", null=True
+    )
+    execution = models.ForeignKey(
+        "Execution", on_delete=models.CASCADE, related_name="studies", null=True
+    )
+    tags = models.ManyToManyField("Tag", related_name="study_tags")
     updated_at = models.DateTimeField(auto_now=True)
     cover = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
-        db_table = 'studies'
+        db_table = "studies"
 
     @property
     def bucket(self):
-        return "lynx-workspace-"+str(self.id)
+        return "lynx-workspace-" + str(self.id)
+
 
 @receiver(signals.pre_delete, sender=Study)
 def delete_study(sender, instance, **kwargs):
     study = instance
-    print("deleting study: "+str(study.id))
+    print("deleting study: " + str(study.id))
     s3_client = boto3.client("s3")
 
     try:
         lib.delete_bucket(study.bucket)
 
-        print("deleted bucket: "+study.bucket)
+        print("deleted bucket: " + study.bucket)
     except s3_client.exceptions.NoSuchBucket:
-        print("warning no bucket: "+study.bucket)
-    print("end deleting study "+str(study.id))
+        print("warning no bucket: " + study.bucket)
+    print("end deleting study " + str(study.id))
 
 
 class Dataset(models.Model):
-    states = (
-        ("public", "public"),
-        ("private", "private"),
-        ("archived", "archived")
-    )
+    states = (("public", "public"), ("private", "private"), ("archived", "archived"))
 
     possible_default_user_permissions_for_private_dataset = (
         ("none", "none"),
@@ -252,36 +254,51 @@ class Dataset(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
     readme = models.TextField(blank=True, null=True)
-    admin_users = models.ManyToManyField('User', related_name="admin_datasets")
-    aggregated_users = models.ManyToManyField('User', related_name="aggregated_datasets")
-    full_access_users = models.ManyToManyField('User', related_name="full_access_datasets")
-    user_created = models.ForeignKey('User', on_delete=models.SET_NULL, related_name="datasets_created", null=True)
-    tags = models.ManyToManyField('Tag', related_name="dataset_tags")
+    admin_users = models.ManyToManyField("User", related_name="admin_datasets")
+    aggregated_users = models.ManyToManyField(
+        "User", related_name="aggregated_datasets"
+    )
+    full_access_users = models.ManyToManyField(
+        "User", related_name="full_access_datasets"
+    )
+    user_created = models.ForeignKey(
+        "User", on_delete=models.SET_NULL, related_name="datasets_created", null=True
+    )
+    tags = models.ManyToManyField("Tag", related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
     is_discoverable = models.BooleanField(blank=False, null=False)
-    default_user_permission = models.CharField(choices=possible_default_user_permissions_for_private_dataset,
-                                               max_length=32, null=True)
+    default_user_permission = models.CharField(
+        choices=possible_default_user_permissions_for_private_dataset,
+        max_length=32,
+        null=True,
+    )
     bucket_override = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
     glue_database_override = models.CharField(max_length=255, blank=True, null=True)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
-    organization = models.ForeignKey('Organization', on_delete=models.DO_NOTHING, related_name="datasets", null=True)
+    organization = models.ForeignKey(
+        "Organization", on_delete=models.DO_NOTHING, related_name="datasets", null=True
+    )
     cover = models.CharField(max_length=255, blank=True, null=True)
-    ancestor = models.ForeignKey('self', on_delete=models.SET_NULL, related_name="children", null=True)
+    ancestor = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, related_name="children", null=True
+    )
 
     class Meta:
-        db_table = 'datasets'
+        db_table = "datasets"
 
     @property
     def permitted_users(self):
-        return (self.aggregated_users | self.admin_users | self.full_access_users).distinct()
+        return (
+            self.aggregated_users | self.admin_users | self.full_access_users
+        ).distinct()
 
     @property
     def glue_database(self):
         if self.glue_database_override:
             return self.glue_database_override
-        return "dataset-"+str(self.id)
+        return "dataset-" + str(self.id)
 
     @property
     def bucket(self):
@@ -293,16 +310,16 @@ class Dataset(models.Model):
 @receiver(signals.pre_delete, sender=Dataset)
 def delete_dataset(sender, instance, **kwargs):
     dataset = instance
-    print("deleting dataset: "+str(dataset.id))
+    print("deleting dataset: " + str(dataset.id))
     s3_client = boto3.client("s3")
     s3_resource = boto3.resource("s3")
     try:
         lib.delete_bucket(dataset.bucket)
 
-        print("deleted bucket: "+dataset.bucket)
+        print("deleted bucket: " + dataset.bucket)
     except s3_client.exceptions.NoSuchBucket:
-        print("warning no bucket: "+dataset.bucket)
-    print("end deleting dataset "+str(dataset.id))
+        print("warning no bucket: " + dataset.bucket)
+    print("end deleting dataset " + str(dataset.id))
 
 
 class DataSource(models.Model):
@@ -310,23 +327,29 @@ class DataSource(models.Model):
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
     s3_objects = JSONField(null=True, blank=True, default=None)
-    dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="data_sources")
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="data_sources"
+    )
     type = models.CharField(null=True, blank=True, max_length=32)
     about = models.TextField(null=True, blank=True, max_length=2048)
     state = models.CharField(null=True, blank=True, max_length=32)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
-    ancestor = models.ForeignKey('self', on_delete=models.SET_NULL, related_name="children", null=True)
+    ancestor = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, related_name="children", null=True
+    )
     cohort = JSONField(null=True, blank=True, default=None)
 
     class Meta:
-        db_table = 'data_sources'
+        db_table = "data_sources"
         unique_together = (("name", "dataset"),)
 
     @property
     def glue_table(self):
         if not self.type == "structured":
             return None
-        name = self.dir.translate({ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "})
+        name = self.dir.translate(
+            {ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "}
+        )
         name = name.lower()
         return name
 
@@ -338,35 +361,34 @@ class DataSource(models.Model):
 @receiver(signals.pre_delete, sender=DataSource)
 def delete_data_source(sender, instance, **kwargs):
     data_source = instance
-    print("deleting data source"+str(data_source.name)+". "+str(data_source.id))
+    print("deleting data source" + str(data_source.name) + ". " + str(data_source.id))
     if data_source.glue_table:
         try:
-            glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
+            glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
             glue_client.delete_table(
                 DatabaseName=data_source.dataset.glue_database,
-                Name=data_source.glue_table
+                Name=data_source.glue_table,
             )
-            print("removed glue table: "+data_source.glue_table)
+            print("removed glue table: " + data_source.glue_table)
         except Exception as e:
             print("warning no glue table")
 
     if data_source.dir:
-        if data_source.dir=="":
+        if data_source.dir == "":
             print("warning: data source has dir is '' (empty string)")
 
-        else: #delete dir in bucket
-            s3_resource = boto3.resource('s3')
+        else:  # delete dir in bucket
+            s3_resource = boto3.resource("s3")
             s3_client = boto3.client("s3")
             try:
                 bucket = s3_resource.Bucket(data_source.bucket)
-                bucket.objects.filter(Prefix=data_source.dir+"/").delete()
+                bucket.objects.filter(Prefix=data_source.dir + "/").delete()
             except s3_client.exceptions.NoSuchKey:
                 print("warning: data source dir not exists")
             except s3_client.exceptions.NoSuchBucket:
-                print("warning no such bucket: "+data_source.bucket)
+                print("warning no such bucket: " + data_source.bucket)
 
     print("end deleting data source")
-
 
 
 class Tag(models.Model):
@@ -375,7 +397,7 @@ class Tag(models.Model):
     category = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
-        db_table = 'tags'
+        db_table = "tags"
         unique_together = (("name", "category"),)
 
     def __str__(self):
@@ -384,11 +406,13 @@ class Tag(models.Model):
 
 class Execution(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    real_user = models.ForeignKey('User', on_delete=models.CASCADE, null=True)
-    execution_user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="the_execution", null=True)
+    real_user = models.ForeignKey("User", on_delete=models.CASCADE, null=True)
+    execution_user = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="the_execution", null=True
+    )
 
     class Meta:
-        db_table = 'executions'
+        db_table = "executions"
 
     @property
     def token(self):
@@ -398,44 +422,59 @@ class Execution(models.Model):
 class Activity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ts = models.DateTimeField(auto_now_add=True)
-    user = models.ForeignKey('User', on_delete=models.SET_NULL, related_name="activities", null=True)
-    dataset = models.ForeignKey('Dataset', on_delete=models.SET_NULL, related_name="activities", null=True)
-    study = models.ForeignKey('Study', on_delete=models.SET_NULL, related_name="activities", null=True)
+    user = models.ForeignKey(
+        "User", on_delete=models.SET_NULL, related_name="activities", null=True
+    )
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.SET_NULL, related_name="activities", null=True
+    )
+    study = models.ForeignKey(
+        "Study", on_delete=models.SET_NULL, related_name="activities", null=True
+    )
     type = models.CharField(null=True, blank=True, max_length=32)
     note = models.CharField(null=True, blank=True, max_length=2048)
     meta = JSONField(null=True, blank=True, default=None)
 
     class Meta:
-        db_table = 'activities'
+        db_table = "activities"
 
 
 class Request(models.Model):
-    types = (
-        ("dataset_access", "dataset_access"),
-    )
+    types = (("dataset_access", "dataset_access"),)
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    user_requested = models.ForeignKey('User', on_delete=models.CASCADE, related_name="requests", null=True)
-    dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="requests", null=True)
-    study = models.ForeignKey('Study', on_delete=models.CASCADE, related_name="requests", null=True)
+    user_requested = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="requests", null=True
+    )
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="requests", null=True
+    )
+    study = models.ForeignKey(
+        "Study", on_delete=models.CASCADE, related_name="requests", null=True
+    )
     type = models.CharField(choices=types, max_length=32)
     note = models.CharField(null=True, blank=True, max_length=2048)
     permission = models.CharField(null=True, blank=True, max_length=32)
     state = models.CharField(null=True, blank=True, default="pending", max_length=32)
 
     class Meta:
-        db_table = 'requests'
+        db_table = "requests"
 
 
 class Documentation(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    dataset = models.ForeignKey('Dataset', on_delete=models.CASCADE, related_name="documentation", max_length=255)
+    dataset = models.ForeignKey(
+        "Dataset",
+        on_delete=models.CASCADE,
+        related_name="documentation",
+        max_length=255,
+    )
     file_name = models.CharField(max_length=255, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'documentations'
+        db_table = "documentations"

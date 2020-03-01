@@ -26,48 +26,56 @@ def break_s3_object(obj):
     return path, file_name, file_name_no_ext, ext
 
 
-def create_s3_bucket(name, s3_client=None, encrypt=settings.secured_bucket, https_only=settings.AWS['SECURED_BUCKET']):
+def create_s3_bucket(
+    name,
+    s3_client=None,
+    encrypt=settings.secured_bucket,
+    https_only=settings.AWS["SECURED_BUCKET"],
+):
     if not s3_client:
-        s3_client = boto3.client('s3')
-    #https://github.com/boto/boto3/issues/125
-    if settings.AWS['AWS_REGION'] == 'us-east-1':
+        s3_client = boto3.client("s3")
+    # https://github.com/boto/boto3/issues/125
+    if settings.AWS["AWS_REGION"] == "us-east-1":
         s3_client.create_bucket(Bucket=name)
     else:
-        s3_client.create_bucket(Bucket=name,
-                         CreateBucketConfiguration={'LocationConstraint': settings.AWS['AWS_REGION']}, )
+        s3_client.create_bucket(
+            Bucket=name,
+            CreateBucketConfiguration={
+                "LocationConstraint": settings.AWS["AWS_REGION"]
+            },
+        )
 
     if encrypt:
         s3_client.put_bucket_encryption(
             Bucket=name,
             ServerSideEncryptionConfiguration={
-                'Rules': [
+                "Rules": [
                     {
-                        'ApplyServerSideEncryptionByDefault': {
-                            'SSEAlgorithm': 'aws:kms',
-                            'KMSMasterKeyID': settings.AWS['AWS_KMS_KEY_ID']
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": settings.AWS["AWS_KMS_KEY_ID"],
                         }
-                    },
+                    }
                 ]
-            }
+            },
         )
 
     if https_only:
         s3_client.put_bucket_policy(
             Bucket=name,
-            Policy=json.dumps({
-                "Statement": [
-                    {
-                        "Action": "s3:*",
-                        "Effect": "Deny",
-                        "Principal": "*",
-                        "Resource": "arn:aws:s3:::"+name+"/*",
-                        "Condition": {
-                            "Bool":
-                            {"aws:SecureTransport": False}
+            Policy=json.dumps(
+                {
+                    "Statement": [
+                        {
+                            "Action": "s3:*",
+                            "Effect": "Deny",
+                            "Principal": "*",
+                            "Resource": "arn:aws:s3:::" + name + "/*",
+                            "Condition": {"Bool": {"aws:SecureTransport": False}},
                         }
-                    }
-                ]
-            })
+                    ]
+                }
+            ),
         )
 
 
@@ -91,18 +99,18 @@ class MyTokenAuthentication(TokenAuthentication):
     def authenticate_credentials(self, key):
         model = self.get_model()
         try:
-            token = model.objects.select_related('user').get(key=key)
+            token = model.objects.select_related("user").get(key=key)
         except model.DoesNotExist:
-            raise AuthenticationFailed('Invalid token.')
+            raise AuthenticationFailed("Invalid token.")
 
         if not token.user.is_active:
-            raise AuthenticationFailed('User inactive or deleted')
+            raise AuthenticationFailed("User inactive or deleted")
 
         # This is required for the time comparison
         now = dt.now()
 
         if token.created < now - td(hours=settings.token_valid_hours):
-            raise AuthenticationFailed('Token has expired')
+            raise AuthenticationFailed("Token has expired")
 
         # if there are issues with multiple tokens for users uncomment
         # token.created = now
@@ -112,37 +120,30 @@ class MyTokenAuthentication(TokenAuthentication):
 
 
 def create_glue_database(dataset):
-    glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
-
+    glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
 
     print("creating glue database")
-    #dataset.glue_database = "dataset-" + str(dataset.id)
-    glue_client.create_database(
-        DatabaseInput={
-            "Name": dataset.glue_database
-        }
-    )
+    # dataset.glue_database = "dataset-" + str(dataset.id)
+    glue_client.create_database(DatabaseInput={"Name": dataset.glue_database})
 
     dataset.save()
 
 
 def create_catalog(data_source):
 
-    glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
+    glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
     print("creating database crawler")
     create_glue_crawler(data_source)  # if no dataset no crawler
 
-    print('starting the database crawler')
+    print("starting the database crawler")
     glue_client.start_crawler(Name="data_source-" + str(data_source.id))
 
     crawler_ready = False
     retries = 50
 
     while not crawler_ready and retries >= 0:
-        res = glue_client.get_crawler(
-            Name="data_source-" + str(data_source.id)
-        )
-        crawler_ready = True if res['Crawler']['State'] == 'READY' else False
+        res = glue_client.get_crawler(Name="data_source-" + str(data_source.id))
+        crawler_ready = True if res["Crawler"]["State"] == "READY" else False
         sleep(5)
         retries -= 1
 
@@ -152,53 +153,62 @@ def create_catalog(data_source):
         data_source.save()
 
     else:
-        glue_client.delete_crawler(
-            Name="data_source-" + str(data_source.id)
-        )
+        glue_client.delete_crawler(Name="data_source-" + str(data_source.id))
         data_source.state = "ready"
         data_source.save()
 
 
 def create_glue_crawler(data_source):
-    glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
+    glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
 
-    path, file_name, file_name_no_ext, ext = break_s3_object(data_source.s3_objects[0]['key'])
+    path, file_name, file_name_no_ext, ext = break_s3_object(
+        data_source.s3_objects[0]["key"]
+    )
     glue_client.create_crawler(
         Name="data_source-" + str(data_source.id),
-        Role=settings.GLUE['AWS_GLUE_SERVICE_ROLE'],
+        Role=settings.GLUE["AWS_GLUE_SERVICE_ROLE"],
         DatabaseName="dataset-" + str(data_source.dataset.id),
-        Description='',
+        Description="",
         Targets={
-            'S3Targets': [
+            "S3Targets": [
                 {
-                    'Path': 's3://' + data_source.dataset.bucket + "/" + path + "/",
-                    'Exclusions': []
-                },
+                    "Path": "s3://" + data_source.dataset.bucket + "/" + path + "/",
+                    "Exclusions": [],
+                }
             ]
         },
         SchemaChangePolicy={
-            'UpdateBehavior': 'UPDATE_IN_DATABASE',
-            'DeleteBehavior': 'DELETE_FROM_DATABASE'
-        })
+            "UpdateBehavior": "UPDATE_IN_DATABASE",
+            "DeleteBehavior": "DELETE_FROM_DATABASE",
+        },
+    )
 
 
 def handle_zipped_data_source(data_source):
-    s3_obj = data_source.s3_objects[0]['key']
+    s3_obj = data_source.s3_objects[0]["key"]
     path, file_name, file_name_no_ext, ext = break_s3_object(s3_obj)
 
-    s3_client = boto3.client('s3')
+    s3_client = boto3.client("s3")
     workdir = "/tmp/" + str(data_source.id) + "/" + file_name_no_ext
     os.makedirs(workdir + "/extracted")
-    s3_client.download_file(data_source.dataset.bucket, s3_obj, workdir + "/" + file_name)
-    zip_ref = zipfile.ZipFile(workdir + "/" + file_name, 'r')
+    s3_client.download_file(
+        data_source.dataset.bucket, s3_obj, workdir + "/" + file_name
+    )
+    zip_ref = zipfile.ZipFile(workdir + "/" + file_name, "r")
     try:
         zip_ref.extractall(workdir + "/extracted")
     except:
         data_source.state = "error: failed to extract zip file"
     zip_ref.close()
     subprocess.check_output(
-        ["aws", "s3", "sync", workdir + "/extracted",
-         "s3://" + data_source.dataset.bucket + "/" + path + "/" + file_name_no_ext])
+        [
+            "aws",
+            "s3",
+            "sync",
+            workdir + "/extracted",
+            "s3://" + data_source.dataset.bucket + "/" + path + "/" + file_name_no_ext,
+        ]
+    )
     shutil.rmtree("/tmp/" + str(data_source.id))
     data_source.state = "ready"
     data_source.save()
@@ -229,27 +239,42 @@ def calc_access_to_database(user, dataset):
 def close_all_jh_running_servers(idle_for_hours=0):
     import dateparser
     from datetime import datetime as dt, timedelta as td
-    headers = {"Authorization": "Bearer " + settings['JH_API_ADMIN_TOKEN'], "ALBTOKEN": settings['JH_ALB_TOKEN']}
-    res = requests.get(settings['JH_URL'] + 'hub/api/users', headers=headers, verify=False)
+
+    headers = {
+        "Authorization": "Bearer " + settings["JH_API_ADMIN_TOKEN"],
+        "ALBTOKEN": settings["JH_ALB_TOKEN"],
+    }
+    res = requests.get(
+        settings["JH_URL"] + "hub/api/users", headers=headers, verify=False
+    )
     assert res.status_code == 200, "error getting users: " + res.text
     users = json.loads(res.text)
 
     for user in users:
         # if user['admin']:
         #     continue
-        if user['server']:
-            last_activity = user['last_activity'] or user['created']
+        if user["server"]:
+            last_activity = user["last_activity"] or user["created"]
 
             idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
             if idle_time > td(hours=idle_for_hours):
                 res = requests.delete(
-                    settings['JH_URL'] + 'hub/api/users/' + user['name'] + '/server',
+                    settings["JH_URL"] + "hub/api/users/" + user["name"] + "/server",
                     headers=headers,
-                    verify=False
+                    verify=False,
                 )
-                print("user", user['name'], "idle time:", idle_time, str(res.status_code), res.text)
+                print(
+                    "user",
+                    user["name"],
+                    "idle time:",
+                    idle_time,
+                    str(res.status_code),
+                    res.text,
+                )
             else:
-                print(user['name'], "idle time:", idle_time, "<", td(hours=idle_for_hours))
+                print(
+                    user["name"], "idle time:", idle_time, "<", td(hours=idle_for_hours)
+                )
 
 
 def load_tags(delete_removed_tags=True):
@@ -259,19 +284,20 @@ def load_tags(delete_removed_tags=True):
             models.Tag.objects.all().delete()
 
         for tag in tags:
-            tag_db, created = models.Tag.objects.get_or_create(name=tag['tag_name'], category=tag['category'])
+            tag_db, created = models.Tag.objects.get_or_create(
+                name=tag["tag_name"], category=tag["category"]
+            )
             if not created:
                 print("warning, duplicate:", tag)
 
 
 def get_s3_object(bucket, key, s3_client=None, retries=60):
     if not s3_client:
-        s3_client = boto3.client('s3')
+        s3_client = boto3.client("s3")
 
     while True:
         try:
-            obj = s3_client.get_object(Bucket=bucket,
-                                       Key=key)
+            obj = s3_client.get_object(Bucket=bucket, Key=key)
             return obj
         except s3_client.exceptions.NoSuchKey:
             if retries > 0:
@@ -285,12 +311,12 @@ def get_s3_object(bucket, key, s3_client=None, retries=60):
 def csv_to_json(csv, columns_types):
     def convert(value, type):
 
-        if value in ('', '""'):
+        if value in ("", '""'):
             return None
         try:
-            if type == 'bigint':
+            if type == "bigint":
                 return int(value)
-            if type == 'double':
+            if type == "double":
                 return float(value)
         except:
             return str(value)
@@ -299,27 +325,24 @@ def csv_to_json(csv, columns_types):
 
     dic = {}
 
-    rows = csv.split('\n')
-    columns_name = rows[0].split(',')
+    rows = csv.split("\n")
+    columns_name = rows[0].split(",")
     for i, column_name in enumerate(columns_name):
         dic[column_name] = []
 
         for row in rows[1:]:
             cols = row.split(",")
-            dic[column_name].append(convert(cols[i], columns_types[i]['Type']))
+            dic[column_name].append(convert(cols[i], columns_types[i]["Type"]))
 
     return dic
 
 
 def get_columns_types(glue_database, glue_table):
-    glue_client = boto3.client("glue", region_name=settings.AWS['AWS_REGION'])
+    glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
 
-    response = glue_client.get_table(
-        DatabaseName=glue_database,
-        Name=glue_table
-    )
+    response = glue_client.get_table(DatabaseName=glue_database, Name=glue_table)
 
-    columns_types = response["Table"]['StorageDescriptor']['Columns']
+    columns_types = response["Table"]["StorageDescriptor"]["Columns"]
     return columns_types
 
 
@@ -333,42 +356,44 @@ def get_query_no_limit_and_count_query(query):
     if "limit" in tokens_values:
         i_limit = tokens_values.index("limit")
         limit = int(str(stmt.tokens[i_limit + 2]))
-        del stmt.tokens[i_limit:i_limit + 3]
+        del stmt.tokens[i_limit : i_limit + 3]
 
     where_clauses = stmt[8].value if len(list(stmt)) > 8 else ""
 
-    count_query = 'SELECT COUNT(*) FROM ' + stmt[6].value + ' ' + where_clauses
+    count_query = "SELECT COUNT(*) FROM " + stmt[6].value + " " + where_clauses
     query_no_limit = str(stmt)
 
     return query_no_limit, count_query, limit
 
 
-def list_objects_version(bucket, filter=None, exclude=None, start=None, end=None, prefix=""):
+def list_objects_version(
+    bucket, filter=None, exclude=None, start=None, end=None, prefix=""
+):
 
     import fnmatch
     import pytz
 
-    s3_client = boto3.client('s3')
-    items = s3_client.list_object_versions(Bucket=bucket, Prefix=prefix)['Versions']
+    s3_client = boto3.client("s3")
+    items = s3_client.list_object_versions(Bucket=bucket, Prefix=prefix)["Versions"]
 
     if start and end:
         assert start <= end, "start is has to be before end"
 
     if filter:
-        items = [x for x in items if fnmatch.fnmatch(x['Key'], filter)]
+        items = [x for x in items if fnmatch.fnmatch(x["Key"], filter)]
 
     if exclude:
-        items = [x for x in items if not fnmatch.fnmatch(x['Key'], exclude)]
+        items = [x for x in items if not fnmatch.fnmatch(x["Key"], exclude)]
 
     if start:
         if not start.tzinfo:
             start = start.replace(tzinfo=pytz.utc)
-        items = [x for x in items if x['LastModified'] >= start]
+        items = [x for x in items if x["LastModified"] >= start]
 
     if end:
         if not end.tzinfo:
             end = end.replace(tzinfo=pytz.utc)
-        items = [x for x in items if x['LastModified'] <= end]
+        items = [x for x in items if x["LastModified"] <= end]
 
     return items
 

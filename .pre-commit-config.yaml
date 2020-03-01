@@ -1,0 +1,31 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: no-commit-to-branch
+        args: [--branch, development, --branch, master]
+    -   id: check-merge-conflict
+    -   id: debug-statements
+    -   id: detect-aws-credentials
+    -   id: detect-private-key
+    -   id: check-json
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending
+    -   id: trailing-whitespace
+    -   id: name-tests-test
+        args: ['--django']
+    -   id: requirements-txt-fixer
+-   repo: https://github.com/psf/black
+    rev: 19.3b0
+    hooks:
+    -   id: black
+        exclude: ^mainapp/migrations/
+-   repo: local
+    hooks:
+    -   id: tests
+        name: tests
+        entry: ./manage.py test
+        language: system
+        pass_filenames: false
+        stages: [push]

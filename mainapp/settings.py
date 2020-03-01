@@ -25,56 +25,56 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'mainapp',
-    'rest_framework',
-    'rest_framework_swagger',
-    'corsheaders',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "mainapp",
+    "rest_framework",
+    "rest_framework_swagger",
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 ]
 
-ROOT_URLCONF = 'mainapp.urls'
+ROOT_URLCONF = "mainapp.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
         },
-    },
+    }
 ]
 
-WSGI_APPLICATION = 'mainapp.wsgi.application'
+WSGI_APPLICATION = "mainapp.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
     }
 }
 
@@ -83,25 +83,19 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -112,30 +106,27 @@ USE_TZ = False
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 
-AUTH_USER_MODEL = 'mainapp.User'
+AUTH_USER_MODEL = "mainapp.User"
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
-    'DEFAULT_PAGINATION_CLASS': None,
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.BasicAuthentication',  # for authentication using swagger and such
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    "DEFAULT_PAGINATION_CLASS": None,
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.BasicAuthentication",  # for authentication using swagger and such
         # 'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        "rest_framework.authentication.SessionAuthentication",
         # for authentication the api from browser using x-csrf header. (feedback api)
-        'django_cognito_jwt.JSONWebTokenAuthentication',
-        'mainapp.utils.lib.MyTokenAuthentication',
-
-    )
+        "django_cognito_jwt.JSONWebTokenAuthentication",
+        "mainapp.utils.lib.MyTokenAuthentication",
+    ),
 }
 
-STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles/')
+STATIC_ROOT = os.path.join(BASE_DIR, "../staticfiles/")
 CORS_ORIGIN_ALLOW_ALL = True
 token_valid_hours = 48
 
@@ -143,49 +134,51 @@ APPEND_SLASH = False
 
 secured_bucket = False
 
-ENV = os.getenv('ENV', 'local')
+ENV = os.getenv("ENV", "local")
 
-if ENV != 'local':
-    aws_response = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document')
+if ENV != "local":
+    aws_response = requests.get(
+        "http://169.254.169.254/latest/dynamic/instance-identity/document"
+    )
     aws_response_json = aws_response.json()
     ssm_client = boto3.client("ssm", region_name=aws_response_json["region"])
 
     response = ssm_client.get_parameters(
         Names=[
-            f'/lynx/be/{ENV}/AWS',
-            f'/lynx/be/{ENV}/COGNITO',
-            f'/lynx/be/{ENV}/GLUE',
-            f'/lynx/be/{ENV}/JH',
-            f'/lynx/be/{ENV}/SECRET_KEY',
-            f'/lynx/be/{ENV}/databases',
+            f"/lynx/be/{ENV}/AWS",
+            f"/lynx/be/{ENV}/COGNITO",
+            f"/lynx/be/{ENV}/GLUE",
+            f"/lynx/be/{ENV}/JH",
+            f"/lynx/be/{ENV}/SECRET_KEY",
+            f"/lynx/be/{ENV}/databases",
         ],
-        WithDecryption=True
+        WithDecryption=True,
     )
 
-    prefix = f'/lynx/be/{ENV}'
+    prefix = f"/lynx/be/{ENV}"
 
-    response_params = response['Parameters']
+    response_params = response["Parameters"]
     for item in response_params:
-        service_name = item['Name']
-        value = json.loads(item['Value'])
+        service_name = item["Name"]
+        value = json.loads(item["Value"])
 
-        if service_name == f'{prefix}/AWS':
+        if service_name == f"{prefix}/AWS":
             AWS = value
-            AWS['AWS_ACCOUNT_NUMBER'] = aws_response_json['accountId']
-            AWS['AWS_REGION'] = aws_response_json['region']
-        elif service_name == f'{prefix}/COGNITO':
-            COGNITO_AWS_REGION = value['COGNITO_AWS_REGION']
-            COGNITO_USER_POOL = value['COGNITO_USER_POOL']
-            COGNITO_AUDIENCE = value['COGNITO_AUDIENCE']
-        elif service_name == f'{prefix}/GLUE':
+            AWS["AWS_ACCOUNT_NUMBER"] = aws_response_json["accountId"]
+            AWS["AWS_REGION"] = aws_response_json["region"]
+        elif service_name == f"{prefix}/COGNITO":
+            COGNITO_AWS_REGION = value["COGNITO_AWS_REGION"]
+            COGNITO_USER_POOL = value["COGNITO_USER_POOL"]
+            COGNITO_AUDIENCE = value["COGNITO_AUDIENCE"]
+        elif service_name == f"{prefix}/GLUE":
             GLUE = value
-        elif service_name == f'{prefix}/JH':
-            JH_API_ADMIN_TOKEN = value['JH_API_ADMIN_TOKEN']
-            JH_URL = value['JH_URL']
-            JH_ALB_TOKEN = value['JH_ALB_TOKEN']
-        elif service_name == f'{prefix}/SECRET_KEY':
+        elif service_name == f"{prefix}/JH":
+            JH_API_ADMIN_TOKEN = value["JH_API_ADMIN_TOKEN"]
+            JH_URL = value["JH_URL"]
+            JH_ALB_TOKEN = value["JH_ALB_TOKEN"]
+        elif service_name == f"{prefix}/SECRET_KEY":
             SECRET_KEY = value
-        elif service_name == f'{prefix}/databases':
+        elif service_name == f"{prefix}/databases":
             DATABASES = value
 else:
     from .local_settings import *

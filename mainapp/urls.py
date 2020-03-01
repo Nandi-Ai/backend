@@ -24,44 +24,63 @@ from mainapp.views import schema_view
 
 # from django.contrib.auth import views as auth_views
 
-class OptionalSlashRouter(SimpleRouter):
 
+class OptionalSlashRouter(SimpleRouter):
     def __init__(self):
-        self.trailing_slash = '/?'
+        self.trailing_slash = "/?"
         super(SimpleRouter, self).__init__()
 
 
 router = OptionalSlashRouter()
 
-router.register(r'users', views.UserViewSet, 'users')
-router.register(r'organizations', views.OrganizationViewSet, 'organizations')
-router.register(r'tags', views.TagViewSet, 'tags')
-router.register(r'datasets', views.DatasetViewSet, 'datasets')
-router.register(r'data_sources', views.DataSourceViewSet, 'data_sources')
-router.register(r'studies', views.StudyViewSet, 'studies')
-router.register(r'activities', views.ActivityViewSet, 'activities')
-router.register(r'requests', views.RequestViewSet, 'requests')
-router.register(r'my_requests', views.MyRequestsViewSet, 'my_requests')
-router.register(r'documentation', views.DocumentationViewSet, 'documentation')
+router.register(r"users", views.UserViewSet, "users")
+router.register(r"organizations", views.OrganizationViewSet, "organizations")
+router.register(r"tags", views.TagViewSet, "tags")
+router.register(r"datasets", views.DatasetViewSet, "datasets")
+router.register(r"data_sources", views.DataSourceViewSet, "data_sources")
+router.register(r"studies", views.StudyViewSet, "studies")
+router.register(r"activities", views.ActivityViewSet, "activities")
+router.register(r"requests", views.RequestViewSet, "requests")
+router.register(r"my_requests", views.MyRequestsViewSet, "my_requests")
+router.register(r"documentation", views.DocumentationViewSet, "documentation")
 
 urlpatterns = [
-    url('', include(router.urls)),
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    path('admin/', admin.site.urls),
-    url(r'^docs/', schema_view),
-    url(r'^health_check_aws/?$', views.AWSHealthCheck.as_view(), name='health_check_aws'),
-    url(r'^me/?$', views.CurrentUserView.as_view(), name='me'),
-    url(r'^get_dataset_sts/(?P<dataset_id>[^/]+)/?$', views.GetDatasetSTS.as_view(), name='get_dataset_sts'), #for fronted
-    url(r'^get_execution/?$', views.GetExecution.as_view(), name='get_execution'), #for forntend
-    url(r'^get_execution_config/?$', views.GetExecutionConfig.as_view(), name='get_execution_config'), #for execution
-    url(r'^dummy/?$', views.Dummy.as_view(), name='dummy'),
-    url(r'^get_sts/?$', views.GetSTS.as_view(), name='get_sts'), #for execution
-    url(r'^get_static_sts/?$', views.GetStaticSTS.as_view(), name='get_static_sts'), # for uploading static images
-    url(r'^send_sync_signal/?$', views.SendSyncSignal.as_view(), name='send_sync_signal'), #for execution
-    url(r'^run_query/?$', views.RunQuery.as_view(), name='run_query'), #for execution
-    url(r'^create_cohort/?$', views.CreateCohort.as_view(), name='create_cohort'),
-    url(r'^query/?$', views.Query.as_view(), name='query'),
-    url(r'^versions/?$', views.Version.as_view(), name='versions'),
-    url(r'^requests/respond/(?P<user_request_id>[^/]+)/?$', views.HandleDatasetAccessRequest.as_view(),
-        name='respond_request'),
+    url("", include(router.urls)),
+    path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
+    path("admin/", admin.site.urls),
+    url(r"^docs/", schema_view),
+    url(
+        r"^health_check_aws/?$", views.AWSHealthCheck.as_view(), name="health_check_aws"
+    ),
+    url(r"^me/?$", views.CurrentUserView.as_view(), name="me"),
+    url(
+        r"^get_dataset_sts/(?P<dataset_id>[^/]+)/?$",
+        views.GetDatasetSTS.as_view(),
+        name="get_dataset_sts",
+    ),  # for fronted
+    url(
+        r"^get_execution/?$", views.GetExecution.as_view(), name="get_execution"
+    ),  # for forntend
+    url(
+        r"^get_execution_config/?$",
+        views.GetExecutionConfig.as_view(),
+        name="get_execution_config",
+    ),  # for execution
+    url(r"^dummy/?$", views.Dummy.as_view(), name="dummy"),
+    url(r"^get_sts/?$", views.GetSTS.as_view(), name="get_sts"),  # for execution
+    url(
+        r"^get_static_sts/?$", views.GetStaticSTS.as_view(), name="get_static_sts"
+    ),  # for uploading static images
+    url(
+        r"^send_sync_signal/?$", views.SendSyncSignal.as_view(), name="send_sync_signal"
+    ),  # for execution
+    url(r"^run_query/?$", views.RunQuery.as_view(), name="run_query"),  # for execution
+    url(r"^create_cohort/?$", views.CreateCohort.as_view(), name="create_cohort"),
+    url(r"^query/?$", views.Query.as_view(), name="query"),
+    url(r"^versions/?$", views.Version.as_view(), name="versions"),
+    url(
+        r"^requests/respond/(?P<user_request_id>[^/]+)/?$",
+        views.HandleDatasetAccessRequest.as_view(),
+        name="respond_request",
+    ),
 ]

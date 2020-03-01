@@ -8,7 +8,7 @@ admin.site.unregister(authgroup)
 
 class TagAdmin(admin.ModelAdmin):
     # fields = ('name', 'category')
-    list_display = ('name', 'category')
+    list_display = ("name", "category")
 
 
 admin.site.register(Tag, TagAdmin)

@@ -3,12 +3,12 @@ import django
 django.setup()
 
 from django.test import TestCase
-from mainapp.models import User, Organization, Dataset, Tag
+from mainapp.models import User, Organization, Dataset, Tag, DataSource
 
 
 class UserTest(TestCase):
-    admin_user_email = 'admin_user@lynx.com'
-    agg_user_email = 'agg_user@lynx.com'
+    admin_user_email = "admin_user@lynx.com"
+    agg_user_email = "agg_user@lynx.com"
 
     def create_admin_user(self):
         admin_user = User.objects.create(
@@ -16,11 +16,11 @@ class UserTest(TestCase):
             is_active=True,
             is_superuser=True,
             is_admin=True,
-            name='Lynx',
+            name="Lynx",
             first_login=False,
             organization=self.organization,
-            cognito_id='1234',
-            is_execution=True
+            cognito_id="1234",
+            is_execution=True,
         )
         return admin_user
 
@@ -30,39 +30,39 @@ class UserTest(TestCase):
             is_active=True,
             is_superuser=True,
             is_admin=False,
-            name='Lynx',
+            name="Lynx",
             first_login=False,
             organization=self.organization,
-            cognito_id='1324',
-            is_execution=True
+            cognito_id="1324",
+            is_execution=True,
         )
         return agg_user
 
     def create_hidden_dataset(self, admin_user, organization, tag):
         hidden_dataset = Dataset.objects.create(
-            name='Private Hidden Dataset',
-            description='...',
+            name="Private Hidden Dataset",
+            description="...",
             readme=None,
             user_created=admin_user,
-            state='private',
+            state="private",
             is_discoverable=False,
             organization=organization,
         )
         hidden_dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in [tag]]))
-        hidden_dataset.admin_users.set(User.objects.filter(id__in=[x.id for x in [admin_user]]))
+        hidden_dataset.admin_users.set(
+            User.objects.filter(id__in=[x.id for x in [admin_user]])
+        )
         return hidden_dataset
 
+    def create_datasource(self, dataset):
+        return DataSource.objects.create(name="A test DataSource", dataset=dataset)
+
     def create_dataset_tag(self):
-        tag = Tag.objects.create(
-            name='Test Tag'
-        )
+        tag = Tag.objects.create(name="Test Tag")
         return tag
 
     def create_organization(self):
-        organization = Organization.objects.create(
-            name='Lynx',
-            logo=None
-        )
+        organization = Organization.objects.create(name="Lynx", logo=None)
         return organization
 
     def setUp(self):
@@ -77,6 +77,12 @@ class UserTest(TestCase):
     def test_user_has_data_sources(self):
         admin_user = User.objects.get(email=self.admin_user_email)
         agg_user = User.objects.get(email=self.agg_user_email)
+        tag = self.create_dataset_tag()
+        organization = self.create_organization()
+        admin_dataset = self.create_hidden_dataset(admin_user, organization, tag)
+        agg_dataset = self.create_hidden_dataset(agg_user, organization, tag)
+        self.create_datasource(admin_dataset)
+        self.create_datasource(agg_dataset)
 
         self.assertTrue(admin_user.data_sources)
         self.assertTrue(agg_user.data_sources)
@@ -91,6 +97,10 @@ class UserTest(TestCase):
     def test_user_has_dataset(self):
         admin_user = User.objects.get(email=self.admin_user_email)
         agg_user = User.objects.get(email=self.agg_user_email)
+        tag = self.create_dataset_tag()
+        organization = self.create_organization()
+        self.create_hidden_dataset(admin_user, organization, tag)
+        self.create_hidden_dataset(agg_user, organization, tag)
 
         self.assertTrue(admin_user.datasets)
         self.assertTrue(agg_user.datasets)

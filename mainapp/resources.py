@@ -6,10 +6,10 @@ base_trust_relationship_doc = {
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::" + settings.AWS['AWS_ACCOUNT_NUMBER'] + ":root"
+                "AWS": "arn:aws:iam::" + settings.AWS["AWS_ACCOUNT_NUMBER"] + ":root"
             },
             "Action": "sts:AssumeRole",
-            "Condition": {}
+            "Condition": {},
         }
-    ]
+    ],
 }
