@@ -122,7 +122,7 @@ class MyTokenAuthentication(TokenAuthentication):
 def create_glue_database(dataset):
     glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
 
-    print("creating glue database")
+    print("Creating glue database")
     # dataset.glue_database = "dataset-" + str(dataset.id)
     glue_client.create_database(DatabaseInput={"Name": dataset.glue_database})
 
@@ -132,10 +132,10 @@ def create_glue_database(dataset):
 def create_catalog(data_source):
 
     glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
-    print("creating database crawler")
+    print("Creating database crawler")
     create_glue_crawler(data_source)  # if no dataset no crawler
 
-    print("starting the database crawler")
+    print("Starting the database crawler")
     glue_client.start_crawler(Name="data_source-" + str(data_source.id))
 
     crawler_ready = False
@@ -147,7 +147,7 @@ def create_catalog(data_source):
         sleep(5)
         retries -= 1
 
-    print("is crawler finished: ", crawler_ready)
+    print("Is crawler finished: ", crawler_ready)
     if not crawler_ready:
         data_source.state = "crawling error"
         data_source.save()
@@ -264,7 +264,7 @@ def close_all_jh_running_servers(idle_for_hours=0):
                     verify=False,
                 )
                 print(
-                    "user",
+                    "User",
                     user["name"],
                     "idle time:",
                     idle_time,
@@ -288,7 +288,7 @@ def load_tags(delete_removed_tags=True):
                 name=tag["tag_name"], category=tag["category"]
             )
             if not created:
-                print("warning, duplicate:", tag)
+                print("Warning, duplicate:", tag)
 
 
 def get_s3_object(bucket, key, s3_client=None, retries=60):
