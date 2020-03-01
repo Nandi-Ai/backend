@@ -95,7 +95,7 @@ class GetSTS(APIView):  # from execution
         try:
             study = Study.objects.filter(execution=execution).last()
         except Study.DoesNotExist:
-            return Error("this is not the execution of any study")
+            return Error("This is not the execution of any study")
 
         # Create IAM client
         sts_default_provider_chain = boto3.client("sts")
@@ -403,7 +403,7 @@ class HandleDatasetAccessRequest(APIView):
 
         if response not in possible_responses:
             return Error(
-                "please response with query string param: " + str(possible_responses)
+                "Please response with query string param: " + str(possible_responses)
             )
 
         try:
@@ -448,7 +448,7 @@ class RequestViewSet(ModelViewSet):
                     state="private"
                 ):
                     return Error(
-                        "can't request access for a dataset that is not private"
+                        "Can't request access for a dataset that is not private"
                     )
 
                 dataset = request_data["dataset"]
@@ -458,7 +458,7 @@ class RequestViewSet(ModelViewSet):
 
                 if request_data["permission"] not in permission_request_types:
                     return Error(
-                        "permission must be one of: " + str(permission_request_types)
+                        "Permission must be one of: " + str(permission_request_types)
                     )
 
                 # the logic validations:
@@ -467,7 +467,7 @@ class RequestViewSet(ModelViewSet):
                     and request_data["permission"] == "full_access"
                 ):
                     return Error(
-                        "you already have "
+                        "You already have "
                         + request_data["permission"]
                         + " access for that dataset"
                     )
@@ -476,11 +476,11 @@ class RequestViewSet(ModelViewSet):
                     request.user.permission(dataset) == "full_access"
                     and request_data["permission"] == "aggregated_access"
                 ):
-                    return Error("you already have aggregated access for that dataset")
+                    return Error("You already have aggregated access for that dataset")
 
                 if request.user.permission(dataset) is "admin":
                     return Error(
-                        "you are already an admin of this dataset so you have full permission"
+                        "You are already an admin of this dataset so you have full permission"
                     )
 
                 existing_requests = Request.objects.filter(
@@ -493,11 +493,11 @@ class RequestViewSet(ModelViewSet):
                 if existing_requests.filter(permission="aggregated_access"):
                     if request_data["permission"] == "aggregated_access":
                         return Error(
-                            "you already requested aggregated access for this dataset"
+                            "You already requested aggregated access for this dataset"
                         )
                     if request_data["permission"] == "full_access":
                         return Error(
-                            "you have already requested aggregated access for this dataset. "
+                            "You have already requested aggregated access for this dataset. "
                             "you have to wait for an admin to response your current request "
                             "before requesting full access"
                         )
@@ -934,7 +934,7 @@ class DataSourceViewSet(ModelViewSet):
             return Error(e, status_code=504)
         except KeyError:
             return Error(
-                "unexpected error: invalid or missing query result set", status_code=500
+                "Unexpected error: invalid or missing query result set", status_code=500
             )
         except Exception as e:
             return Error(e, status_code=500)
@@ -978,14 +978,14 @@ class DataSourceViewSet(ModelViewSet):
 
                 if len(data_source_data["s3_objects"]) != 1:
                     return Error(
-                        "data source of type structured and zip must include exactly one item in s3_objects json array"
+                        "Data source of type structured and zip must include exactly one item in s3_objects json array"
                     )
 
                 s3_obj = data_source_data["s3_objects"][0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
                 if ext not in ["sav", "zsav", "csv"]:
                     return Error(
-                        "file type is not supported as a structured data source"
+                        "File type is not supported as a structured data source"
                     )
 
             data_source = data_source_serialized.save()
@@ -1096,7 +1096,7 @@ class RunQuery(GenericAPIView):
                 dataset = study.datasets.get(id=req_dataset_id)
             except Dataset.DoesNotExist:
                 return Error(
-                    "no permission to this dataset. "
+                    "No permission to this dataset. "
                     "make sure it is exists, it's yours or shared with you, and under that study"
                 )
 
@@ -1107,11 +1107,11 @@ class RunQuery(GenericAPIView):
             if access == "aggregated access":
                 if not lib.is_aggregated(query_string):
                     return Error(
-                        "this is not an aggregated query. only aggregated queries are allowed"
+                        "This is not an aggregated query. only aggregated queries are allowed"
                     )
 
             if access == "no access":
-                return Error("no permission to query this dataset")
+                return Error("No permission to query this dataset")
 
             client = boto3.client("athena", region_name=settings.AWS["AWS_REGION"])
             try:
@@ -1153,7 +1153,7 @@ class CreateCohort(GenericAPIView):
                 dataset = user.datasets.get(id=req_dataset_id)
             except Dataset.DoesNotExist:
                 return Error(
-                    "no permission to this dataset. make sure it is exists, it's yours or shared with you"
+                    "No permission to this dataset. make sure it is exists, it's yours or shared with you"
                 )
 
             try:
@@ -1173,7 +1173,7 @@ class CreateCohort(GenericAPIView):
             access = lib.calc_access_to_database(user, dataset)
 
             if access == "no access":
-                return Error("no permission to query this dataset")
+                return Error("No permission to query this dataset")
 
             limit = query_serialized.validated_data["limit"]
 
@@ -1291,7 +1291,7 @@ class Query(GenericAPIView):
                 dataset = user.datasets.get(id=req_dataset_id)
             except Dataset.DoesNotExist:
                 return Error(
-                    "no permission to this dataset. make sure it is exists, it's yours or shared with you"
+                    "No permission to this dataset. make sure it is exists, it's yours or shared with you"
                 )
 
             try:
@@ -1304,7 +1304,7 @@ class Query(GenericAPIView):
             access = lib.calc_access_to_database(user, dataset)
 
             if access == "no access":
-                return Error("no permission to query this dataset")
+                return Error("No permission to query this dataset")
 
             # if access == "aggregated access":
             #    if not utils.is_aggregated(query_string):
@@ -1346,7 +1346,7 @@ class Query(GenericAPIView):
             client = boto3.client("athena", region_name=settings.AWS["AWS_REGION"])
 
             if sample_aprx or return_count:
-                print("count query: " + count_query)
+                print("Count query: " + count_query)
                 try:
                     response = client.start_query_execution(
                         QueryString=count_query,
@@ -1361,7 +1361,7 @@ class Query(GenericAPIView):
                     )
                 except Exception as e:
                     return Error(
-                        "failed executing the count query: "
+                        "Failed executing the count query: "
                         + count_query
                         + ". error: "
                         + str(e)
@@ -1379,7 +1379,7 @@ class Query(GenericAPIView):
                     )
                 except s3_client.exceptions.NoSuchKey:
                     return Error(
-                        "count query result file doesn't seem to exist in bucket. query string: "
+                        "Count query result file doesn't seem to exist in bucket. query string: "
                         + query
                     )
 
@@ -1405,7 +1405,7 @@ class Query(GenericAPIView):
             if limit:
                 final_query += " LIMIT " + str(limit)
 
-            print("final query: " + final_query)
+            print("Final query: " + final_query)
             try:
                 response = client.start_query_execution(
                     QueryString=final_query,
@@ -1492,7 +1492,7 @@ class ActivityViewSet(ModelViewSet):
 
         if not all([start_raw, end_raw]):
             return Error(
-                "please provide start and end as query string params in some datetime format"
+                "Please provide start and end as query string params in some datetime format"
             )
         try:
             start = dateparser.parse(start_raw)
@@ -1554,14 +1554,14 @@ class Version(APIView):
     def get(self, request):
 
         if "study" not in request.query_params:
-            return Error("please provide study as qsp")
+            return Error("Please provide study as qsp")
 
         study_id = request.query_params.get("study")
 
         try:
             study = request.user.studies.get(id=study_id)
         except Study.DoesNotExist:
-            return Error("study not exists or not permitted")
+            return Error("Study not exists or not permitted")
 
         start = request.GET.get("start")
         end = request.GET.get("end")
@@ -1572,7 +1572,7 @@ class Version(APIView):
             if end:
                 end = dateparser.parse(end)
         except exceptions.ValidationError as e:
-            return Error("cannot parse this format: " + str(e))
+            return Error("Cannot parse this format: " + str(e))
 
         if (start and end) and not start <= end:
             return Error("start > end")
