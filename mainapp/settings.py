@@ -188,12 +188,4 @@ if ENV != 'local':
         elif service_name == f'{prefix}/databases':
             DATABASES = value
 else:
-    import mainapp.local_settings as local_settings
-    AWS = local_settings.AWS
-    COGNITO = local_settings.COGNITO
-    GLUE = local_settings.GLUE
-    JH_API_ADMIN_TOKEN = local_settings.JH['JH_API_ADMIN_TOKEN']
-    JH_URL = local_settings.JH['JH_URL']
-    JH_ALB_TOKEN = local_settings.JH['JH_ALB_TOKEN']
-    SECRET_KEY = local_settings.SECRET_KEY
-    DATABASES = local_settings.DATABASES
+    from .local_settings import *
