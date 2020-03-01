@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework_swagger.views import get_swagger_view
 from slugify import slugify
+import botocore.exceptions
 
 from mainapp import resources, settings
 from mainapp.exceptions import (
@@ -607,6 +608,24 @@ class DatasetViewSet(ModelViewSet):
             # aws stuff
             s3 = boto3.client("s3")
             lib.create_s3_bucket(dataset.bucket, s3)
+            try:
+                lib.set_policy_clear_athena_history(
+                    s3_bucket=dataset.bucket, s3_client=s3
+                )
+            except botocore.exceptions.ClientError:
+                return Error(
+                    "The bucket does not exist or the user does not have the relevant permissions",
+                    status_code=500,
+                )
+            except exceptions.NoSuchLifecycleConfiguration:
+                return Error(
+                    "The lifecycle configuration does not exist", status_code=500
+                )
+            except Exception:
+                return Error(
+                    "There was an error setting the lifecycle policy for the dataset bucket",
+                    status_code=500,
+                )
             lib.create_glue_database(dataset)
             time.sleep(1)  # wait for the bucket to be created
 
@@ -1121,7 +1140,7 @@ class RunQuery(GenericAPIView):
                         "Database": dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        "OutputLocation": "s3://lynx-workspace-" + str(study.id)
+                        "OutputLocation": f"s3://lynx-dataset-{req_dataset_id}/temp_execution_results"
                     },
                 )
             except Exception as e:
@@ -1223,9 +1242,7 @@ class CreateCohort(GenericAPIView):
                         "Database": dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        "OutputLocation": "s3://"
-                        + destination_dataset.bucket
-                        + "/ctas_results/"
+                        "OutputLocation": f"s3://{destination_dataset.bucket}/temp_execution_results"
                     },
                 )
 

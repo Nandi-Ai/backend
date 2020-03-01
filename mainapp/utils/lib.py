@@ -405,3 +405,20 @@ def delete_bucket(bucket_name, s3_resource=None):
     bucket.object_versions.delete()
     bucket.objects.all().delete()
     bucket.delete()
+
+
+def set_policy_clear_athena_history(
+    s3_bucket, s3_client, expiration=1, prefix="temp_execution_results/"
+):
+    return s3_client.put_bucket_lifecycle_configuration(
+        Bucket=s3_bucket,
+        LifecycleConfiguration={
+            "Rules": [
+                {
+                    "Expiration": {"Days": expiration},
+                    "Filter": {"Prefix": prefix},
+                    "Status": "Enabled",
+                }
+            ]
+        },
+    )
