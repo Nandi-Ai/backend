@@ -78,9 +78,9 @@ def dev_express_to_sql(table, data_filter, columns, schema=None, limit=None):
     select = '"' + ('","'.join(columns)) + '"' if columns else "*"
 
     if schema:
-        query = f"SELECT {select} FROM {schema}.{table}"
+        query = f'SELECT {select} FROM "{schema}"."{table}"'
     else:
-        query = f"SELECT {select} FROM {table}"
+        query = f'SELECT {select} FROM "{table}"'
 
     if data_filter:
         query += f" {generate_where_sql_query(data_filter)}"

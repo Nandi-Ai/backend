@@ -302,7 +302,7 @@ class QueryViewTestCase(TestCase):
         columns = ["col1", "col2", "col3"]
         sql_query = (
             'SELECT "col1","col2","col3" '
-            "FROM data1 "
+            "FROM 'data1' "
             "WHERE lower(\"nationality\") = 'england' and lower(\"name\") LIKE '%me'".replace(
                 '"', "'"
             )
