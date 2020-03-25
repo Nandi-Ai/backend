@@ -19,22 +19,22 @@ After installation please check that ```python3``` and ```pip3``` are installed.
 ### Docker
 - Windows
 - Linux
-- Mac - `brew cask install docker`
+- Mac - `brew cask install docker` / download [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
 
 ### virtual env (like pipenv pyenv or Aanaconda)
 - Windows
 - Linux
-- Mac - `brew install pyenv`
+- Mac - `brew install pyenv pyenv-virtualenv`
 
 Go back to project:
 
-(recommended to use python version >= 3.6.7)
+(recommended to use python version >= 3.7.5)
 
 ```
    cd lynx-be
    pyenv install <python-version>
-   pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
-   pyenv local backend-3.6.7
+   pyenv virtualenv 3.7.5 <your-name-to-virtual-env>
+   pyenv local backend-3.7.5
 ```
 
    Update your bash/zsh profile
