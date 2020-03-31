@@ -7,7 +7,6 @@ import time
 import uuid
 from multiprocessing import Process
 
-import boto3
 import dateparser
 import pyreadstat
 from django.core import exceptions
@@ -40,6 +39,7 @@ from mainapp.models import (
     Activity,
     Request,
     Documentation,
+    StudyDataset,
 )
 from mainapp.serializers import (
     UserSerializer,
@@ -56,16 +56,19 @@ from mainapp.serializers import (
     CohortSerializer,
 )
 from mainapp.utils import devexpress_filtering
-from mainapp.utils import statistics, lib
+from mainapp.utils import statistics, lib, aws_service
+from mainapp.utils.response_handler import (
+    ErrorResponse,
+    ForbiddenErrorResponse,
+    NotFoundErrorResponse,
+    ConflictErrorResponse,
+    BadRequestErrorResponse,
+    UnimplementedErrorResponse,
+)
+import logging
 
 schema_view = get_swagger_view(title="Lynx API")
-
-
-class Error(Response):
-    def __init__(self, error, status_code=400):
-        super().__init__()
-        self.status_code = status_code
-        self.data = {"error": str(error)}
+logger = logging.getLogger(__name__)
 
 
 class SendSyncSignal(APIView):  # from execution
@@ -96,43 +99,75 @@ class GetSTS(APIView):  # from execution
         try:
             study = Study.objects.filter(execution=execution).last()
         except Study.DoesNotExist:
-            return Error("This is not the execution of any study")
+            return ErrorResponse("This is not the execution of any study")
 
         # Create IAM client
-        sts_default_provider_chain = boto3.client("sts")
+        sts_default_provider_chain = aws_service.create_sts_client(
+            org_name=request.user.organization.name
+        )
 
         workspace_bucket_name = "lynx-workspace-" + str(study.id)
 
+        org_name = request.user.organization.name
         role_name = "lynx-workspace-" + str(study.id)
-        role_to_assume_arn = (
-            "arn:aws:iam::" + settings.AWS["AWS_ACCOUNT_NUMBER"] + ":role/" + role_name
-        )
+        role_to_assume_arn = f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{role_name}"
 
-        response = sts_default_provider_chain.assume_role(
-            RoleArn=role_to_assume_arn, RoleSessionName="session"
-        )
+        try:
+            response = sts_default_provider_chain.assume_role(
+                RoleArn=role_to_assume_arn, RoleSessionName="session"
+            )
+        except botocore.exceptions.ClientError as e:
+            error = Exception(
+                f"Error calling 'assume_role' in 'GetSTS' for study {study.id}, organization: {org_name}"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
+        except Exception as e:
+            error = Exception(
+                f"There was an error when requesting STS credentials for study {study.id}"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
 
-        config = {}
-        config["bucket"] = workspace_bucket_name
-        config["aws_sts_creds"] = response["Credentials"]
+        config = {
+            "bucket": workspace_bucket_name,
+            "aws_sts_creds": response["Credentials"],
+            "region": settings.ORG_VALUES[org_name]["AWS_REGION"],
+        }
 
         return Response(config)
 
 
 class GetStaticSTS(APIView):  # from execution
     def get(self, request):
-        sts_default_provider_chain = boto3.client("sts")
-        static_bucket_name = settings.AWS["LYNX_FRONT_STATIC_BUCKET"]
+        sts_default_provider_chain = aws_service.create_sts_client()
+        static_bucket_name = settings.LYNX_FRONT_STATIC_BUCKET
         role_to_assume_arn = (
-            "arn:aws:iam::"
-            + settings.AWS["AWS_ACCOUNT_NUMBER"]
-            + ":role/"
-            + settings.AWS["AWS_STATIC_ROLE_NAME"]
+            f"arn:aws:iam::{settings.ORG_VALUES['lynx']['ACCOUNT_NUMBER']}:role/"
+            f"{settings.AWS_STATIC_ROLE_NAME}"
         )
 
-        response = sts_default_provider_chain.assume_role(
-            RoleArn=role_to_assume_arn, RoleSessionName="session"
-        )
+        try:
+            response = sts_default_provider_chain.assume_role(
+                RoleArn=role_to_assume_arn, RoleSessionName="session"
+            )
+        except botocore.exceptions.ClientError as e:
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=e,
+            )
+        except Exception as e:
+            error = Exception(
+                f"The server can't process your request due to unexpected internal error"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
 
         config = {
             "bucket": static_bucket_name,
@@ -142,7 +177,7 @@ class GetStaticSTS(APIView):  # from execution
         return Response(config)
 
 
-class Dummy(APIView):
+class Dummy(APIView):  # usage in Lambda Function
     def get(self, request):
         return Response()
 
@@ -154,10 +189,12 @@ class GetExecution(APIView):  # from frontend
         try:
             study = request.user.studies.get(id=study_id)
         except Study.DoesNotExist:
-            return Error("study does not exists")
+            return NotFoundErrorResponse(f"Study {study_id} does not exists")
 
         if request.user not in study.users.all():
-            return Error("only users that has this study can get a study execution")
+            return ForbiddenErrorResponse(
+                f"Only users that have this study {study_id} can get a study execution"
+            )
 
         if not study.execution:
             id = uuid.uuid4()
@@ -204,20 +241,28 @@ class StudyViewSet(ModelViewSet):
         study_serialized = self.serializer_class(data=request.data)
         if study_serialized.is_valid():
 
-            req_datasets = study_serialized.validated_data["datasets"]
+            req_datasets = study_serialized.validated_data["studydataset_set"]
             study_name = study_serialized.validated_data["name"]
 
             # TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
             # if study_name in [x.name for x in request.user.studies.all()]:
             #     return Error("this study already exist for that user")
 
-            if not all(rds in request.user.datasets.all() for rds in req_datasets):
-                return Error("not all datasets are related to the current user")
+            if not all(
+                rds["dataset"] in request.user.datasets.all() for rds in req_datasets
+            ):
+                return ForbiddenErrorResponse(
+                    f"Not all datasets are related to the current user {request.user.id}"
+                )
 
             study = Study.objects.create(name=study_name)
             study.description = study_serialized.validated_data["description"]
             req_users = study_serialized.validated_data["users"]
-            study.datasets.set(req_datasets)
+
+            study_datasets = map(
+                lambda x: StudyDataset.objects.create(study=study, **x), req_datasets
+            )
+            study.studydataset_set.set(study_datasets)
             study.users.set(
                 [request.user]
                 + list(User.objects.filter(id__in=[x.id for x in req_users]))
@@ -229,8 +274,31 @@ class StudyViewSet(ModelViewSet):
 
             study.save()
             workspace_bucket_name = "lynx-workspace-" + str(study.id)
-            s3 = boto3.client("s3")
-            lib.create_s3_bucket(workspace_bucket_name, s3)
+            s3 = aws_service.create_s3_client(org_name=request.user.organization.name)
+
+            try:
+                lib.create_s3_bucket(
+                    org_name=request.user.organization.name,
+                    name=workspace_bucket_name,
+                    s3_client=s3,
+                )
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
+            except Exception as e:
+                error = Exception(
+                    f"There was an error when trying to create a bucket for workspace: {study.id}"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
+
             time.sleep(1)  # wait for the bucket to be created
 
             policy_json = {
@@ -247,25 +315,78 @@ class StudyViewSet(ModelViewSet):
                     "arn:aws:s3:::" + dataset.bucket + "*"
                 )
 
-            client = boto3.client("iam")
+            client = aws_service.create_iam_client(
+                org_name=request.user.organization.name
+            )
             policy_name = "lynx-workspace-" + str(study.id)
 
-            response = client.create_policy(
-                PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
-            )
+            try:
+                response = client.create_policy(
+                    PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
+                )
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error"
+                ).with_traceback(e.__traceback__)
+                return ForbiddenErrorResponse(
+                    f"Unauthorized to perform this request", error=error
+                )
+            except Exception as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error for study workspace."
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
             policy_arn = response["Policy"]["Arn"]
 
             role_name = "lynx-workspace-" + str(study.id)
-            client.create_role(
-                RoleName=role_name,
-                AssumeRolePolicyDocument=json.dumps(
-                    resources.base_trust_relationship_doc
-                ),
-                Description=policy_name,
+            trust_policy_json = resources.create_base_trust_relationship(
+                org_name=request.user.organization.name
             )
+            try:
+                client.create_role(
+                    RoleName=role_name,
+                    AssumeRolePolicyDocument=json.dumps(trust_policy_json),
+                    Description=policy_name,
+                )
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error."
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
+            except Exception as e:
+                error = Exception(
+                    f"There was an error creating the role: {role_name}"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
-            client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+            try:
+                client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error."
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
+            except Exception as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error."
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
             for dataset in study.datasets.all():
                 Activity.objects.create(
@@ -279,60 +400,87 @@ class StudyViewSet(ModelViewSet):
                 self.serializer_class(study, allow_null=True).data, status=201
             )
         else:
-            return Error(study_serialized.errors)
+            return ErrorResponse(study_serialized.errors)
 
     def update(self, request, *args, **kwargs):
         serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if serialized.is_valid():  # if not valid super will handle it
-
             study_updated = serialized.validated_data
 
             study = self.get_object()
             if request.user not in study.users.all():
-                return Error("only the study creator can edit a study")
+                return ForbiddenErrorResponse(
+                    f"Only the study creator can edit a study"
+                )
 
-            client = boto3.client("iam")
-            policy_arn = (
-                "arn:aws:iam::"
-                + settings.AWS["AWS_ACCOUNT_NUMBER"]
-                + ":policy/lynx-workspace-"
-                + str(study.id)
+            client = aws_service.create_iam_client(
+                org_name=request.user.organization.name
             )
+            policy_arn = f"arn:aws:iam::{settings.ORG_VALUES['lynx']['ACCOUNT_NUMBER']}:policy/lynx-workspace-{study.id}"
 
-            role_name = "lynx-workspace-" + str(study.id)
+            role_name = f"lynx-workspace-{study.id}"
 
-            client.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
-
-            client.delete_policy(PolicyArn=policy_arn)
+            try:
+                client.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+                client.delete_policy(PolicyArn=policy_arn)
+            except client.exceptions.NoSuchEntityException:
+                logger.warning(
+                    f"Ignoring detaching and deleting role policy that not exist for role-name: {role_name}"
+                )
+            except Exception as e:
+                error = Exception(
+                    f"There was an unexpected error while detaching and deleting the role: {role_name}"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
             policy_json = {
                 "Version": "2012-10-17",
                 "Statement": [{"Effect": "Allow", "Action": "s3:*", "Resource": []}],
             }
 
-            policy_name = "lynx-workspace-" + str(study.id)
-            workspace_bucket_name = "lynx-workspace-" + str(study.id)
+            policy_name = f"lynx-workspace-{study.id}"
+            workspace_bucket_name = f"lynx-workspace-{study.id}"
             policy_json["Statement"][0]["Resource"].append(
-                "arn:aws:s3:::" + workspace_bucket_name + "*"
+                f"arn:aws:s3:::{workspace_bucket_name}*"
             )
 
-            for dataset in study_updated["datasets"]:
+            datasets = study_updated["studydataset_set"]
+            for dataset_data in datasets:
                 policy_json["Statement"][0]["Resource"].append(
-                    "arn:aws:s3:::" + dataset.bucket + "*"
+                    f'arn:aws:s3:::{dataset_data["dataset"].bucket}*'
                 )
 
-            response = client.create_policy(
-                PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
-            )
-
+            try:
+                response = client.create_policy(
+                    PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
+                )
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error."
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
+            except Exception as e:
+                error = Exception(
+                    f"There was an error creating this policy: {policy_name}"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
             policy_arn = response["Policy"]["Arn"]
 
-            role_name = "lynx-workspace-" + str(study.id)
+            role_name = f"lynx-workspace-{study.id}"
 
             client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
-            updated_datasets = set(study_updated["datasets"])
+            updated_datasets = set(map(lambda x: x["dataset"], datasets))
             existing_datasets = set(study.datasets.all())
             diff_datasets = updated_datasets ^ existing_datasets
             for d in diff_datasets & updated_datasets:
@@ -348,25 +496,49 @@ class GetDatasetSTS(APIView):  # for frontend uploads
         try:
             dataset = request.user.datasets.get(id=dataset_id)
         except Dataset.DoesNotExist:
-            return Error("dataset with that id not exists")
+            return NotFoundErrorResponse(
+                f"Dataset with that dataset_id {dataset_id} does not exists"
+            )
 
         # generate sts token so the user can upload the dataset to the bucket
-        sts_default_provider_chain = boto3.client("sts")
+        org_name = request.user.organization.name
+        sts_default_provider_chain = aws_service.create_sts_client(org_name=org_name)
+        # sts_default_provider_chain = aws_service.create_sts_client()
 
-        role_name = "lynx-dataset-" + str(dataset.id)
+        role_name = f"lynx-dataset-{dataset.id}"
         role_to_assume_arn = (
-            "arn:aws:iam::" + settings.AWS["AWS_ACCOUNT_NUMBER"] + ":role/" + role_name
+            f"arn:aws:iam::{settings.ORG_VALUES[request.user.organization.name]['ACCOUNT_NUMBER']}"
+            f":role/{role_name}"
         )
 
-        sts_response = sts_default_provider_chain.assume_role(
-            RoleArn=role_to_assume_arn, RoleSessionName="session", DurationSeconds=43200
-        )
+        try:
+            sts_response = sts_default_provider_chain.assume_role(
+                RoleArn=role_to_assume_arn,
+                RoleSessionName="session",
+                DurationSeconds=43200,
+            )
+        except botocore.exceptions.ClientError as e:
+            error = Exception(
+                f"The server can't process your request due to unexpected internal error"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
+        except Exception as e:
+            error = Exception(
+                f"There was an error creating STS token for dataset: {dataset_id}"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
 
-        config = {}
-
-        config["bucket"] = dataset.bucket
-        config["aws_sts_creds"] = sts_response["Credentials"]
-
+        config = {
+            "bucket": dataset.bucket,
+            "aws_sts_creds": sts_response["Credentials"],
+            "region": settings.ORG_VALUES[org_name]["AWS_REGION"],
+        }
         return Response(config)
 
 
@@ -374,25 +546,47 @@ class GetStudySTS(APIView):  # for frontend uploads
     def get(self, request, study_id):
         try:
             study = request.user.studies.get(id=study_id)
-        except Dataset.DoesNotExist:
-            return Error("study with that id not exists")
+        except Dataset.DoesNotExist as e:
+            raise NotFoundErrorResponse(
+                f"Study with that id {study_id} does not exists"
+            ) from e
 
         # generate sts token so the user can upload the dataset to the bucket
-        sts_default_provider_chain = boto3.client("sts")
-
-        role_name = "lynx-workspace-" + str(study.id)
-        role_to_assume_arn = (
-            "arn:aws:iam::" + settings.AWS["AWS_ACCOUNT_NUMBER"] + ":role/" + role_name
+        sts_default_provider_chain = aws_service.create_sts_client(
+            org_name=request.user.organization.name
         )
 
-        sts_response = sts_default_provider_chain.assume_role(
-            RoleArn=role_to_assume_arn, RoleSessionName="session", DurationSeconds=43200
-        )
+        role_name = f"lynx-workspace-{study.id}"
+        org_name = request.user.organization.name
+        role_to_assume_arn = f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{role_name}"
 
-        config = {}
-
-        config["bucket"] = study.bucket
-        config["aws_sts_creds"] = sts_response["Credentials"]
+        try:
+            sts_response = sts_default_provider_chain.assume_role(
+                RoleArn=role_to_assume_arn,
+                RoleSessionName="session",
+                DurationSeconds=43200,
+            )
+        except botocore.exceptions.ClientError as e:
+            error = Exception(
+                f"The server can't process your request due to unexpected internal error"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
+        except Exception as e:
+            error = Exception(
+                f"There was an error creating a STS token for this study: {study.id}"
+            ).with_traceback(e.__traceback__)
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=error,
+            )
+        config = {
+            "bucket": study.bucket,
+            "aws_sts_creds": sts_response["Credentials"],
+            "region": settings.ORG_VALUES[org_name]["AWS_REGION"],
+        }
 
         return Response(config)
 
@@ -403,14 +597,14 @@ class HandleDatasetAccessRequest(APIView):
         response = request.query_params.get("response")
 
         if response not in possible_responses:
-            return Error(
-                "Please response with query string param: " + str(possible_responses)
+            return NotFoundErrorResponse(
+                f"Please response with query string param: {possible_responses}"
             )
 
         try:
             user_request = self.request.user.requests_for_me.get(id=user_request_id)
         except Request.DoesNotExist:
-            return Error("request not found")
+            return NotFoundErrorResponse("Request not found")
 
         user_request.state = "approved" if response is "approve" else "denied"
         user_request.save()
@@ -443,23 +637,27 @@ class RequestViewSet(ModelViewSet):
                 permission_request_types = ["aggregated_access", "full_access"]
 
                 if not "dataset" in request_data:
-                    return Error("please mention dataset if type is dataset_access")
+                    return NotFoundErrorResponse(
+                        "Please mention dataset if type is dataset_access"
+                    )
 
                 if request_data["dataset"] not in request.user.datasets.filter(
                     state="private"
                 ):
-                    return Error(
-                        "Can't request access for a dataset that is not private"
+                    return NotFoundErrorResponse(
+                        f"Can not request access for a dataset that is not private"
                     )
 
                 dataset = request_data["dataset"]
 
                 if "permission" not in request_data:
-                    return Error("please mention a permission for that kind of request")
+                    return NotFoundErrorResponse(
+                        "Please mention a permission for that kind of request"
+                    )
 
                 if request_data["permission"] not in permission_request_types:
-                    return Error(
-                        "Permission must be one of: " + str(permission_request_types)
+                    return NotFoundErrorResponse(
+                        f"Permission must be one of: {permission_request_types}"
                     )
 
                 # the logic validations:
@@ -467,21 +665,24 @@ class RequestViewSet(ModelViewSet):
                     request.user.permission(dataset) == "full_access"
                     and request_data["permission"] == "full_access"
                 ):
-                    return Error(
-                        "You already have "
-                        + request_data["permission"]
-                        + " access for that dataset"
+                    return ConflictErrorResponse(
+                        f"You already have {request_data['permission']} access for this dataset {dataset.name}"
+                        f"with following dataset id {dataset.id}"
                     )
 
                 if (
                     request.user.permission(dataset) == "full_access"
                     and request_data["permission"] == "aggregated_access"
                 ):
-                    return Error("You already have aggregated access for that dataset")
+                    return ConflictErrorResponse(
+                        f"You already have aggregated access for this dataset {dataset.name}"
+                        f"with following dataset id{dataset.id}"
+                    )
 
                 if request.user.permission(dataset) is "admin":
-                    return Error(
-                        "You are already an admin of this dataset so you have full permission"
+                    return ConflictErrorResponse(
+                        f"You are already an admin of this dataset {dataset.name} with the following dataset id {dataset.id}. "
+                        f"Your are granted with full permission"
                     )
 
                 existing_requests = Request.objects.filter(
@@ -493,19 +694,21 @@ class RequestViewSet(ModelViewSet):
 
                 if existing_requests.filter(permission="aggregated_access"):
                     if request_data["permission"] == "aggregated_access":
-                        return Error(
-                            "You already requested aggregated access for this dataset"
+                        return ConflictErrorResponse(
+                            f"You already requested aggregated access for this dataset {dataset.name}"
+                            f"with following dataset id {dataset.id}"
                         )
                     if request_data["permission"] == "full_access":
-                        return Error(
-                            "You have already requested aggregated access for this dataset. "
-                            "you have to wait for an admin to response your current request "
+                        return ConflictErrorResponse(
+                            f"You have already requested aggregated access for this dataset {dataset.name} "
+                            f"with the following dataset id {dataset.id}."
+                            "You have to wait for an admin to response your current request "
                             "before requesting full access"
                         )
 
                 if existing_requests.filter(permission="full_access"):
-                    return Error(
-                        "you have already requested full access for that dataset"
+                    return ConflictErrorResponse(
+                        f"You have already requested full access for that dataset {dataset.name}"
                     )
 
                 request_data["user_requested"] = request.user
@@ -515,7 +718,9 @@ class RequestViewSet(ModelViewSet):
                     self.serializer_class(request, allow_null=True).data, status=201
                 )
         else:
-            return Error(request_serialized.errors)
+            return BadRequestErrorResponse(
+                f"Unknown request data type {request_serialized.errors}"
+            )
 
 
 class MyRequestsViewSet(ReadOnlyModelViewSet):
@@ -568,12 +773,14 @@ class DatasetViewSet(ModelViewSet):
 
         if dataset_data["state"] == "private":
             if "default_user_permission" not in dataset_data:
-                return Error(
-                    "default_user_permission must be set sice the state is private"
+                return BadRequestErrorResponse(
+                    "default_user_permission must be set since the state is private"
                 )
 
             if not dataset_data["default_user_permission"]:
-                return Error("default_user_permission must be none or aggregated")
+                return BadRequestErrorResponse(
+                    "default_user_permission must be none or aggregated"
+                )
 
     def get_queryset(self):
         return self.request.user.datasets
@@ -594,10 +801,14 @@ class DatasetViewSet(ModelViewSet):
 
             # additional validation only for create:
             if dataset_data["state"] == "public" and dataset_data["aggregated_users"]:
-                return Error("dataset with public state can't have aggregated users")
+                return BadRequestErrorResponse(
+                    "Dataset with public state can not have aggregated users"
+                )
 
             if dataset_data["state"] == "archived":
-                return Error("can't create new dataset with status archived")
+                return BadRequestErrorResponse(
+                    "Can't create new dataset with status archived"
+                )
 
             dataset = Dataset(
                 name=dataset_data["name"],
@@ -606,28 +817,59 @@ class DatasetViewSet(ModelViewSet):
             dataset.id = uuid.uuid4()
 
             # aws stuff
-            s3 = boto3.client("s3")
-            lib.create_s3_bucket(dataset.bucket, s3)
+            s3 = aws_service.create_s3_client(org_name=request.user.organization.name)
+
+            try:
+                lib.create_s3_bucket(
+                    org_name=request.user.organization.name,
+                    name=dataset.bucket,
+                    s3_client=s3,
+                )
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"Could not create s3 bucket {dataset.bucket} with following error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Could not create following dataset {dataset.name}", error=error
+                )
+
             try:
                 lib.set_policy_clear_athena_history(
                     s3_bucket=dataset.bucket, s3_client=s3
                 )
-            except botocore.exceptions.ClientError:
-                return Error(
-                    "The bucket does not exist or the user does not have the relevant permissions",
-                    status_code=500,
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"The bucket {dataset.bucket} does not exist or the user does not have the relevant permissions"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
                 )
             except exceptions.NoSuchLifecycleConfiguration:
-                return Error(
-                    "The lifecycle configuration does not exist", status_code=500
+                return ForbiddenErrorResponse(
+                    "The lifecycle configuration does not exist"
                 )
-            except Exception:
-                return Error(
-                    "There was an error setting the lifecycle policy for the dataset bucket",
-                    status_code=500,
+            except Exception as e:
+                error = Exception(
+                    f"There was an error setting the lifecycle policy for the dataset bucket with error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
                 )
-            lib.create_glue_database(dataset)
-            time.sleep(1)  # wait for the bucket to be created
+
+            try:
+                lib.create_glue_database(
+                    org_name=request.user.organization.name, dataset=dataset
+                )
+                time.sleep(1)  # wait for the bucket to be created
+            except botocore.exceptions.ClientError as e:
+                error = Exception(
+                    f"Could not create glue client with following error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Could not create dataset {dataset.name}", error=error
+                )
 
             cors_configuration = {
                 "CORSRules": [
@@ -641,12 +883,20 @@ class DatasetViewSet(ModelViewSet):
                 ]
             }
 
-            s3.put_bucket_cors(
-                Bucket=dataset.bucket, CORSConfiguration=cors_configuration
-            )
+            try:
+                s3.put_bucket_cors(
+                    Bucket=dataset.bucket, CORSConfiguration=cors_configuration
+                )
+            except Exception as e:
+                error = Exception(
+                    f"Couldn't put bucket {dataset.bucket} policy for current {dataset.bucket} bucket"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
             # create the dataset policy:
-
             policy_json = {
                 "Version": "2012-10-17",
                 "Statement": [{"Effect": "Allow", "Action": "s3:*", "Resource": []}],
@@ -655,28 +905,66 @@ class DatasetViewSet(ModelViewSet):
             policy_json["Statement"][0]["Resource"].append(
                 "arn:aws:s3:::" + dataset.bucket + "*"
             )
-            client = boto3.client("iam")
-
-            policy_name = "lynx-dataset-" + str(dataset.id)
-
-            response = client.create_policy(
-                PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
+            client = aws_service.create_iam_client(
+                org_name=request.user.organization.name
             )
+
+            policy_name = f"lynx-dataset-{dataset.id}"
+
+            try:
+                response = client.create_policy(
+                    PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
+                )
+            except botocore.exceptions.AccessDeniedException as e:
+                error = Exception(
+                    f"The user does not have needed permissions to create this policy: {policy_name}"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
+            except Exception as e:
+                error = Exception(
+                    f"There was an error when trying to create this policy {policy_name}"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
             policy_arn = response["Policy"]["Arn"]
 
             # create the dataset role:
             role_name = "lynx-dataset-" + str(dataset.id)
-            client.create_role(
-                RoleName=role_name,
-                AssumeRolePolicyDocument=json.dumps(
-                    resources.base_trust_relationship_doc
-                ),
-                Description=policy_name,
-                MaxSessionDuration=43200,
+            trust_policy_json = resources.create_base_trust_relationship(
+                request.user.organization.name
             )
+            try:
+                client.create_role(
+                    RoleName=role_name,
+                    AssumeRolePolicyDocument=json.dumps(trust_policy_json),
+                    Description=policy_name,
+                    MaxSessionDuration=43200,
+                )
+            except Exception as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
-            client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+            try:
+                client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+            except Exception as e:
+                error = Exception(
+                    f"The server can't process your request due to unexpected internal error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Unexpected error. Server was not able to complete this request.",
+                    error=error,
+                )
 
             dataset.save()
 
@@ -762,7 +1050,7 @@ class DatasetViewSet(ModelViewSet):
 
             return Response(data, status=201)
         else:
-            return Error(dataset_serialized.errors)
+            return BadRequestErrorResponse(f"Bad Request: {dataset_serialized.errors}")
 
     def update(self, request, *args, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -777,7 +1065,10 @@ class DatasetViewSet(ModelViewSet):
             dataset = self.get_object()
 
             if request.user.permission(dataset) != "admin":
-                return Error("this user can't update the dataset")
+                return ForbiddenErrorResponse(
+                    f"This user can't update the following dataset {dataset.name}"
+                    f"with following id {dataset.id}"
+                )
 
             # activity
             updated_admin = set(dataset_data["admin_users"])
@@ -872,12 +1163,16 @@ class DatasetViewSet(ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         dataset = self.get_object()
         if request.user.permission(dataset) != "admin":
-            return Error("this user can't delete the dataset")
+            return ForbiddenErrorResponse(
+                f"This user can't delete the following dataset {dataset.name}"
+                f"with following id {dataset.id}"
+            )
 
         def delete_dataset_tree(dataset):
             for child in dataset.children.all():
                 delete_dataset_tree(child)
                 child.delete()
+            logger.info(f"All subsets were deleted for dataset {dataset.id}")
 
         delete_tree_raw = request.GET.get("delete_tree")
         delete_tree = True if delete_tree_raw == "true" else False
@@ -891,6 +1186,7 @@ class DatasetViewSet(ModelViewSet):
                 child.save()
 
         dataset.delete()
+        logger.info(f"Dataset root was deleted {dataset.id}")
         return Response(status=204)
         # return super(self.__class__, self).destroy(request=self.request)
 
@@ -904,10 +1200,13 @@ class DataSourceViewSet(ModelViewSet):
     def statistics(self, request, pk=None):
         data_source = self.get_object()
         if data_source.state != "ready":
-            return Error("Data is still in processing", status_code=503)
+            return ErrorResponse(
+                f"Data is still in processing. Datasource id {data_source.name}",
+                status_code=503,
+            )
 
         glue_database = data_source.dataset.glue_database
-        bucket_name = "lynx-" + glue_database
+        bucket_name = f"lynx-{glue_database}"
         glue_table = data_source.glue_table
         query_from_front = request.query_params.get("grid_filter")
         if query_from_front:
@@ -915,13 +1214,15 @@ class DataSourceViewSet(ModelViewSet):
 
         try:
             columns_types = lib.get_columns_types(
-                glue_database=glue_database, glue_table=glue_table
+                org_name=request.user.organization.name,
+                glue_database=glue_database,
+                glue_table=glue_table,
             )
             default_athena_col_names = statistics.create_default_column_names(
                 columns_types
             )
         except UnableToGetGlueColumns as e:
-            return Error(e, status_code=501)
+            return ErrorResponse(f"Glue error", error=e)
 
         try:
             filter_query = (
@@ -933,37 +1234,38 @@ class DataSourceViewSet(ModelViewSet):
                 glue_table, columns_types, default_athena_col_names, filter_query
             )
         except UnsupportedColumnTypeError as e:
-            return Error(e, status_code=501)
+            return UnimplementedErrorResponse(
+                "There was some error in execution", error=e
+            )
         except Exception as e:
-            return Error(e, status_code=500)
+            return ErrorResponse("There was some error in execution", error=e)
 
         try:
             response = statistics.count_all_values_query(
-                query, glue_database, bucket_name
+                query, glue_database, bucket_name, request.user.organization.name
             )
             data_per_column = statistics.sql_response_processing(
                 response, default_athena_col_names
             )
             final_result = {"result": data_per_column, "columns_types": columns_types}
         except QueryExecutionError as e:
-            return Error(e, status_code=502)
-        except InvalidExecutionId as e:
-            return Error(e, status_code=500)
-        except MaxExecutionReactedError as e:
-            return Error(e, status_code=504)
-        except KeyError:
-            return Error(
-                "Unexpected error: invalid or missing query result set", status_code=500
+            return ErrorResponse(
+                "There was some error in execution", error=e, status_code=502
+            )
+        except (InvalidExecutionId, MaxExecutionReactedError) as e:
+            return ErrorResponse("There was some error in execution", error=e)
+        except KeyError as e:
+            return ErrorResponse(
+                "Unexpected error: invalid or missing query result set", error=e
             )
         except Exception as e:
-            return Error(e, status_code=500)
+            return ErrorResponse("There was some error in execution", error=e)
 
         if request.user in data_source.dataset.aggregated_users.all():
             max_rows_after_filter = statistics.max_count(response)
             if max_rows_after_filter < 100:
-                return Error(
-                    "Sorry, we can not show you the results, the cohort is too small",
-                    status_code=403,
+                return ForbiddenErrorResponse(
+                    "Sorry, we can not show you the results, the cohort is too small"
                 )
 
         return Response(final_result)
@@ -982,28 +1284,33 @@ class DataSourceViewSet(ModelViewSet):
             dataset = data_source_data["dataset"]
 
             if dataset not in request.user.datasets.all():
-                return Error("dataset doesn't exist or doesn't belong to the user")
+                return BadRequestErrorResponse(
+                    f"Dataset {dataset.id} does not exist or does not belong to the user"
+                )
 
             if data_source_data["type"] not in ds_types:
-                return Error("data source type must be one of: " + str(ds_types))
+                return BadRequestErrorResponse(
+                    f"Data source type must be one of: {ds_types}"
+                )
 
             if "s3_objects" in data_source_data:
                 if not isinstance(data_source_data["s3_objects"], list):
-                    return Error("s3 objects must be a (json) list")
+                    return ForbiddenErrorResponse("s3 objects must be a (json) list")
 
             if data_source_data["type"] in ["zip", "structured"]:
                 if "s3_objects" not in data_source_data:
-                    return "s3_objects field must be included"
+                    logger.exception("s3_objects field must be included")
 
                 if len(data_source_data["s3_objects"]) != 1:
-                    return Error(
-                        "Data source of type structured and zip must include exactly one item in s3_objects json array"
+                    return BadRequestErrorResponse(
+                        f"Data source of type {data_source_data['type']} "
+                        f"structured and zip must include exactly one item in s3_objects json array"
                     )
 
                 s3_obj = data_source_data["s3_objects"][0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
                 if ext not in ["sav", "zsav", "csv"]:
-                    return Error(
+                    return BadRequestErrorResponse(
                         "File type is not supported as a structured data source"
                     )
 
@@ -1018,20 +1325,37 @@ class DataSourceViewSet(ModelViewSet):
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
                 if ext in ["sav", "zsav"]:  # convert to csv
-                    s3_client = boto3.client("s3")
-                    workdir = "/tmp/" + str(data_source.id)
-                    os.makedirs(workdir)
-                    s3_client.download_file(
-                        data_source.dataset.bucket, s3_obj, workdir + "/" + file_name
+                    s3_client = aws_service.create_s3_client(
+                        org_name=request.user.organization.name
                     )
+                    workdir = f"/tmp/{data_source.id}"
+                    os.makedirs(workdir)
+                    try:
+                        s3_client.download_file(
+                            data_source.dataset.bucket,
+                            s3_obj,
+                            workdir + "/" + file_name,
+                        )
+                    except Exception as e:
+                        return ErrorResponse(
+                            f"There was an error to download the file {file_name} with error",
+                            error=e,
+                        )
+
                     df, meta = pyreadstat.read_sav(workdir + "/" + file_name)
                     csv_path_and_file = workdir + "/" + file_name_no_ext + ".csv"
                     df.to_csv(csv_path_and_file)
-                    s3_client.upload_file(
-                        csv_path_and_file,
-                        data_source.dataset.bucket,
-                        path + "/" + file_name_no_ext + ".csv",
-                    )
+                    try:
+                        s3_client.upload_file(
+                            csv_path_and_file,
+                            data_source.dataset.bucket,
+                            path + "/" + file_name_no_ext + ".csv",
+                        )
+                    except Exception as e:
+                        return ErrorResponse(
+                            f"There was an error to upload the file {file_name} with error",
+                            error=e,
+                        )
                     data_source.s3_objects.pop()
                     data_source.s3_objects.append(
                         {
@@ -1044,7 +1368,11 @@ class DataSourceViewSet(ModelViewSet):
                 data_source.state = "pending"
                 data_source.save()
                 create_catalog_thread = threading.Thread(
-                    target=lib.create_catalog, args=[data_source]
+                    target=lib.create_catalog,
+                    kwargs={
+                        "org_name": request.user.organization.name,
+                        "data_source": data_source,
+                    },
                 )  # also setting the data_source state to ready when it's done
                 create_catalog_thread.start()
 
@@ -1052,7 +1380,8 @@ class DataSourceViewSet(ModelViewSet):
                 data_source.state = "pending"
                 data_source.save()
                 handle_zip_thread = threading.Thread(
-                    target=lib.handle_zipped_data_source, args=[data_source]
+                    target=lib.handle_zipped_data_source,
+                    args=[data_source, request.user.organization.name],
                 )
                 handle_zip_thread.start()
 
@@ -1065,7 +1394,7 @@ class DataSourceViewSet(ModelViewSet):
             )
 
         else:
-            return Error(data_source_serialized.errors)
+            return BadRequestErrorResponse(data_source_serialized.errors)
 
     def update(self, request, *args, **kwargs):
         serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -1075,7 +1404,9 @@ class DataSourceViewSet(ModelViewSet):
             # TODO to check if that even possible since the get_queryset should already handle filtering it..
             # TODO if does can remove the update method
             if dataset not in request.user.datasets.all():
-                return Error("dataset doesn't exist or doesn't belong to the user")
+                return NotFoundErrorResponse(
+                    f"Dataset {dataset} does not exist or does not belong to the user"
+                )
 
         return super(self.__class__, self).update(request=self.request)
 
@@ -1085,7 +1416,7 @@ class DataSourceViewSet(ModelViewSet):
     #     if data_source.glue_table:
     #         # additional validations only for update:
     #         try:
-    #             glue_client = boto3.client('glue', region_name=settings.AWS['AWS_REGION'])
+    #             glue_client = aws_service.create_glue_client(settings.AWS['AWS_REGION'])
     #             glue_client.delete_table(
     #                 DatabaseName=data_source.dataset.glue_database,
     #                 Name=data_source.glue_table
@@ -1107,16 +1438,17 @@ class RunQuery(GenericAPIView):
             try:
                 study = Study.objects.get(execution=execution)
             except Study.DoesNotExist:
-                return Error("this is not the execution of any study")
+                return ErrorResponse("This is not the execution of any study")
 
             req_dataset_id = query_serialized.validated_data["dataset_id"]
 
             try:
                 dataset = study.datasets.get(id=req_dataset_id)
-            except Dataset.DoesNotExist:
-                return Error(
-                    "No permission to this dataset. "
-                    "make sure it is exists, it's yours or shared with you, and under that study"
+            except Dataset.DoesNotExist as e:
+                return ForbiddenErrorResponse(
+                    f"No permission to this dataset. "
+                    f"Make sure it exists, it's yours or shared with you, and under that study",
+                    error=e,
                 )
 
             query_string = query_serialized.validated_data["query_string"]
@@ -1125,14 +1457,16 @@ class RunQuery(GenericAPIView):
 
             if access == "aggregated access":
                 if not lib.is_aggregated(query_string):
-                    return Error(
-                        "This is not an aggregated query. only aggregated queries are allowed"
+                    return ErrorResponse(
+                        "This is not an aggregated query. Only aggregated queries are allowed"
                     )
 
             if access == "no access":
-                return Error("No permission to query this dataset")
+                return ForbiddenErrorResponse(f"No permission to query this dataset")
 
-            client = boto3.client("athena", region_name=settings.AWS["AWS_REGION"])
+            client = aws_service.create_athena_client(
+                org_name=request.user.organization.name
+            )
             try:
                 response = client.start_query_execution(
                     QueryString=query_string,
@@ -1144,8 +1478,12 @@ class RunQuery(GenericAPIView):
                     },
                 )
             except Exception as e:
-                return Error(str(e))
-
+                error = Exception(
+                    f"Failed to start_query_execution with the following error"
+                ).with_traceback(e.__traceback__)
+                return ErrorResponse(
+                    f"Could not execute the query for dataset {dataset.id}", error=error
+                )
             Activity.objects.create(
                 user=execution.real_user,
                 dataset=dataset,
@@ -1170,29 +1508,34 @@ class CreateCohort(GenericAPIView):
 
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
-            except Dataset.DoesNotExist:
-                return Error(
-                    "No permission to this dataset. make sure it is exists, it's yours or shared with you"
+            except Dataset.DoesNotExist as e:
+                return ForbiddenErrorResponse(
+                    f"No permission to this dataset. Make sure it exists, it's yours or shared with you",
+                    error=e,
                 )
 
             try:
                 destination_dataset = user.datasets.get(
                     id=query_serialized.validated_data["destination_dataset_id"]
                 )
-            except Dataset.DoesNotExist:
-                return Error("dataset not found or no permission")
+            except Dataset.DoesNotExist as e:
+                return ForbiddenErrorResponse(
+                    f"Dataset not found or does not have permissions", error=e
+                )
 
             try:
                 data_source = dataset.data_sources.get(
                     id=query_serialized.validated_data["data_source_id"]
                 )
-            except DataSource.DoesNotExist:
-                return Error("datasource not found or no permission")
+            except DataSource.DoesNotExist as e:
+                return ForbiddenErrorResponse(
+                    f"Dataset not found or does not have permissions", error=e
+                )
 
             access = lib.calc_access_to_database(user, dataset)
 
             if access == "no access":
-                return Error("No permission to query this dataset")
+                return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             limit = query_serialized.validated_data["limit"]
 
@@ -1216,7 +1559,19 @@ class CreateCohort(GenericAPIView):
             )
 
             if not destination_dataset.glue_database:
-                lib.create_glue_database(destination_dataset)
+                try:
+                    lib.create_glue_database(
+                        org_name=request.user.organization.name,
+                        dataset=destination_dataset,
+                    )
+                except Exception as e:
+                    error = Exception(
+                        f"There was an error creating glue database: {dataset.glue_database}"
+                    ).with_traceback(e.__traceback__)
+                    return ErrorResponse(
+                        f"Coud not create database for {dataset.glue_database}",
+                        error=error,
+                    )
 
             ctas_query = (
                 'CREATE TABLE "'
@@ -1232,9 +1587,12 @@ class CreateCohort(GenericAPIView):
                 + query
                 + ";"
             )
-            print(ctas_query)
 
-            client = boto3.client("athena", region_name=settings.AWS["AWS_REGION"])
+            logger.debug(f"Query result of CREATE TABLE AS SELECT {ctas_query}")
+
+            client = aws_service.create_athena_client(
+                org_name=request.user.organization.name
+            )
             try:
                 response = client.start_query_execution(
                     QueryString=ctas_query,
@@ -1246,17 +1604,17 @@ class CreateCohort(GenericAPIView):
                     },
                 )
 
-            except Exception as e:
-                return Error(
-                    "failed executing the CTAS query: "
-                    + ctas_query
-                    + ". error: "
-                    + str(e)
-                    + ". query string: "
-                    + query
+            except client.exceptions.InvalidRequestException as e:
+                error = Exception(
+                    f"Failed executing the CTAS query: {ctas_query}. "
+                    f"Query string: {query}"
+                ).with_traceback(e.__traceback__)
+                logger.debug(f"This is the ctas_query {ctas_query}")
+                return ErrorResponse(
+                    f"There was an error executing this query", error=error
                 )
 
-            print(str(response))
+            logger.debug(f"Response of created query {response}")
 
             new_data_source = data_source
             new_data_source.id = None
@@ -1267,8 +1625,11 @@ class CreateCohort(GenericAPIView):
 
             try:
                 new_data_source.save()
-            except IntegrityError:
-                return Error("this dataset already has data source with the same name")
+            except IntegrityError as e:
+                return ErrorResponse(
+                    f"Dataset {dataset.id} already has datasource with same name {new_data_source}",
+                    error=e,
+                )
 
             new_data_source.ancestor = data_source
             new_data_source.save()
@@ -1277,7 +1638,9 @@ class CreateCohort(GenericAPIView):
             return Response(req_res, status=201)
 
         else:
-            return Error(query_serialized.errors)
+            return BadRequestErrorResponse(
+                "Bad Request:", error=query_serialized.errors
+            )
 
 
 class Query(GenericAPIView):
@@ -1296,7 +1659,7 @@ class Query(GenericAPIView):
             result_format = request.GET.get("result_format")
 
             if result_format and not return_result:
-                Error("why result_format and no return_result=true ?")
+                ErrorResponse("Why result_format and no return_result=true ?")
 
             return_columns_types = (
                 True if request.GET.get("return_columns_types") == "true" else False
@@ -1306,22 +1669,26 @@ class Query(GenericAPIView):
 
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
-            except Dataset.DoesNotExist:
-                return Error(
-                    "No permission to this dataset. make sure it is exists, it's yours or shared with you"
+            except Dataset.DoesNotExist as e:
+                return NotFoundErrorResponse(
+                    f"No permission to this dataset. Make sure it is exists, it's yours or shared with you",
+                    error=e,
                 )
 
             try:
                 data_source = dataset.data_sources.get(
                     id=query_serialized.validated_data["data_source_id"]
                 )
-            except DataSource.DoesNotExist:
-                return Error("data source not exists")
+            except DataSource.DoesNotExist as e:
+                return NotFoundErrorResponse(
+                    f"Data source {data_source.name} for dataset {dataset.id} does not exists",
+                    error=e,
+                )
 
             access = lib.calc_access_to_database(user, dataset)
 
             if access == "no access":
-                return Error("No permission to query this dataset")
+                return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             # if access == "aggregated access":
             #    if not utils.is_aggregated(query_string):
@@ -1360,10 +1727,13 @@ class Query(GenericAPIView):
 
             req_res = {}
 
-            client = boto3.client("athena", region_name=settings.AWS["AWS_REGION"])
+            client = aws_service.create_athena_client(
+                org_name=request.user.organization.name
+            )
 
             if sample_aprx or return_count:
-                print("Count query: " + count_query)
+                logger.debug(f"Count query: {count_query}")
+
                 try:
                     response = client.start_query_execution(
                         QueryString=count_query,
@@ -1371,35 +1741,43 @@ class Query(GenericAPIView):
                             "Database": dataset.glue_database  # the name of the database in glue/athena
                         },
                         ResultConfiguration={
-                            "OutputLocation": "s3://"
-                            + dataset.bucket
-                            + "/temp_execution_results"
+                            "OutputLocation": f"s3://{dataset.bucket}/temp_execution_results"
                         },
                     )
                 except Exception as e:
-                    return Error(
-                        "Failed executing the count query: "
-                        + count_query
-                        + ". error: "
-                        + str(e)
-                        + ". original query: "
-                        + query
+                    return ErrorResponse(
+                        f"Failed executing the query: {count_query} ."
+                        f"Original query: {query}",
+                        error=e,
                     )
 
                 query_execution_id = response["QueryExecutionId"]
-                s3_client = boto3.client("s3")
+                s3_client = aws_service.create_s3_client(
+                    org_name=request.user.organization.name
+                )
 
                 try:
                     obj = lib.get_s3_object(
                         bucket=dataset.bucket,
                         key="temp_execution_results/" + query_execution_id + ".csv",
+                        org_name=request.user.organization.name,
                     )
-                except s3_client.exceptions.NoSuchKey:
-                    return Error(
-                        "Count query result file doesn't seem to exist in bucket. query string: "
-                        + query
+                except s3_client.exceptions.NoSuchBucket as e:
+                    error = Exception(
+                        f"The requested bucket does not exist. Query result file was not found. Query string: {query}"
+                    ).with_traceback(e.__traceback__)
+                    return ErrorResponse(
+                        f"Could not create result for following query {query}",
+                        error=error,
                     )
-
+                except Exception as e:
+                    error = Exception(
+                        f"Can not get s3 object, with following error"
+                    ).with_traceback(e.__traceback__)
+                    return ErrorResponse(
+                        "Unknown error occurred during reading of the query result",
+                        error=error,
+                    )
                 count = int(
                     obj["Body"].read().decode("utf-8").split("\n")[1].strip('"')
                 )
@@ -1413,16 +1791,14 @@ class Query(GenericAPIView):
                 if count > sample_aprx:
                     percentage = int((sample_aprx / count) * 100)
                     final_query = (
-                        query_no_limit
-                        + " TABLESAMPLE BERNOULLI("
-                        + str(percentage)
-                        + ")"
+                        f'{query_no_limit} TABLESAMPLE BERNOULLI("{str(percentage)}")'
                     )
 
             if limit:
-                final_query += " LIMIT " + str(limit)
+                final_query += f" LIMIT {limit}"
 
-            print("Final query: " + final_query)
+            logger.debug(f"Final query: {final_query}")
+
             try:
                 response = client.start_query_execution(
                     QueryString=final_query,
@@ -1430,14 +1806,15 @@ class Query(GenericAPIView):
                         "Database": dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        "OutputLocation": "s3://"
-                        + dataset.bucket
-                        + "/temp_execution_results"
+                        "OutputLocation": f"s3://{dataset.bucket}/temp_execution_results"
                     },
                 )
-
             except Exception as e:
-                return Error("error execution the query: " + str(e))
+                error = Exception(
+                    f"Failed to start_query_execution with the following error"
+                ).with_traceback(e.__traceback__)
+                logger.info(f"Final query {final_query}")
+                return ErrorResponse(f"Query execution failed", error=error)
 
             req_res["query"] = final_query
             req_res["count_query"] = count_query
@@ -1446,12 +1823,13 @@ class Query(GenericAPIView):
                 "query_execution_id": query_execution_id,
                 "item": {
                     "bucket": dataset.bucket,
-                    "key": "temp_execution_results/" + query_execution_id + ".csv",
+                    "key": f"temp_execution_results/{query_execution_id}.csv",
                 },
             }
 
             if return_columns_types or (return_result and result_format == "json"):
                 columns_types = lib.get_columns_types(
+                    org_name=request.user.organization.name,
                     glue_database=dataset.glue_database,
                     glue_table=data_source.glue_table,
                 )
@@ -1463,11 +1841,22 @@ class Query(GenericAPIView):
                     result_obj = lib.get_s3_object(
                         bucket=dataset.bucket,
                         key="temp_execution_results/" + query_execution_id + ".csv",
+                        org_name=request.user.organization.name,
                     )
-                except s3_client.exceptions.NoSuchKey:
-                    return Error(
-                        "query result file doesnt seem to exist in bucket. query: "
-                        + query
+                except s3_client.exceptions.NoSuchKey as e:
+                    error = Exception(
+                        f"Query result file does not exist in bucket. Query string: {query}"
+                    ).with_traceback(e.__traceback__)
+                    logger.info(f"No result for query: {query}")
+                    return ErrorResponse(
+                        f"Could not create result for following query", error=error
+                    )
+                except Exception as e:
+                    error = Exception(
+                        f"Can not get s3 object, with following error"
+                    ).with_traceback(e.__traceback__)
+                    return ForbiddenErrorResponse(
+                        "Unauthorized to perform this request", error=error
                     )
 
                 result = result_obj["Body"].read().decode("utf-8")
@@ -1488,7 +1877,9 @@ class Query(GenericAPIView):
 
             return Response(req_res)
         else:
-            return Error(query_serialized.errors)
+            return BadRequestErrorResponse(
+                "Bad Request:", error=query_serialized.errors
+            )
 
 
 class ActivityViewSet(ModelViewSet):
@@ -1508,14 +1899,14 @@ class ActivityViewSet(ModelViewSet):
         end_raw = request.GET.get("end")
 
         if not all([start_raw, end_raw]):
-            return Error(
+            return ErrorResponse(
                 "Please provide start and end as query string params in some datetime format"
             )
         try:
             start = dateparser.parse(start_raw)
             end = dateparser.parse(end_raw)
         except exceptions.ValidationError as e:
-            return Error("cannot parse this format: " + str(e))
+            return ErrorResponse(f"Cannot parse this format", error=e)
 
         queryset = queryset.filter(ts__range=(start, end)).order_by("-ts")
         serializer = self.serializer_class(data=queryset, allow_null=True, many=True)
@@ -1541,7 +1932,9 @@ class ActivityViewSet(ModelViewSet):
             )
 
         else:
-            return Error(activity_serialized.errors)
+            return BadRequestErrorResponse(
+                "Bad Request:", error=activity_serialized.errors
+            )
 
 
 class GetExecutionConfig(APIView):
@@ -1551,9 +1944,7 @@ class GetExecutionConfig(APIView):
         real_user = execution.real_user
         study = Study.objects.get(execution=execution)
 
-        config = {}
-        config["study"] = StudySerializer(study).data
-        config["datasets"] = []
+        config = {"study": StudySerializer(study).data, "datasets": []}
         for dataset in real_user.datasets & study.datasets.all().distinct():
             dataset_ser = DatasetSerializer(dataset).data
             dataset_ser["permission"] = lib.calc_access_to_database(real_user, dataset)
@@ -1571,14 +1962,16 @@ class Version(APIView):
     def get(self, request):
 
         if "study" not in request.query_params:
-            return Error("Please provide study as qsp")
+            return BadRequestErrorResponse("Please provide study as qsp")
 
         study_id = request.query_params.get("study")
 
         try:
             study = request.user.studies.get(id=study_id)
-        except Study.DoesNotExist:
-            return Error("Study not exists or not permitted")
+        except Study.DoesNotExist as e:
+            return NotFoundErrorResponse(
+                f"Study {study_id} does not exists or is not permitted", error=e
+            )
 
         start = request.GET.get("start")
         end = request.GET.get("end")
@@ -1589,15 +1982,22 @@ class Version(APIView):
             if end:
                 end = dateparser.parse(end)
         except exceptions.ValidationError as e:
-            return Error("Cannot parse this format: " + str(e))
+            return ErrorResponse(f"Can not get list_objects_version.", error=e)
 
         if (start and end) and not start <= end:
-            return Error("start > end")
+            return ErrorResponse("start > end")
 
-        items = lib.list_objects_version(
-            bucket=study.bucket, filter="*.ipynb", exclude=".*", start=start, end=end
-        )
-
+        try:
+            items = lib.list_objects_version(
+                bucket=study.bucket,
+                org_name=request.user.organization.name,
+                filter="*.ipynb",
+                exclude=".*",
+                start=start,
+                end=end,
+            )
+        except Exception as e:
+            return ForbiddenErrorResponse(f"Can not get list_objects_version.", error=e)
         return Response(items)
 
 

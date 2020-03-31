@@ -1,7 +1,3 @@
-import django
-
-django.setup()
-
 from django.test import TestCase
 from mainapp.models import User, Organization, Dataset, Tag
 

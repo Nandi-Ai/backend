@@ -1,7 +1,3 @@
-import django
-
-django.setup()
-
 from django.test import TestCase
 from mainapp.utils import devexpress_filtering
 

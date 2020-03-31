@@ -1,6 +1,7 @@
 import uuid
 
-import boto3
+import logging
+
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.contrib.postgres.fields import JSONField
@@ -9,8 +10,10 @@ from django.db.models import signals
 from django.db.utils import IntegrityError
 from django.dispatch import receiver
 
-from mainapp import settings
-from mainapp.utils import lib
+from mainapp.exceptions import BucketNotFound
+from mainapp.utils import lib, aws_service
+
+logger = logging.getLogger(__name__)
 
 
 class UserManager(BaseUserManager):
@@ -111,7 +114,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def related_studies(self):
-
         studies_ids = []
         studies_ids = studies_ids + [s.id for s in self.studies.all()]
         for dataset in self.admin_datasets.all():
@@ -123,7 +125,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def datasets(self):
-
         discoverable_datasets = (
             Dataset.objects.exclude(is_discoverable=False)
             | self.full_access_datasets.filter(is_discoverable=False)
@@ -208,7 +209,9 @@ class Study(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True, max_length=255)
-    datasets = models.ManyToManyField("Dataset", related_name="studies")
+    datasets = models.ManyToManyField(
+        "Dataset", related_name="studies", through="StudyDataset"
+    )
     users = models.ManyToManyField("User", related_name="studies")
     user_created = models.ForeignKey(
         "User", on_delete=models.SET_NULL, related_name="studies_created", null=True
@@ -227,20 +230,49 @@ class Study(models.Model):
     def bucket(self):
         return "lynx-workspace-" + str(self.id)
 
+    def delete_bucket(self, org_name):
+        logger.info(f"Deleting bucket {self.bucket} for study {self.id}")
+        lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
+
+    def __str__(self):
+        return f"<Study id={self.id} name={self.name}>"
+
+
+class StudyDataset(models.Model):
+    FULL_ACCESS = "full_access"
+    AGGREGATED_ACCESS = "aggregated_access"
+    possible_dataset_permission_for_study = (
+        (FULL_ACCESS, "full_access"),
+        (AGGREGATED_ACCESS, "aggregated_access"),
+    )
+    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
+    study = models.ForeignKey("Study", on_delete=models.CASCADE)
+    permission = models.CharField(
+        choices=possible_dataset_permission_for_study,
+        max_length=32,
+        null=False,
+        blank=False,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "studies_datasets"
+        unique_together = ("dataset", "study")
+
+    def __str__(self):
+        return f"<StudyDataset dataset={self.dataset} study={self.study} permission={self.permission}>"
+
 
 @receiver(signals.pre_delete, sender=Study)
 def delete_study(sender, instance, **kwargs):
     study = instance
-    print("Deleting study: " + str(study.id))
-    s3_client = boto3.client("s3")
-
     try:
-        lib.delete_bucket(study.bucket)
-
-        print("Deleted bucket: " + study.bucket)
-    except s3_client.exceptions.NoSuchBucket:
-        print("Warning no bucket: " + study.bucket)
-    print("End deleting study " + str(study.id))
+        study.delete_bucket(org_name=instance.user_created.organization.name)
+    except BucketNotFound as e:
+        logger.warning(
+            f"Bucket {e.bucket_name} was not found for study id {study.id} at delete bucket operation"
+        )
 
 
 class Dataset(models.Model):
@@ -306,20 +338,23 @@ class Dataset(models.Model):
             return self.bucket_override
         return "lynx-dataset-" + str(self.id)
 
+    def delete_bucket(self, org_name):
+        logger.info(f"Deleting bucket {self.bucket} for dataset {self.id}")
+        lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
+
+    def __str__(self):
+        return f"<Dataset id={self.id} name={self.name}>"
+
 
 @receiver(signals.pre_delete, sender=Dataset)
 def delete_dataset(sender, instance, **kwargs):
     dataset = instance
-    print("Deleting dataset: " + str(dataset.id))
-    s3_client = boto3.client("s3")
-    s3_resource = boto3.resource("s3")
     try:
-        lib.delete_bucket(dataset.bucket)
-
-        print("Deleted bucket: " + dataset.bucket)
-    except s3_client.exceptions.NoSuchBucket:
-        print("Warning no bucket: " + dataset.bucket)
-    print("End deleting dataset " + str(dataset.id))
+        dataset.delete_bucket(org_name=instance.user_created.organization.name)
+    except BucketNotFound as e:
+        logger.warning(
+            f"Bucket {e.bucket_name} was not found for dataset id {dataset.id} at delete bucket operation"
+        )
 
 
 class DataSource(models.Model):
@@ -361,34 +396,44 @@ class DataSource(models.Model):
 @receiver(signals.pre_delete, sender=DataSource)
 def delete_data_source(sender, instance, **kwargs):
     data_source = instance
-    print("Deleting data source" + str(data_source.name) + ". " + str(data_source.id))
+    org_name = instance.dataset.organization.name
+    logger.info(
+        f"Deleting data source {data_source.name} for following dataset.id {data_source.id}"
+    )
     if data_source.glue_table:
+        glue_client = aws_service.create_glue_client(org_name=org_name)
         try:
-            glue_client = boto3.client("glue", region_name=settings.AWS["AWS_REGION"])
             glue_client.delete_table(
                 DatabaseName=data_source.dataset.glue_database,
                 Name=data_source.glue_table,
             )
-            print("Removed glue table: " + data_source.glue_table)
-        except Exception as e:
-            print("Warning no glue table")
+            logger.info(f"Removed glue table: {data_source.glue_table} successfully")
+        except glue_client.exceptions.EntityNotFoundException as e:
+            logger.warning("Unexpected error when deleting glue table", error=e)
 
     if data_source.dir:
         if data_source.dir == "":
-            print("Warning: data source has dir is '' (empty string)")
-
+            logger.warning(
+                f"Warning: data source {data_source.name} {data_source.id} 'dir' field is an empty string ('')"
+            )
         else:  # delete dir in bucket
-            s3_resource = boto3.resource("s3")
-            s3_client = boto3.client("s3")
+            s3_resource = aws_service.create_s3_resource(org_name=org_name)
             try:
                 bucket = s3_resource.Bucket(data_source.bucket)
                 bucket.objects.filter(Prefix=data_source.dir + "/").delete()
-            except s3_client.exceptions.NoSuchKey:
-                print("Warning: data source dir not exists")
-            except s3_client.exceptions.NoSuchBucket:
-                print("Warning no such bucket: " + data_source.bucket)
+            except s3_resource.exceptions.NoSuchKey:
+                logger.warning(
+                    f"Warning no such key {data_source.dir} in {bucket}. "
+                    f"Ignoring deleting dir while deleting data_source {data_source.name} ({data_source.id})"
+                )
+            except s3_resource.exceptions.NoSuchBucket:
+                logger.warning(
+                    f"Warning no such bucket {bucket} while trying to delete dir {dir}"
+                )
 
-    print("End deleting data source")
+    logger.info(
+        f"Data source {data_source.name} ({data_source.id}) was deleted successfully"
+    )
 
 
 class Tag(models.Model):
@@ -401,7 +446,7 @@ class Tag(models.Model):
         unique_together = (("name", "category"),)
 
     def __str__(self):
-        return self.name + " | " + self.category
+        return f"<Category name={self.name} category={self.category}>"
 
 
 class Execution(models.Model):
@@ -464,7 +509,6 @@ class Request(models.Model):
 
 
 class Documentation(models.Model):
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     dataset = models.ForeignKey(
         "Dataset",

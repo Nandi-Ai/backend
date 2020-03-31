@@ -18,7 +18,7 @@ import requests
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -132,7 +132,7 @@ token_valid_hours = 48
 
 APPEND_SLASH = False
 
-secured_bucket = False
+SECURED_BUCKET = False
 
 ENV = os.getenv("ENV", "local")
 
@@ -143,42 +143,11 @@ if ENV != "local":
     aws_response_json = aws_response.json()
     ssm_client = boto3.client("ssm", region_name=aws_response_json["region"])
 
-    response = ssm_client.get_parameters(
-        Names=[
-            f"/lynx/be/{ENV}/AWS",
-            f"/lynx/be/{ENV}/COGNITO",
-            f"/lynx/be/{ENV}/GLUE",
-            f"/lynx/be/{ENV}/JH",
-            f"/lynx/be/{ENV}/SECRET_KEY",
-            f"/lynx/be/{ENV}/databases",
-        ],
-        WithDecryption=True,
-    )
+    response = ssm_client.get_parameter(Name=f"/lynx/be/{ENV}", WithDecryption=True)
 
-    prefix = f"/lynx/be/{ENV}"
+    value = json.loads(response["Parameter"]["Value"])
+    globals().update(value)
+    SECURED_BUCKET = value.get("SECURED_BUCKET").lower() == "true"
 
-    response_params = response["Parameters"]
-    for item in response_params:
-        service_name = item["Name"]
-        value = json.loads(item["Value"])
-
-        if service_name == f"{prefix}/AWS":
-            AWS = value
-            AWS["AWS_ACCOUNT_NUMBER"] = aws_response_json["accountId"]
-            AWS["AWS_REGION"] = aws_response_json["region"]
-        elif service_name == f"{prefix}/COGNITO":
-            COGNITO_AWS_REGION = value["COGNITO_AWS_REGION"]
-            COGNITO_USER_POOL = value["COGNITO_USER_POOL"]
-            COGNITO_AUDIENCE = value["COGNITO_AUDIENCE"]
-        elif service_name == f"{prefix}/GLUE":
-            GLUE = value
-        elif service_name == f"{prefix}/JH":
-            JH_API_ADMIN_TOKEN = value["JH_API_ADMIN_TOKEN"]
-            JH_URL = value["JH_URL"]
-            JH_ALB_TOKEN = value["JH_ALB_TOKEN"]
-        elif service_name == f"{prefix}/SECRET_KEY":
-            SECRET_KEY = value
-        elif service_name == f"{prefix}/databases":
-            DATABASES = value
 else:
     from .local_settings import *

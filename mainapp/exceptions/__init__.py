@@ -5,3 +5,9 @@ from .query_execution_error import (
     MaxExecutionReactedError,
     UnsupportedColumnTypeError,
 )
+from .s3 import BucketNotFound
+from .settings_error import (
+    InvalidOrganizationOrgValues,
+    InvalidOrganizationSettings,
+    MissingOrganizationSettingKey,
+)

@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def __create_where_section_positive(field, operator, value):
     dev_express_value = (
         value
@@ -90,6 +95,7 @@ def dev_express_to_sql(table, data_filter, columns, schema=None, limit=None):
     if limit:
         query += f" LIMIT {str(limit)}"
 
+    logger.debug(f"This is the final query for dev_express_filtering {query}")
     return query, query_no_limit
 
 
@@ -126,7 +132,7 @@ def generate_where_sql_query(data_filter):
     query = "WHERE "
 
     if not isinstance(data_filter, list):
-        raise Exception("invalid data filters")
+        raise Exception("Invalid data filters")
 
     if data_filter[0] in ["and", "or"]:
         data_filter.pop(0)

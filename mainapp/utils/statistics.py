@@ -1,19 +1,17 @@
 import re
 from time import sleep
 
-import boto3
-
-from mainapp import settings
 from mainapp.exceptions import (
     InvalidExecutionId,
     QueryExecutionError,
     MaxExecutionReactedError,
     UnsupportedColumnTypeError,
 )
+from mainapp.utils import aws_service
 
 
-def count_all_values_query(query, glue_database, bucket_name):
-    client = boto3.client("athena", region_name=settings.AWS["AWS_REGION"])
+def count_all_values_query(query, glue_database, bucket_name, org_name):
+    client = aws_service.create_athena_client(org_name=org_name)
     response = client.start_query_execution(
         QueryString=query,
         QueryExecutionContext={"Database": glue_database},
