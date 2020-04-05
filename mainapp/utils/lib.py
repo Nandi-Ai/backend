@@ -5,7 +5,6 @@ import subprocess
 import zipfile
 from datetime import datetime as dt, timedelta as td
 from time import sleep
-from DataSynthesizer import CorrelatedSynthesizer
 
 import logging
 import pytz
@@ -479,12 +478,6 @@ def delete_bucket(boto3_client, bucket_name, org_name):
         logger.debug("Deleted bucket: " + bucket_name)
     except boto3_client.meta.client.exceptions.NoSuchBucket as e:
         raise BucketNotFound(bucket_name) from e
-
-
-def generate_synthetic_data(datasource):
-
-    generator = CorrelatedSynthesizer.CorrelatedSynthesizer(input_csv_string=datasource)
-    return generator and generator.run_data_synthesizer()
 
 
 def set_policy_clear_athena_history(
