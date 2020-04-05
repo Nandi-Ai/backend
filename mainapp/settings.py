@@ -134,8 +134,6 @@ APPEND_SLASH = False
 
 SECURED_BUCKET = False
 
-AGG_STAT_MAX_COLUMNS = 5
-
 ENV = os.getenv("ENV", "local")
 
 if ENV != "local":

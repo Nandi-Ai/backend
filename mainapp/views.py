@@ -1270,28 +1270,6 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
-    @action(detail=True, methods=["get"])
-    def get_columns(self, request, pk=None):
-        datasource = self.get_object()
-        dataset = datasource.dataset
-        org_name = dataset.organization.name
-        glue_client = aws_service.create_glue_client(org_name=org_name)
-        try:
-            columns_types = lib.get_columns_types(
-                glue_database=dataset.glue_database,
-                glue_table=datasource.glue_table,
-                org_name=org_name,
-            )
-        except glue_client.exceptions.EntityNotFoundException as e:
-            return NotFoundErrorResponse(
-                f"The glue table for datasource {datasource} was not found", error=e
-            )
-        except Exception as e:
-            return ErrorResponse(
-                "Unexpected error occurred during fetching column types", error=e
-            )
-        return Response(columns_types, status=200)
-
     def get_queryset(self):
         return self.request.user.data_sources
 
@@ -1709,9 +1687,12 @@ class Query(GenericAPIView):
 
             access = lib.calc_access_to_database(user, dataset)
 
-            user_access = lib.calc_access_to_database(user, dataset)
-            if user_access not in ["full access", "admin", "aggregated access"]:
+            if access == "no access":
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
+
+            # if access == "aggregated access":
+            #    if not utils.is_aggregated(query_string):
+            #        return Error("this is not an aggregated query. only aggregated queries are allowed")
 
             if query_serialized.validated_data["query"]:
 
@@ -1744,13 +1725,6 @@ class Query(GenericAPIView):
                 )
                 _, count_query, _ = lib.get_query_no_limit_and_count_query(query)
 
-            if (user_access not in ["full access", "admin"]) and len(
-                columns
-            ) > settings.AGG_STAT_MAX_COLUMNS:
-                return ForbiddenErrorResponse(
-                    "You are not authorized to choose this many columns"
-                )
-
             req_res = {}
 
             client = aws_service.create_athena_client(
@@ -1770,7 +1744,6 @@ class Query(GenericAPIView):
                             "OutputLocation": f"s3://{dataset.bucket}/temp_execution_results"
                         },
                     )
-
                 except Exception as e:
                     return ErrorResponse(
                         f"Failed executing the query: {count_query} ."
@@ -1814,16 +1787,15 @@ class Query(GenericAPIView):
 
             final_query = query_no_limit
 
-            if user_access in ["full access", "admin"]:
-                if sample_aprx:
-                    if count > sample_aprx:
-                        percentage = int((sample_aprx / count) * 100)
-                        final_query = (
-                            f"{query_no_limit} TABLESAMPLE BERNOULLI({percentage})"
-                        )
+            if sample_aprx:
+                if count > sample_aprx:
+                    percentage = int((sample_aprx / count) * 100)
+                    final_query = (
+                        f'{query_no_limit} TABLESAMPLE BERNOULLI("{str(percentage)}")'
+                    )
 
-                if limit:
-                    final_query += f" LIMIT {limit}"
+            if limit:
+                final_query += f" LIMIT {limit}"
 
             logger.debug(f"Final query: {final_query}")
 
@@ -1844,19 +1816,31 @@ class Query(GenericAPIView):
                 logger.info(f"Final query {final_query}")
                 return ErrorResponse(f"Query execution failed", error=error)
 
-            if user_access in ["full access", "admin"]:
-                req_res["execution_result"] = {
-                    "query_execution_id": query_execution_id,
-                    "item": {
-                        "bucket": dataset.bucket,
-                        "key": f"temp_execution_results/{query_execution_id}.csv",
-                    },
-                }
-            else:
-                try:  # get final query result
-                    obj = lib.get_s3_object(
+            req_res["query"] = final_query
+            req_res["count_query"] = count_query
+            query_execution_id = response["QueryExecutionId"]
+            req_res["execution_result"] = {
+                "query_execution_id": query_execution_id,
+                "item": {
+                    "bucket": dataset.bucket,
+                    "key": f"temp_execution_results/{query_execution_id}.csv",
+                },
+            }
+
+            if return_columns_types or (return_result and result_format == "json"):
+                columns_types = lib.get_columns_types(
+                    org_name=request.user.organization.name,
+                    glue_database=dataset.glue_database,
+                    glue_table=data_source.glue_table,
+                )
+                if return_columns_types:
+                    req_res["columns_types"] = columns_types
+
+            if return_result:
+                try:
+                    result_obj = lib.get_s3_object(
                         bucket=dataset.bucket,
-                        key=f"temp_execution_results/{response['QueryExecutionId']}.csv",
+                        key="temp_execution_results/" + query_execution_id + ".csv",
                         org_name=request.user.organization.name,
                     )
                 except s3_client.exceptions.NoSuchKey as e:
@@ -1874,89 +1858,6 @@ class Query(GenericAPIView):
                     return ForbiddenErrorResponse(
                         "Unauthorized to perform this request", error=error
                     )
-
-                try:
-                    synthetic_dataset = lib.generate_synthetic_data(
-                        obj["Body"].read().decode("utf-8")
-                    )
-                except Exception as e:
-                    error = Exception(
-                        f"Sorry, we can not show you the results, the cohort is too small"
-                    ).with_traceback(e.__traceback__)
-                    return ForbiddenErrorResponse(
-                        "Unauthorized to perform this request", error=error
-                    )
-                synthetic_dataset_s3_key = f"synthetic_data/{query_execution_id}.csv"
-
-                try:
-                    s3_client.upload_file(
-                        synthetic_dataset, dataset.bucket, synthetic_dataset_s3_key
-                    )
-                except botocore.exceptions.ClientError as e:
-                    error = Exception(
-                        "Error in uploading synthetic data results to S3"
-                    ).with_traceback(e.__traceback__)
-                    return ErrorResponse(
-                        "Error in uploading synthetic data results to S3", error=error
-                    )
-                finally:
-                    os.remove(synthetic_dataset)
-
-                req_res["execution_result"] = {
-                    "query_execution_id": query_execution_id,
-                    "item": {"bucket": dataset.bucket, "key": synthetic_dataset_s3_key},
-                }
-
-            req_res["query"] = final_query
-            req_res["count_query"] = count_query
-            query_execution_id = response["QueryExecutionId"]
-
-            if return_columns_types or (return_result and result_format == "json"):
-                columns_types = lib.get_columns_types(
-                    org_name=request.user.organization.name,
-                    glue_database=dataset.glue_database,
-                    glue_table=data_source.glue_table,
-                )
-                if return_columns_types:
-                    req_res["columns_types"] = columns_types
-
-            if return_result:
-                if user_access in ["full access", "admin"]:
-                    try:
-                        result_obj = lib.get_s3_object(
-                            bucket=dataset.bucket,
-                            key=f"temp_execution_results/{query_execution_id}.csv",
-                            org_name=request.user.organization.name,
-                        )
-                    except Exception as e:
-                        error = Exception(
-                            f"Can not get s3 object, with following error"
-                        ).with_traceback(e.__traceback__)
-                        return ErrorResponse(
-                            "Unauthorized to perform this request", error=error
-                        )
-                else:
-                    try:
-                        result_obj = lib.get_s3_object(
-                            bucket=dataset.bucket,
-                            key=synthetic_dataset_s3_key,
-                            org_name=request.user.organization.name,
-                        )
-                    except s3_client.exceptions.NoSuchKey as e:
-                        error = Exception(
-                            f"Query result file does not exist in bucket. Query string: {query}"
-                        ).with_traceback(e.__traceback__)
-                        logger.info(f"No result for query: {query}")
-                        return ErrorResponse(
-                            f"Could not create result for following query", error=error
-                        )
-                    except Exception as e:
-                        error = Exception(
-                            f"Can not get s3 object, with following error"
-                        ).with_traceback(e.__traceback__)
-                        return ForbiddenErrorResponse(
-                            "Unauthorized to perform this request", error=error
-                        )
 
                 result = result_obj["Body"].read().decode("utf-8")
                 result_no_quotes = (
