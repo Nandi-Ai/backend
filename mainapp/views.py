@@ -10,6 +10,7 @@ from multiprocessing import Process
 import dateparser
 import pyreadstat
 from django.core import exceptions
+from django.db import transaction
 from django.db.utils import IntegrityError
 from rest_framework.decorators import action
 from rest_framework.generics import GenericAPIView
@@ -183,6 +184,7 @@ class Dummy(APIView):  # usage in Lambda Function
 
 
 class GetExecution(APIView):  # from frontend
+    @transaction.atomic
     def get(self, request):
         study_id = request.query_params.get("study")
 
