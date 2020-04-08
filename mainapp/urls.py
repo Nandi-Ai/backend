@@ -57,10 +57,10 @@ urlpatterns = [
         r"^get_dataset_sts/(?P<dataset_id>[^/]+)/?$",
         views.GetDatasetSTS.as_view(),
         name="get_dataset_sts",
-    ),  # for fronted
+    ),  # for frontend
     url(
         r"^get_execution/?$", views.GetExecution.as_view(), name="get_execution"
-    ),  # for forntend
+    ),  # for frontend
     url(
         r"^get_execution_config/?$",
         views.GetExecutionConfig.as_view(),
