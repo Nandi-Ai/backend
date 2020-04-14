@@ -1793,7 +1793,7 @@ class Query(GenericAPIView):
                 if count > sample_aprx:
                     percentage = int((sample_aprx / count) * 100)
                     final_query = (
-                        f'{query_no_limit} TABLESAMPLE BERNOULLI("{str(percentage)}")'
+                        f"{query_no_limit} TABLESAMPLE BERNOULLI({percentage})"
                     )
 
             if limit:
