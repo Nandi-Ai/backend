@@ -28,7 +28,6 @@ from mainapp.exceptions import (
     QueryExecutionError,
     InvalidExecutionId,
     MaxExecutionReactedError,
-    StudyNotExists,
 )
 from mainapp.models import (
     User,
@@ -220,15 +219,14 @@ class StudyViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def get_study_per_organization(self, request, pk=None):
-        study_id = pk
-        try:
-            study = request.user.studies.get(id=study_id)
-            dataset = study.datasets.first()
-        except StudyNotExists as e:
-            return ErrorResponse(f"Study error", error=e)
-        organization_name = dataset.organization.name
-
-        return Response({"study_organization": organization_name})
+        study = self.get_object()
+        dataset = study.datasets.first()
+        if dataset:
+            organization_name = dataset.organization.name
+            return Response({"study_organization": organization_name})
+        return BadRequestErrorResponse(
+            f"Bad Request: Study {study} does not have datasets"
+        )
 
     def get_queryset(self, **kwargs):
         return self.request.user.related_studies.all()
