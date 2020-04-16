@@ -11,3 +11,4 @@ from .settings_error import (
     InvalidOrganizationSettings,
     MissingOrganizationSettingKey,
 )
+from .study_error import StudyNotExists
