@@ -221,12 +221,12 @@ class StudyViewSet(ModelViewSet):
     def get_study_per_organization(self, request, pk=None):
         study = self.get_object()
         dataset = study.datasets.first()
-        if dataset:
-            organization_name = dataset.organization.name
-            return Response({"study_organization": organization_name})
-        return BadRequestErrorResponse(
-            f"Bad Request: Study {study} does not have datasets"
-        )
+        if not dataset:
+            return UnimplementedErrorResponse(
+                f"Bad Request: Study {study} does not have datasets"
+            )
+        organization_name = dataset.organization.name
+        return Response({"study_organization": organization_name})
 
     def get_queryset(self, **kwargs):
         return self.request.user.related_studies.all()
