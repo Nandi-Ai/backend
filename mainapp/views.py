@@ -72,25 +72,6 @@ schema_view = get_swagger_view(title="Lynx API")
 logger = logging.getLogger(__name__)
 
 
-class SendSyncSignal(APIView):  # from execution
-    def get(self, request):
-        def send_sync_signal(ei):
-            time.sleep(60)
-            command = (
-                "kubectl exec jupyter-"
-                + ei
-                + " -- python /usr/local/bin/sync_to_s3.py &"
-            )
-            subprocess.check_output(command.split(" "))
-
-        execution = request.user.the_execution.last()
-
-        p = Process(target=send_sync_signal, args=(execution.token,))
-        p.start()
-
-        return Response()
-
-
 class GetSTS(APIView):  # from execution
     def get(self, request):
 
