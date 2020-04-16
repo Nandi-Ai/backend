@@ -201,6 +201,7 @@ class GetExecution(APIView):  # from frontend
                 email=execution.token + "@lynx.md"
             )
             execution_user.set_password(execution.token)
+            execution_user.organization = study.datasets.first().organization
             execution_user.is_execution = True
             execution_user.save()
             execution.execution_user = execution_user
