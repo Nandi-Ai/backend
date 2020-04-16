@@ -1,10 +1,12 @@
 import json
+import logging
 import os
 import shutil
 import threading
 import time
 import uuid
 
+import botocore.exceptions
 import dateparser
 import pyreadstat
 from django.core import exceptions
@@ -19,7 +21,6 @@ from rest_framework_swagger.views import get_swagger_view
 
 # noinspection PyPackageRequirements
 from slugify import slugify
-import botocore.exceptions
 
 from mainapp import resources, settings
 from mainapp.exceptions import (
@@ -28,6 +29,7 @@ from mainapp.exceptions import (
     QueryExecutionError,
     InvalidExecutionId,
     MaxExecutionReactedError,
+    BucketNotFound,
 )
 from mainapp.models import (
     User,
@@ -66,7 +68,6 @@ from mainapp.utils.response_handler import (
     BadRequestErrorResponse,
     UnimplementedErrorResponse,
 )
-import logging
 
 schema_view = get_swagger_view(title="Lynx API")
 logger = logging.getLogger(__name__)
@@ -1663,37 +1664,14 @@ class Query(GenericAPIView):
         query_serialized = self.serializer_class(data=request.data)
 
         if query_serialized.is_valid():
-
             user = request.user
+
             req_dataset_id = query_serialized.validated_data["dataset_id"]
-            return_result = (
-                True if request.GET.get("return_result") == "true" else False
-            )
-            result_format = request.GET.get("result_format")
-
-            if result_format and not return_result:
-                ErrorResponse("Why result_format and no return_result=true ?")
-
-            return_columns_types = (
-                True if request.GET.get("return_columns_types") == "true" else False
-            )
-
-            return_count = True if request.GET.get("return_count") == "true" else False
-
             try:
                 dataset = user.datasets.get(id=req_dataset_id)
             except Dataset.DoesNotExist as e:
                 return NotFoundErrorResponse(
                     f"No permission to this dataset. Make sure it is exists, it's yours or shared with you",
-                    error=e,
-                )
-
-            data_source_id = query_serialized.validated_data["data_source_id"]
-            try:
-                data_source = dataset.data_sources.get(id=data_source_id)
-            except DataSource.DoesNotExist as e:
-                return NotFoundErrorResponse(
-                    f"Data source {data_source_id} for dataset {dataset.id} does not exists",
                     error=e,
                 )
 
@@ -1705,6 +1683,15 @@ class Query(GenericAPIView):
             # if access == "aggregated access":
             #    if not utils.is_aggregated(query_string):
             #        return Error("this is not an aggregated query. only aggregated queries are allowed")
+
+            data_source_id = query_serialized.validated_data["data_source_id"]
+            try:
+                data_source = dataset.data_sources.get(id=data_source_id)
+            except DataSource.DoesNotExist as e:
+                return NotFoundErrorResponse(
+                    f"Data source {data_source_id} for dataset {dataset.id} does not exists",
+                    error=e,
+                )
 
             if query_serialized.validated_data["query"]:
 
@@ -1739,29 +1726,14 @@ class Query(GenericAPIView):
 
             req_res = {}
 
-            client = aws_service.create_athena_client(
-                org_name=request.user.organization.name
-            )
-
             final_query = query_no_limit
 
-            s3_client = aws_service.create_s3_client(
-                org_name=request.user.organization.name
-            )
-
+            return_count = True if request.GET.get("return_count") == "true" else False
             if sample_aprx or return_count:
                 logger.debug(f"Count query: {count_query}")
 
                 try:
-                    response = client.start_query_execution(
-                        QueryString=count_query,
-                        QueryExecutionContext={
-                            "Database": dataset.glue_database  # the name of the database in glue/athena
-                        },
-                        ResultConfiguration={
-                            "OutputLocation": f"s3://{dataset.bucket}/temp_execution_results"
-                        },
-                    )
+                    response = dataset.query(count_query)
                 except Exception as e:
                     return ErrorResponse(
                         f"Failed executing the query: {count_query} ."
@@ -1772,12 +1744,8 @@ class Query(GenericAPIView):
                 query_execution_id = response["QueryExecutionId"]
 
                 try:
-                    obj = lib.get_s3_object(
-                        bucket=dataset.bucket,
-                        key="temp_execution_results/" + query_execution_id + ".csv",
-                        org_name=request.user.organization.name,
-                    )
-                except s3_client.exceptions.NoSuchBucket as e:
+                    obj = dataset.get_query_execution(query_execution_id)
+                except BucketNotFound as e:
                     error = Exception(
                         f"The requested bucket does not exist. Query result file was not found. Query string: {query}"
                     ).with_traceback(e.__traceback__)
@@ -1793,6 +1761,7 @@ class Query(GenericAPIView):
                         "Unknown error occurred during reading of the query result",
                         error=error,
                     )
+
                 count = int(
                     obj["Body"].read().decode("utf-8").split("\n")[1].strip('"')
                 )
@@ -1813,15 +1782,7 @@ class Query(GenericAPIView):
             logger.debug(f"Final query: {final_query}")
 
             try:
-                response = client.start_query_execution(
-                    QueryString=final_query,
-                    QueryExecutionContext={
-                        "Database": dataset.glue_database  # the name of the database in glue/athena
-                    },
-                    ResultConfiguration={
-                        "OutputLocation": f"s3://{dataset.bucket}/temp_execution_results"
-                    },
-                )
+                response = dataset.query(final_query)
             except Exception as e:
                 error = Exception(
                     f"Failed to start_query_execution with the following error"
@@ -1840,23 +1801,30 @@ class Query(GenericAPIView):
                 },
             }
 
+            return_result = (
+                True if request.GET.get("return_result") == "true" else False
+            )
+            result_format = request.GET.get("result_format")
+
+            if result_format and not return_result:
+                return BadRequestErrorResponse(
+                    "Why result_format and no return_result=true?"
+                )
+
+            return_columns_types = (
+                True if request.GET.get("return_columns_types") == "true" else False
+            )
             if return_columns_types or (return_result and result_format == "json"):
-                columns_types = lib.get_columns_types(
-                    org_name=request.user.organization.name,
-                    glue_database=dataset.glue_database,
-                    glue_table=data_source.glue_table,
+                columns_types = dataset.get_columns_types(
+                    glue_table=data_source.glue_table
                 )
                 if return_columns_types:
                     req_res["columns_types"] = columns_types
 
             if return_result:
                 try:
-                    result_obj = lib.get_s3_object(
-                        bucket=dataset.bucket,
-                        key="temp_execution_results/" + query_execution_id + ".csv",
-                        org_name=request.user.organization.name,
-                    )
-                except s3_client.exceptions.NoSuchKey as e:
+                    result_obj = dataset.get_query_execution(query_execution_id)
+                except BucketNotFound as e:
                     error = Exception(
                         f"Query result file does not exist in bucket. Query string: {query}"
                     ).with_traceback(e.__traceback__)
