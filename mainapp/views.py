@@ -18,6 +18,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework_swagger.views import get_swagger_view
+
+# noinspection PyPackageRequirements
 from slugify import slugify
 import botocore.exceptions
 
@@ -73,6 +75,7 @@ logger = logging.getLogger(__name__)
 
 
 class GetSTS(APIView):  # from execution
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
 
         execution = request.user.the_execution.last()
@@ -125,6 +128,7 @@ class GetSTS(APIView):  # from execution
 
 
 class GetStaticSTS(APIView):  # from execution
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
         sts_default_provider_chain = aws_service.create_sts_client()
         static_bucket_name = settings.LYNX_FRONT_STATIC_BUCKET
@@ -160,12 +164,14 @@ class GetStaticSTS(APIView):  # from execution
 
 
 class Dummy(APIView):  # usage in Lambda Function
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
         return Response()
 
 
 class GetExecution(APIView):  # from frontend
     @transaction.atomic
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
         study_id = request.query_params.get("study")
 
@@ -180,9 +186,11 @@ class GetExecution(APIView):  # from frontend
             )
 
         if not study.execution:
-            id = uuid.uuid4()
+            execution_id = uuid.uuid4()
 
-            # headers = {"Authorization": "Bearer " + settings['JH_API_ADMIN_TOKEN'], "ALBTOKEN": settings['JH_ALB_TOKEN']}
+            # headers = {
+            # "Authorization": "Bearer " + settings['JH_API_ADMIN_TOKEN'], "ALBTOKEN": settings['JH_ALB_TOKEN']
+            # }
             #
             # data = {
             #     "usernames": [
@@ -192,10 +200,12 @@ class GetExecution(APIView):  # from frontend
             # }
             # res = requests.post(settings.jh_url + "hub/api/users", json=data, headers=headers, verify=False)
             # if res.status_code != 201:
-            #     return Error("error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text)
+            #     return Error(
+            #     "error creating a user for the execution in JH: " + str(res.status_code) + ", " + res.text
+            #     )
 
             # execution.study = study
-            execution = Execution.objects.create(id=id)
+            execution = Execution.objects.create(id=execution_id)
             execution.real_user = request.user
             execution_user = User.objects.create_user(
                 email=execution.token + "@lynx.md"
@@ -228,7 +238,8 @@ class StudyViewSet(ModelViewSet):
             req_datasets = study_serialized.validated_data["studydataset_set"]
             study_name = study_serialized.validated_data["name"]
 
-            # TODO need to decide what to do with repeated datasets names: for example - if user A shared a dataset with user B ant the former has a dataset with the same name
+            # TODO need to decide what to do with repeated datasets names:
+            # TODO for example - if user A shared a dataset with user B ant the former has a dataset with the same name
             # if study_name in [x.name for x in request.user.studies.all()]:
             #     return Error("this study already exist for that user")
 
@@ -401,7 +412,10 @@ class StudyViewSet(ModelViewSet):
             client = aws_service.create_iam_client(
                 org_name=request.user.organization.name
             )
-            policy_arn = f"arn:aws:iam::{settings.ORG_VALUES['lynx']['ACCOUNT_NUMBER']}:policy/lynx-workspace-{study.id}"
+            account_number = settings.ORG_VALUES["lynx"]["ACCOUNT_NUMBER"]
+            policy_arn = (
+                f"arn:aws:iam::{account_number}:policy/lynx-workspace-{study.id}"
+            )
 
             role_name = f"lynx-workspace-{study.id}"
 
@@ -476,6 +490,7 @@ class StudyViewSet(ModelViewSet):
 
 
 class GetDatasetSTS(APIView):  # for frontend uploads
+    # noinspection PyMethodMayBeStatic
     def get(self, request, dataset_id):
         try:
             dataset = request.user.datasets.get(id=dataset_id)
@@ -527,6 +542,7 @@ class GetDatasetSTS(APIView):  # for frontend uploads
 
 
 class GetStudySTS(APIView):  # for frontend uploads
+    # noinspection PyMethodMayBeStatic
     def get(self, request, study_id):
         try:
             study = request.user.studies.get(id=study_id)
@@ -620,7 +636,7 @@ class RequestViewSet(ModelViewSet):
             if request_data["type"] == "dataset_access":
                 permission_request_types = ["aggregated_access", "full_access"]
 
-                if not "dataset" in request_data:
+                if "dataset" not in request_data:
                     return NotFoundErrorResponse(
                         "Please mention dataset if type is dataset_access"
                     )
@@ -665,7 +681,8 @@ class RequestViewSet(ModelViewSet):
 
                 if request.user.permission(dataset) is "admin":
                     return ConflictErrorResponse(
-                        f"You are already an admin of this dataset {dataset.name} with the following dataset id {dataset.id}. "
+                        f"You are already an admin of this dataset {dataset.name} "
+                        f"with the following dataset id {dataset.id}. "
                         f"Your are granted with full permission"
                     )
 
@@ -719,11 +736,13 @@ class AWSHealthCheck(APIView):
     authentication_classes = []
     permission_classes = []
 
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
         return Response()
 
 
 class CurrentUserView(APIView):
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
@@ -751,6 +770,7 @@ class DatasetViewSet(ModelViewSet):
     serializer_class = DatasetSerializer
     filter_fields = ("ancestor",)
 
+    # noinspection PyMethodMayBeStatic
     def logic_validate(
         self, request, dataset_data
     ):  # only common validations for create and update! #
@@ -829,7 +849,7 @@ class DatasetViewSet(ModelViewSet):
                     f"Unexpected error. Server was not able to complete this request.",
                     error=error,
                 )
-            except exceptions.NoSuchLifecycleConfiguration:
+            except s3.exceptions.NoSuchLifecycleConfiguration:
                 return ForbiddenErrorResponse(
                     "The lifecycle configuration does not exist"
                 )
@@ -899,7 +919,7 @@ class DatasetViewSet(ModelViewSet):
                 response = client.create_policy(
                     PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
                 )
-            except botocore.exceptions.AccessDeniedException as e:
+            except s3.exceptions.AccessDeniedException as e:
                 error = Exception(
                     f"The user does not have needed permissions to create this policy: {policy_name}"
                 ).with_traceback(e.__traceback__)
@@ -1152,11 +1172,11 @@ class DatasetViewSet(ModelViewSet):
                 f"with following id {dataset.id}"
             )
 
-        def delete_dataset_tree(dataset):
-            for child in dataset.children.all():
-                delete_dataset_tree(child)
-                child.delete()
-            logger.info(f"All subsets were deleted for dataset {dataset.id}")
+        def delete_dataset_tree(dataset_to_delete):
+            for child_dataset in dataset_to_delete.children.all():
+                delete_dataset_tree(child_dataset)
+                child_dataset.delete()
+            logger.info(f"All subsets were deleted for dataset {dataset_to_delete.id}")
 
         delete_tree_raw = request.GET.get("delete_tree")
         delete_tree = True if delete_tree_raw == "true" else False
@@ -1181,7 +1201,7 @@ class DataSourceViewSet(ModelViewSet):
     filter_fields = ("dataset",)
 
     @action(detail=True, methods=["get"])
-    def statistics(self, request, pk=None):
+    def statistics(self, request, *args, **kwargs):
         data_source = self.get_object()
         if data_source.state != "ready":
             return ErrorResponse(
@@ -1659,13 +1679,12 @@ class Query(GenericAPIView):
                     error=e,
                 )
 
+            data_source_id = query_serialized.validated_data["data_source_id"]
             try:
-                data_source = dataset.data_sources.get(
-                    id=query_serialized.validated_data["data_source_id"]
-                )
+                data_source = dataset.data_sources.get(id=data_source_id)
             except DataSource.DoesNotExist as e:
                 return NotFoundErrorResponse(
-                    f"Data source {data_source.name} for dataset {dataset.id} does not exists",
+                    f"Data source {data_source_id} for dataset {dataset.id} does not exists",
                     error=e,
                 )
 
@@ -1715,6 +1734,12 @@ class Query(GenericAPIView):
                 org_name=request.user.organization.name
             )
 
+            final_query = query_no_limit
+
+            s3_client = aws_service.create_s3_client(
+                org_name=request.user.organization.name
+            )
+
             if sample_aprx or return_count:
                 logger.debug(f"Count query: {count_query}")
 
@@ -1736,9 +1761,6 @@ class Query(GenericAPIView):
                     )
 
                 query_execution_id = response["QueryExecutionId"]
-                s3_client = aws_service.create_s3_client(
-                    org_name=request.user.organization.name
-                )
 
                 try:
                     obj = lib.get_s3_object(
@@ -1769,14 +1791,12 @@ class Query(GenericAPIView):
                 if return_count:
                     req_res["count_no_limit"] = count
 
-            final_query = query_no_limit
-
-            if sample_aprx:
-                if count > sample_aprx:
-                    percentage = int((sample_aprx / count) * 100)
-                    final_query = (
-                        f"{query_no_limit} TABLESAMPLE BERNOULLI({percentage})"
-                    )
+                if sample_aprx:
+                    if count > sample_aprx:
+                        percentage = int((sample_aprx / count) * 100)
+                        final_query = (
+                            f"{query_no_limit} TABLESAMPLE BERNOULLI({percentage})"
+                        )
 
             if limit:
                 final_query += f" LIMIT {limit}"
@@ -1922,6 +1942,7 @@ class ActivityViewSet(ModelViewSet):
 
 
 class GetExecutionConfig(APIView):
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
 
         execution = Execution.objects.get(execution_user=request.user)
@@ -1943,6 +1964,7 @@ class GetExecutionConfig(APIView):
 
 
 class Version(APIView):
+    # noinspection PyMethodMayBeStatic
     def get(self, request):
 
         if "study" not in request.query_params:
@@ -2006,5 +2028,5 @@ class DocumentationViewSet(ModelViewSet):
             dataset_id = self.request.query_params["dataset"]
             return Documentation.objects.filter(dataset_id=dataset_id)
         else:
-            id = self.request.parser_context["kwargs"]["pk"]
-            return Documentation.objects.filter(id=id)
+            documentation_id = self.request.parser_context["kwargs"]["pk"]
+            return Documentation.objects.filter(id=documentation_id)
