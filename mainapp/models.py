@@ -236,6 +236,14 @@ class Study(models.Model):
     def __str__(self):
         return f"<Study id={self.id} name={self.name}>"
 
+    @property
+    def organization(self):
+        dataset_from_study = self.datasets.first()
+        if dataset_from_study:
+            return dataset_from_study.organization.name
+        else:
+            return Organization.objects.get(default=True).name
+
 
 class StudyDataset(models.Model):
     FULL_ACCESS = "full_access"
@@ -266,8 +274,10 @@ class StudyDataset(models.Model):
 @receiver(signals.pre_delete, sender=Study)
 def delete_study(sender, instance, **kwargs):
     study = instance
+    org_name = study.organization
+
     try:
-        study.delete_bucket(org_name=instance.user_created.organization.name)
+        study.delete_bucket(org_name=org_name)
     except BucketNotFound as e:
         logger.warning(
             f"Bucket {e.bucket_name} was not found for study id {study.id} at delete bucket operation"
@@ -379,7 +389,7 @@ class Dataset(models.Model):
 def delete_dataset(sender, instance, **kwargs):
     dataset = instance
     try:
-        dataset.delete_bucket(org_name=instance.user_created.organization.name)
+        dataset.delete_bucket(org_name=dataset.organization.name)
     except BucketNotFound as e:
         logger.warning(
             f"Bucket {e.bucket_name} was not found for dataset id {dataset.id} at delete bucket operation"

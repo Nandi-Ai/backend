@@ -86,15 +86,16 @@ class GetSTS(APIView):  # from execution
             return ErrorResponse("This is not the execution of any study")
 
         # Create IAM client
+        # request user is the execution user
         sts_default_provider_chain = aws_service.create_sts_client(
             org_name=request.user.organization.name
         )
 
-        workspace_bucket_name = "lynx-workspace-" + str(study.id)
+        workspace_bucket_name = study.bucket
 
         org_name = request.user.organization.name
-        role_name = "lynx-workspace-" + str(study.id)
-        role_to_assume_arn = f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{role_name}"
+
+        role_to_assume_arn = f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{workspace_bucket_name}"
 
         try:
             response = sts_default_provider_chain.assume_role(
@@ -278,14 +279,14 @@ class StudyViewSet(ModelViewSet):
             study.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
 
             study.save()
-            workspace_bucket_name = "lynx-workspace-" + str(study.id)
-            s3 = aws_service.create_s3_client(org_name=request.user.organization.name)
+
+            workspace_bucket_name = study.bucket
+            org_name = study.organization
+            s3 = aws_service.create_s3_client(org_name=org_name)
 
             try:
                 lib.create_s3_bucket(
-                    org_name=request.user.organization.name,
-                    name=workspace_bucket_name,
-                    s3_client=s3,
+                    org_name=org_name, name=workspace_bucket_name, s3_client=s3
                 )
             except botocore.exceptions.ClientError as e:
                 error = Exception(
@@ -320,14 +321,12 @@ class StudyViewSet(ModelViewSet):
                     "arn:aws:s3:::" + dataset.bucket + "*"
                 )
 
-            client = aws_service.create_iam_client(
-                org_name=request.user.organization.name
-            )
-            policy_name = "lynx-workspace-" + str(study.id)
+            client = aws_service.create_iam_client(org_name=org_name)
 
             try:
                 response = client.create_policy(
-                    PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
+                    PolicyName=workspace_bucket_name,
+                    PolicyDocument=json.dumps(policy_json),
                 )
             except botocore.exceptions.ClientError as e:
                 error = Exception(
@@ -347,15 +346,14 @@ class StudyViewSet(ModelViewSet):
 
             policy_arn = response["Policy"]["Arn"]
 
-            role_name = "lynx-workspace-" + str(study.id)
             trust_policy_json = resources.create_base_trust_relationship(
-                org_name=request.user.organization.name
+                org_name=org_name
             )
             try:
                 client.create_role(
-                    RoleName=role_name,
+                    RoleName=workspace_bucket_name,
                     AssumeRolePolicyDocument=json.dumps(trust_policy_json),
-                    Description=policy_name,
+                    Description=workspace_bucket_name,
                 )
             except botocore.exceptions.ClientError as e:
                 error = Exception(
@@ -419,9 +417,9 @@ class StudyViewSet(ModelViewSet):
                     f"Only the study creator can edit a study"
                 )
 
-            client = aws_service.create_iam_client(
-                org_name=request.user.organization.name
-            )
+            org_name = study.organization
+
+            client = aws_service.create_iam_client(org_name=org_name)
             account_number = settings.ORG_VALUES["lynx"]["ACCOUNT_NUMBER"]
             policy_arn = (
                 f"arn:aws:iam::{account_number}:policy/lynx-workspace-{study.id}"
@@ -510,7 +508,7 @@ class GetDatasetSTS(APIView):  # for frontend uploads
             )
 
         # generate sts token so the user can upload the dataset to the bucket
-        org_name = request.user.organization.name
+        org_name = dataset.organization.name
         sts_default_provider_chain = aws_service.create_sts_client(org_name=org_name)
         # sts_default_provider_chain = aws_service.create_sts_client()
 
@@ -562,12 +560,11 @@ class GetStudySTS(APIView):  # for frontend uploads
             ) from e
 
         # generate sts token so the user can upload the dataset to the bucket
-        sts_default_provider_chain = aws_service.create_sts_client(
-            org_name=request.user.organization.name
-        )
+        org_name = study.organization
+
+        sts_default_provider_chain = aws_service.create_sts_client(org_name=org_name)
 
         role_name = f"lynx-workspace-{study.id}"
-        org_name = request.user.organization.name
         role_to_assume_arn = f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{role_name}"
 
         try:
@@ -831,13 +828,12 @@ class DatasetViewSet(ModelViewSet):
             dataset.id = uuid.uuid4()
 
             # aws stuff
-            s3 = aws_service.create_s3_client(org_name=request.user.organization.name)
+            org_name = request.user.organization.name
+            s3 = aws_service.create_s3_client(org_name=org_name)
 
             try:
                 lib.create_s3_bucket(
-                    org_name=request.user.organization.name,
-                    name=dataset.bucket,
-                    s3_client=s3,
+                    org_name=org_name, name=dataset.bucket, s3_client=s3
                 )
             except botocore.exceptions.ClientError as e:
                 error = Exception(
@@ -873,9 +869,7 @@ class DatasetViewSet(ModelViewSet):
                 )
 
             try:
-                lib.create_glue_database(
-                    org_name=request.user.organization.name, dataset=dataset
-                )
+                lib.create_glue_database(org_name=org_name, dataset=dataset)
                 time.sleep(1)  # wait for the bucket to be created
             except botocore.exceptions.ClientError as e:
                 error = Exception(
@@ -919,9 +913,7 @@ class DatasetViewSet(ModelViewSet):
             policy_json["Statement"][0]["Resource"].append(
                 "arn:aws:s3:::" + dataset.bucket + "*"
             )
-            client = aws_service.create_iam_client(
-                org_name=request.user.organization.name
-            )
+            client = aws_service.create_iam_client(org_name=org_name)
 
             policy_name = f"lynx-dataset-{dataset.id}"
 
@@ -950,9 +942,7 @@ class DatasetViewSet(ModelViewSet):
 
             # create the dataset role:
             role_name = "lynx-dataset-" + str(dataset.id)
-            trust_policy_json = resources.create_base_trust_relationship(
-                request.user.organization.name
-            )
+            trust_policy_json = resources.create_base_trust_relationship(org_name)
             try:
                 client.create_role(
                     RoleName=role_name,
@@ -1226,11 +1216,10 @@ class DataSourceViewSet(ModelViewSet):
         if query_from_front:
             query_from_front = json.loads(query_from_front)
 
+        org_name = data_source.dataset.organization.name
         try:
             columns_types = lib.get_columns_types(
-                org_name=request.user.organization.name,
-                glue_database=glue_database,
-                glue_table=glue_table,
+                org_name=org_name, glue_database=glue_database, glue_table=glue_table
             )
             default_athena_col_names = statistics.create_default_column_names(
                 columns_types
@@ -1340,7 +1329,7 @@ class DataSourceViewSet(ModelViewSet):
 
                 if ext in ["sav", "zsav"]:  # convert to csv
                     s3_client = aws_service.create_s3_client(
-                        org_name=request.user.organization.name
+                        org_name=data_source.dataset.organization.name
                     )
                     workdir = f"/tmp/{data_source.id}"
                     os.makedirs(workdir)
@@ -1478,9 +1467,8 @@ class RunQuery(GenericAPIView):
             if access == "no access":
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
 
-            client = aws_service.create_athena_client(
-                org_name=request.user.organization.name
-            )
+            org_name = dataset.organization.name
+            client = aws_service.create_athena_client(org_name=org_name)
             try:
                 response = client.start_query_execution(
                     QueryString=query_string,
@@ -1575,8 +1563,7 @@ class CreateCohort(GenericAPIView):
             if not destination_dataset.glue_database:
                 try:
                     lib.create_glue_database(
-                        org_name=request.user.organization.name,
-                        dataset=destination_dataset,
+                        org_name=dataset.organization.name, dataset=destination_dataset
                     )
                 except Exception as e:
                     error = Exception(
@@ -1605,7 +1592,7 @@ class CreateCohort(GenericAPIView):
             logger.debug(f"Query result of CREATE TABLE AS SELECT {ctas_query}")
 
             client = aws_service.create_athena_client(
-                org_name=request.user.organization.name
+                org_name=dataset.organization.name
             )
             try:
                 response = client.start_query_execution(
@@ -1970,10 +1957,13 @@ class Version(APIView):
         if (start and end) and not start <= end:
             return ErrorResponse("start > end")
 
+        dataset_from_study = study.datasets.first()
+        org_name = dataset_from_study.organization.name
+
         try:
             items = lib.list_objects_version(
                 bucket=study.bucket,
-                org_name=request.user.organization.name,
+                org_name=org_name,
                 filter="*.ipynb",
                 exclude=".*",
                 start=start,
