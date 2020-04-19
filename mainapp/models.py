@@ -265,7 +265,7 @@ class StudyDataset(models.Model):
 
 
 @receiver(signals.pre_delete, sender=Study)
-def delete_study(_, instance, **kwargs):
+def delete_study(sender, instance, **kwargs):
     study = instance
     try:
         study.delete_bucket(org_name=instance.user_created.organization.name)
@@ -347,7 +347,7 @@ class Dataset(models.Model):
 
 
 @receiver(signals.pre_delete, sender=Dataset)
-def delete_dataset(_, instance, **kwargs):
+def delete_dataset(sender, instance, **kwargs):
     dataset = instance
     try:
         dataset.delete_bucket(org_name=instance.user_created.organization.name)
@@ -394,7 +394,7 @@ class DataSource(models.Model):
 
 
 @receiver(signals.pre_delete, sender=DataSource)
-def delete_data_source(_, instance, **kwargs):
+def delete_data_source(sender, instance, **kwargs):
     data_source = instance
     org_name = instance.dataset.organization.name
     logger.info(
