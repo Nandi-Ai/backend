@@ -1,6 +1,5 @@
-import uuid
-
 import logging
+import uuid
 
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
@@ -341,6 +340,36 @@ class Dataset(models.Model):
     def delete_bucket(self, org_name):
         logger.info(f"Deleting bucket {self.bucket} for dataset {self.id}")
         lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
+
+    def query(self, query):
+        client = aws_service.create_athena_client(org_name=self.organization.name)
+
+        return client.start_query_execution(
+            QueryString=query,
+            QueryExecutionContext={
+                "Database": self.glue_database  # the name of the database in glue/athena
+            },
+            ResultConfiguration={
+                "OutputLocation": f"s3://{self.bucket}/temp_execution_results"
+            },
+        )
+
+    def get_s3_object(self, key):
+        return lib.get_s3_object(
+            bucket=self.bucket, key=key, org_name=self.organization.name
+        )
+
+    def get_query_execution(self, query_execution_id):
+        return self.get_s3_object(
+            key="temp_execution_results/" + query_execution_id + ".csv"
+        )
+
+    def get_columns_types(self, glue_table):
+        return lib.get_columns_types(
+            org_name=self.organization.name,
+            glue_database=self.glue_database,
+            glue_table=glue_table,
+        )
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"

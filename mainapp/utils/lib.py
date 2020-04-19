@@ -367,6 +367,8 @@ def get_s3_object(boto3_client, bucket, key, org_name, s3_client=None, retries=6
                 f"Failed to fetch object {key} from s3 bucket {bucket} for org_name {org_name}"
             )
             raise
+        except s3_client.exceptions.NoSuchBucket as e:
+            raise BucketNotFound(bucket) from e
 
 
 def csv_to_json(csv, columns_types):
