@@ -365,7 +365,7 @@ class StudyViewSet(ModelViewSet):
                 )
             except Exception as e:
                 error = Exception(
-                    f"There was an error creating the role: {role_name}"
+                    f"There was an error creating the role: {workspace_bucket_name}"
                 ).with_traceback(e.__traceback__)
                 return ErrorResponse(
                     f"Unexpected error. Server was not able to complete this request.",
@@ -373,7 +373,9 @@ class StudyViewSet(ModelViewSet):
                 )
 
             try:
-                client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+                client.attach_role_policy(
+                    RoleName=workspace_bucket_name, PolicyArn=policy_arn
+                )
             except botocore.exceptions.ClientError as e:
                 error = Exception(
                     f"The server can't process your request due to unexpected internal error."
