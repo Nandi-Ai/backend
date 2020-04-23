@@ -15,13 +15,19 @@ from rest_framework.exceptions import AuthenticationFailed
 
 from mainapp import models
 from mainapp import settings
-from mainapp.exceptions import BucketNotFound, UnableToGetGlueColumns
+from mainapp.exceptions import (
+    BucketNotFound,
+    UnableToGetGlueColumns,
+    RoleNotFound,
+    PolicyNotFound,
+)
 from mainapp.utils import aws_service
 from mainapp.utils.decorators import (
     organization_dependent,
     with_glue_client,
     with_s3_client,
     with_s3_resource,
+    with_iam_resource,
 )
 
 logger = logging.getLogger(__name__)
@@ -480,6 +486,24 @@ def delete_bucket(boto3_client, bucket_name, org_name):
         logger.debug("Deleted bucket: " + bucket_name)
     except boto3_client.meta.client.exceptions.NoSuchBucket as e:
         raise BucketNotFound(bucket_name) from e
+
+
+@with_iam_resource
+def delete_role_and_policy(boto3_client, bucket_name, org_name):
+    role = boto3_client.Role(bucket_name)
+    policy_arn = role.arn.replace("role", "policy")
+    policy = boto3_client.Policy(policy_arn)
+
+    try:
+        role.detach_policy(PolicyArn=policy_arn)
+        role.delete()
+    except boto3_client.exceptions.NoSuchEntityException as e:
+        raise RoleNotFound(role) from e
+
+    try:
+        policy.delete()
+    except boto3_client.exceptions.NoSuchEntityException as e:
+        raise PolicyNotFound(policy_arn) from e
 
 
 def set_policy_clear_athena_history(

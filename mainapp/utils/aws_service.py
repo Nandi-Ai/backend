@@ -54,3 +54,7 @@ def create_kms_client(*args, **kwargs):
 
 def create_s3_resource(*args, **kwargs):
     return create_resource(service_name="s3", *args, **kwargs)
+
+
+def create_iam_resource(*args, **kwargs):
+    return create_resource(service_name="iam", *args, **kwargs)

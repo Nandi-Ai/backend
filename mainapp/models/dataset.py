@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import signals
 from django.dispatch import receiver
 
-from mainapp.exceptions import BucketNotFound
+from mainapp.exceptions import BucketNotFound, PolicyNotFound, RoleNotFound
 from mainapp.utils import lib, aws_service
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,7 @@ class Dataset(models.Model):
     def delete_bucket(self, org_name):
         logger.info(f"Deleting bucket {self.bucket} for dataset {self.id}")
         lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
+        lib.delete_role_and_policy(bucket_name=self.bucket, org_name=org_name)
 
     def query(self, query):
         client = aws_service.create_athena_client(org_name=self.organization.name)
@@ -120,4 +121,12 @@ def delete_dataset(sender, instance, **kwargs):
     except BucketNotFound as e:
         logger.warning(
             f"Bucket {e.bucket_name} was not found for dataset id {dataset.id} at delete bucket operation"
+        )
+    except PolicyNotFound as e:
+        logger.warning(
+            f"Policy {e.policy} was not found for dataset id {dataset.id} at delete bucket operation"
+        )
+    except RoleNotFound as e:
+        logger.warning(
+            f"Role {e.role} was not found for dataset id {dataset.id} at delete bucket operation"
         )
