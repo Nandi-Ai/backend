@@ -1912,15 +1912,15 @@ class GetExecutionConfig(APIView):
     def get(self, request):
 
         execution = Execution.objects.get(execution_user=request.user)
-        real_user = execution.real_user
         study = Study.objects.get(execution=execution)
+        study_datasets = StudyDataset.objects.filter(study=study)
 
         config = {"study": StudySerializer(study).data, "datasets": []}
-        for dataset in real_user.datasets & study.datasets.all().distinct():
-            dataset_ser = DatasetSerializer(dataset).data
-            dataset_ser["permission"] = lib.calc_access_to_database(real_user, dataset)
+        for study_dataset in study_datasets:
+            dataset_ser = DatasetSerializer(study_dataset.dataset).data
+            dataset_ser["permission"] = study_dataset.permission
             dataset_ser["data_sources"] = []
-            for data_source in dataset.data_sources.all():
+            for data_source in study_dataset.dataset.data_sources.all():
                 data_source_ser = DataSourceSerializer(data_source).data
                 dataset_ser["data_sources"].append(data_source_ser)
 
