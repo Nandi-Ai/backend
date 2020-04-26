@@ -170,6 +170,16 @@ class Dummy(APIView):  # usage in Lambda Function
         return Response()
 
 
+class GetExecutionUser(APIView):
+    def get(self, request):
+        try:
+            execution = Execution.objects.get(execution_user=request.user)
+        except Execution.DoesNotExist:
+            return BadRequestErrorResponse(f"{request.user} is not an execution user")
+
+        return Response({"user": execution.real_user.id})
+
+
 class GetExecution(APIView):  # from frontend
     @transaction.atomic
     # noinspection PyMethodMayBeStatic
@@ -416,9 +426,15 @@ class StudyViewSet(ModelViewSet):
 
             study = self.get_object()
             if request.user not in study.users.all():
-                return ForbiddenErrorResponse(
-                    f"Only the study creator can edit a study"
-                )
+                try:
+                    execution = Execution.objects.get(execution_user=request.user)
+                    if execution.real_user not in study.users.all():
+                        raise Execution.DoesNotExist()
+
+                except Execution.DoesNotExist:
+                    return ForbiddenErrorResponse(
+                        f"Only the study creator can edit a study"
+                    )
 
             org_name = study.organization
 
@@ -801,6 +817,7 @@ class DatasetViewSet(ModelViewSet):
 
     def create(self, request, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
+        logger.debug(f"Created dataset with user {request.user.id}")
 
         if dataset_serialized.is_valid():
             # create the dataset insance:
