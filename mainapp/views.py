@@ -251,7 +251,13 @@ class StudyViewSet(ModelViewSet):
         return Response({"study_organization": organization_name})
 
     def get_queryset(self, **kwargs):
-        return self.request.user.related_studies.all()
+        user = self.request.user
+        if self.request.user.is_execution:
+            return Execution.objects.get(
+                execution_user=self.request.user
+            ).real_user.related_studies.all()
+        else:
+            return user.related_studies.all()
 
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
@@ -425,16 +431,15 @@ class StudyViewSet(ModelViewSet):
             study_updated = serialized.validated_data
 
             study = self.get_object()
-            if request.user not in study.users.all():
-                try:
-                    execution = Execution.objects.get(execution_user=request.user)
-                    if execution.real_user not in study.users.all():
-                        raise Execution.DoesNotExist()
-
-                except Execution.DoesNotExist:
-                    return ForbiddenErrorResponse(
-                        f"Only the study creator can edit a study"
-                    )
+            user = (
+                request.user
+                if not request.user.is_execution
+                else Execution.objects.get(execution_user=request.user).real_user
+            )
+            if user not in study.users.all():
+                return ForbiddenErrorResponse(
+                    f"Only the study creator can edit a study"
+                )
 
             org_name = study.organization
 
@@ -510,7 +515,7 @@ class StudyViewSet(ModelViewSet):
             diff_datasets = updated_datasets ^ existing_datasets
             for d in diff_datasets & updated_datasets:
                 Activity.objects.create(
-                    type="dataset assignment", study=study, dataset=d, user=request.user
+                    type="dataset assignment", study=study, dataset=d, user=user
                 )
 
         return super(self.__class__, self).update(request=self.request)
@@ -520,7 +525,12 @@ class GetDatasetSTS(APIView):  # for frontend uploads
     # noinspection PyMethodMayBeStatic
     def get(self, request, dataset_id):
         try:
-            dataset = request.user.datasets.get(id=dataset_id)
+            user = (
+                request.user
+                if not request.user.is_execution
+                else Execution.objects.get(execution_user=request.user).real_user
+            )
+            dataset = user.datasets.get(id=dataset_id)
         except Dataset.DoesNotExist:
             return NotFoundErrorResponse(
                 f"Dataset with that dataset_id {dataset_id} does not exists"
@@ -817,7 +827,6 @@ class DatasetViewSet(ModelViewSet):
 
     def create(self, request, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
-        logger.debug(f"Created dataset with user {request.user.id}")
 
         if dataset_serialized.is_valid():
             # create the dataset insance:
@@ -1037,12 +1046,18 @@ class DatasetViewSet(ModelViewSet):
 
             data = self.serializer_class(dataset, allow_null=True).data
 
+            real_user = (
+                request.user
+                if not request.user.is_execution
+                else Execution.objects.get(execution_user=request.user).real_user
+            )
+
             # activity:
             for user in dataset.admin_users.all():
                 Activity.objects.create(
                     type="dataset permission",
                     dataset=dataset,
-                    user=request.user,
+                    user=real_user,
                     meta={
                         "user_affected": str(user.id),
                         "action": "grant",
@@ -1053,7 +1068,7 @@ class DatasetViewSet(ModelViewSet):
                 Activity.objects.create(
                     type="dataset permission",
                     dataset=dataset,
-                    user=request.user,
+                    user=real_user,
                     meta={
                         "user_affected": str(user.id),
                         "action": "grant",
@@ -1064,7 +1079,7 @@ class DatasetViewSet(ModelViewSet):
                 Activity.objects.create(
                     type="dataset permission",
                     dataset=dataset,
-                    user=request.user,
+                    user=real_user,
                     meta={
                         "user_affected": str(user.id),
                         "action": "grant",
@@ -1306,7 +1321,12 @@ class DataSourceViewSet(ModelViewSet):
             data_source_data = data_source_serialized.validated_data
             dataset = data_source_data["dataset"]
 
-            if dataset not in request.user.datasets.all():
+            user = (
+                request.user
+                if not request.user.is_execution
+                else Execution.objects.get(execution_user=request.user).real_user
+            )
+            if dataset not in user.datasets.all():
                 return BadRequestErrorResponse(
                     f"Dataset {dataset.id} does not exist or does not belong to the user"
                 )
@@ -1393,7 +1413,7 @@ class DataSourceViewSet(ModelViewSet):
                 create_catalog_thread = threading.Thread(
                     target=lib.create_catalog,
                     kwargs={
-                        "org_name": request.user.organization.name,
+                        "org_name": user.organization.name,
                         "data_source": data_source,
                     },
                 )  # also setting the data_source state to ready when it's done
