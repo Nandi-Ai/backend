@@ -62,6 +62,11 @@ urlpatterns = [
         r"^get_execution/?$", views.GetExecution.as_view(), name="get_execution"
     ),  # for frontend
     url(
+        r"^get_execution_user/$",
+        views.GetExecutionUser.as_view(),
+        name="get_execution_user",
+    ),
+    url(
         r"^get_execution_config/?$",
         views.GetExecutionConfig.as_view(),
         name="get_execution_config",
