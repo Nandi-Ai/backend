@@ -1247,7 +1247,7 @@ class DataSourceViewSet(ModelViewSet):
 
         try:
             response = statistics.count_all_values_query(
-                query, glue_database, bucket_name, request.user.organization.name
+                query, glue_database, bucket_name, org_name
             )
             data_per_column = statistics.sql_response_processing(
                 response, default_athena_col_names
