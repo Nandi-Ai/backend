@@ -61,6 +61,9 @@ class StudySerializer(ModelSerializer):
 
         if len(prev_datasets) > 0:
             for item in prev_datasets.values():
-                item.delete()
+                study_dataset = StudyDataset.objects.get(
+                    dataset=item.id, study=instance
+                )
+                study_dataset.delete()
 
         return instance
