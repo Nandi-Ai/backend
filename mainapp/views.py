@@ -6,6 +6,7 @@ import threading
 import time
 import uuid
 
+import boto3
 import botocore.exceptions
 import dateparser
 import pyreadstat
@@ -1850,6 +1851,44 @@ class Query(GenericAPIView):
             return BadRequestErrorResponse(
                 "Bad Request:", error=query_serialized.errors
             )
+
+
+class QuickSightA(GenericAPIView):
+    def get(self, request):
+        session = boto3.session.Session(
+            aws_access_key_id=settings.prod_aws_access_key_id,
+            aws_secret_access_key=settings.prod_aws_secret_access_key,
+            region_name="eu-west-1",
+        )
+        client = session.client("quicksight", region_name=settings.aws_region)
+        data = client.get_dashboard_embed_url(
+            AwsAccountId=settings.prod_account_number,
+            DashboardId="f1f53dbf-5029-45a2-b1e8-cca473745e42",
+            IdentityType="IAM",
+            SessionLifetimeInMinutes=100,
+            ResetDisabled=True,
+            UndoRedoDisabled=True,
+        )
+        return Response(data)
+
+
+class QuickSightB(GenericAPIView):
+    def get(self, request):
+        session = boto3.session.Session(
+            aws_access_key_id=settings.prod_aws_access_key_id,
+            aws_secret_access_key=settings.prod_aws_secret_access_key,
+            region_name="eu-west-1",
+        )
+        client = session.client("quicksight", region_name=settings.aws_region)
+        data = client.get_dashboard_embed_url(
+            AwsAccountId=settings.prod_account_number,
+            DashboardId="8dd4682d-ddca-4379-8e5a-6bfc52ec5185",
+            IdentityType="IAM",
+            SessionLifetimeInMinutes=100,
+            ResetDisabled=True,
+            UndoRedoDisabled=True,
+        )
+        return Response(data)
 
 
 class ActivityViewSet(ModelViewSet):
