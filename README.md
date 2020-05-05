@@ -1,109 +1,105 @@
-# Installations:
+# lynx-be
 
 This is the backend of the project.
 
-## Development
+## Prerequisites
 
-1. Install python  
-    - Windows
-    
-    - Linux
-    
-    - Mac
-    
-        `brew install python`
-          
-   After installation please check that ```python3``` and ```pip3``` are installed.
-   
+### Python
+- Windows - Download and setup from https://www.python.org/downloads/
+- Linux -
+- Mac - `brew install python`
+
+After installation please check that ```python3``` and ```pip3``` are installed.
+
 ```
   python3 --version
   pip3 -V
 ```
-      
-2. Install virtual env (like pipenv pyenv or Aanaconda)
-    
-    - Windows
-    
-    - Linux
-    
-    - Mac
-    
-        `brew install pyenv`
-       
-   Go back to project:
-   
-   (recommended to use python version >= 3.6.7)
-   
+
+### Docker
+- Windows
+- Linux
+- Mac - `brew cask install docker` / download [Docker Desktop for Mac](https://hub.docker.com/editions/community/docker-ce-desktop-mac/)
+
+### virtual env (like pipenv pyenv or Aanaconda)
+- Windows
+- Linux
+- Mac - `brew install pyenv pyenv-virtualenv`
+
+Go back to project:
+
+(recommended to use python version >= 3.7.5)
+
 ```
    cd lynx-be
    pyenv install <python-version>
-   pyenv virtualenv 3.6.7 <your-name-to-virtual-env>
-   pyenv local backend-3.6.7
+   pyenv virtualenv 3.7.5 <your-name-to-virtual-env>
+   pyenv local backend-3.7.5
 ```
-   
+
    Update your bash/zsh profile
-   
+
 ```
    eval "$(pyenv init -)"
    eval "$(pyenv virtualenv-init -)"
 ```
-   
-3. Go to `cd mainapp`
 
-    Create new file and name it `local_settings.py`
-    Download the content from https://drive.google.com/open?id=1g-cmrDHILbiLbpAwNvYys6jmSzO3xASN
-    Instead of 'XXXX' add valid credentials.
-    
-4. Go to project root directory and install project requirements.
+### Requirements.txt
+Go to project root directory and install project requirements.
 
 ```
-   cd lynx-be
    pip install -r requirements.txt
 ```
-   
-5. Install docker in order to setup the database.
-    - Windows
-    
-    - Linux
-    
-    - Mac
-   
-        `brew cask install docker`
-        
-    Install DB of the project via docker 
-    
-    `docker-compose -f docker-compose.services.yml up -d`
-    
-6. Run migrations
 
-    `python manage.py migrate`
-    
-6. Run server
+## Development
 
-    `python manage.py runserver`
-    
-7. Create a user in Django admin:
+### Install the git hook scripts
+run pre-commit install to set up the git hook scripts
+```
+pre-commit install --hook-type pre-commit --hook-type pre-push
+```
 
-    `python manage.py createsuperuser --email=<your_email>`
-    
-    It will request from your to create new password
+to remove it type:
+```
+pre-commit uninstall --hook-type pre-commit --hook-type pre-push
+```
 
-### Deployment
+### Local Settings
+1. Go to `cd mainapp`
+2. Create new file and name it `local_settings.py`
+3. Download the content from https://drive.google.com/open?id=1g-cmrDHILbiLbpAwNvYys6jmSzO3xASN
+4. Instead of 'XXXX' add valid credentials.
+
+### Postgres
+Install DB of the project via docker
+```
+docker-compose -f docker-compose.services.yml up -d
+```
+
+Create a user in Django admin:
 
 ```
-1. ssh to prod backend instance 
+python manage.py createsuperuser --email=<your_email>
+```
 
-2. cd  /home/ec2-user/lynx-configs/v2
+It will request from your to create new password
 
-3. run docker-compose exec lynx_be bash
+### Run server
 
-4. cd lynx_be
+```
+python manage.py runserver
+```
 
-5. run git pull
+## Run migrations
 
-6. run migration if needed - python mange.py migrate
+To update the local database with recent migrations use:
+```
+python manage.py migrate
+```
 
-7. run exit
+## Running tests
 
-8. run docker-compose restart
+To run the tests type:
+```
+python manage.py test
 ```
