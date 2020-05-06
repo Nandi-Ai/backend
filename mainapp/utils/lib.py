@@ -7,6 +7,8 @@ from datetime import datetime as dt, timedelta as td
 from time import sleep
 
 import logging
+
+import botocore
 import pytz
 import requests
 import sqlparse
@@ -29,6 +31,7 @@ from mainapp.utils.decorators import (
     with_s3_resource,
     with_iam_resource,
 )
+from mainapp.utils.response_handler import ForbiddenErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,31 @@ def create_s3_bucket(
             CreateBucketConfiguration={
                 "LocationConstraint": org_settings["AWS_REGION"]
             },
+        )
+
+    try:
+        response = s3_client.put_public_access_block(
+            Bucket=name,
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        )
+    except BucketNotFound as e:
+        raise BucketNotFound(
+            f"The bucket queried does not exist. Bucket: {name}, in org {org_name}", e
+        )
+    except botocore.exceptions.ClientError as e:
+        raise ForbiddenErrorResponse(
+            f"Missing s3:PutBucketPublicAccessBlock permissions to put public access block policy for bucket: {name}, in org {org_name}",
+            e,
+        )
+    except Exception as e:
+        raise Exception(
+            f"There was an error when removing public access from bucket: {name} in org {org_name}",
+            e,
         )
 
     if encrypt:
