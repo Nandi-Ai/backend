@@ -1479,7 +1479,7 @@ class RunQuery(GenericAPIView):
                         "Database": dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        "OutputLocation": f"s3://lynx-dataset-{req_dataset_id}/temp_execution_results"
+                        "OutputLocation": f"s3://lynx-workspace-{study.id}/temp_execution_results"
                     },
                 )
             except Exception as e:
