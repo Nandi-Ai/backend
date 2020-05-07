@@ -517,7 +517,7 @@ class GetDatasetSTS(APIView):  # for frontend uploads
 
         role_name = f"lynx-dataset-{dataset.id}"
         role_to_assume_arn = (
-            f"arn:aws:iam::{settings.ORG_VALUES[request.user.organization.name]['ACCOUNT_NUMBER']}"
+            f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}"
             f":role/{role_name}"
         )
 
