@@ -147,7 +147,6 @@ if ENV != "local":
 
     value = json.loads(response["Parameter"]["Value"])
     globals().update(value)
-    SECURED_BUCKET = value.get("SECURED_BUCKET").lower() == "true"
 
 else:
     from .local_settings import *
