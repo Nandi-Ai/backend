@@ -134,7 +134,7 @@ class GetStaticSTS(APIView):  # from execution
         sts_default_provider_chain = aws_service.create_sts_client()
         static_bucket_name = settings.LYNX_FRONT_STATIC_BUCKET
         role_to_assume_arn = (
-            f"arn:aws:iam::{settings.ORG_VALUES['lynx']['ACCOUNT_NUMBER']}:role/"
+            f"arn:aws:iam::{settings.ORG_VALUES['Lynx MD']['ACCOUNT_NUMBER']}:role/"
             f"{settings.AWS_STATIC_ROLE_NAME}"
         )
 
@@ -423,7 +423,7 @@ class StudyViewSet(ModelViewSet):
             org_name = study.organization
 
             client = aws_service.create_iam_client(org_name=org_name)
-            account_number = settings.ORG_VALUES["lynx"]["ACCOUNT_NUMBER"]
+            account_number = settings.ORG_VALUES["Lynx MD"]["ACCOUNT_NUMBER"]
             policy_arn = (
                 f"arn:aws:iam::{account_number}:policy/lynx-workspace-{study.id}"
             )

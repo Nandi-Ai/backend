@@ -5,7 +5,7 @@ from mainapp.utils import aws_service
 
 
 def organization_dependent(func):
-    def inner(org_name="lynx", user=None, *args, **kwargs):
+    def inner(org_name="Lynx MD", user=None, *args, **kwargs):
         try:
             org_values = settings.ORG_VALUES
         except AttributeError as e:
