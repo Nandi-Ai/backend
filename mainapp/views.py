@@ -251,13 +251,13 @@ class StudyViewSet(ModelViewSet):
         return Response({"study_organization": organization_name})
 
     def get_queryset(self, **kwargs):
-        user = self.request.user
-        if self.request.user.is_execution:
-            return Execution.objects.get(
-                execution_user=self.request.user
-            ).real_user.related_studies.all()
-        else:
-            return user.related_studies.all()
+        user = (
+            self.request.user
+            if not self.request.user.is_execution
+            else Execution.objects.get(execution_user=self.request.user).real_user
+        )
+
+        return user.related_studies.all()
 
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
