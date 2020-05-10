@@ -1853,17 +1853,14 @@ class Query(GenericAPIView):
             )
 
 
-class QuickSightA(GenericAPIView):
+class QuickSightChallenges(GenericAPIView):
     def get(self, request):
-        session = boto3.session.Session(
-            aws_access_key_id=settings.prod_aws_access_key_id,
-            aws_secret_access_key=settings.prod_aws_secret_access_key,
-            region_name="eu-west-1",
+        client = aws_service.create_client(
+            org_name="Old_SMC", service_name="quicksight"
         )
-        client = session.client("quicksight", region_name=settings.aws_region)
         data = client.get_dashboard_embed_url(
-            AwsAccountId=settings.prod_account_number,
-            DashboardId="f1f53dbf-5029-45a2-b1e8-cca473745e42",
+            AwsAccountId=settings.ORG_VALUES["Old_SMC"]["ACCOUNT_NUMBER"],
+            DashboardId=settings.ORG_VALUES["Old_SMC"]["CHALLENGES_DASHBOARD_ID"],
             IdentityType="IAM",
             SessionLifetimeInMinutes=100,
             ResetDisabled=True,
@@ -1872,17 +1869,12 @@ class QuickSightA(GenericAPIView):
         return Response(data)
 
 
-class QuickSightB(GenericAPIView):
+class QuickSightActivitiesDashboard(GenericAPIView):
     def get(self, request):
-        session = boto3.session.Session(
-            aws_access_key_id=settings.prod_aws_access_key_id,
-            aws_secret_access_key=settings.prod_aws_secret_access_key,
-            region_name="eu-west-1",
-        )
-        client = session.client("quicksight", region_name=settings.aws_region)
+        client = aws_service.create_client(service_name="quicksight")
         data = client.get_dashboard_embed_url(
-            AwsAccountId=settings.prod_account_number,
-            DashboardId="8dd4682d-ddca-4379-8e5a-6bfc52ec5185",
+            AwsAccountId=settings.ORG_VALUES["Lynx MD"]["ACCOUNT_NUMBER"],
+            DashboardId=settings.ORG_VALUES["Lynx MD"]["ACTIVITIES_DASHBOARD_ID"],
             IdentityType="IAM",
             SessionLifetimeInMinutes=100,
             ResetDisabled=True,
