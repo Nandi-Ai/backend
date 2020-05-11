@@ -445,7 +445,7 @@ class StudyViewSet(ModelViewSet):
             org_name = study.organization
 
             client = aws_service.create_iam_client(org_name=org_name)
-            account_number = settings.ORG_VALUES["Lynx MD"]["ACCOUNT_NUMBER"]
+            account_number = settings.ORG_VALUES[org_name]["ACCOUNT_NUMBER"]
             policy_arn = (
                 f"arn:aws:iam::{account_number}:policy/lynx-workspace-{study.id}"
             )
