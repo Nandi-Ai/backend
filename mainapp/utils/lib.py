@@ -57,15 +57,12 @@ def create_s3_bucket(
     if not s3_client:
         s3_client = aws_service.create_s3_client(org_name=org_name)
     # https://github.com/boto/boto3/issues/125
-    if org_settings["AWS_REGION"] == "us-east-1":
-        s3_client.create_bucket(Bucket=name)
-    else:
-        s3_client.create_bucket(
-            Bucket=name,
-            CreateBucketConfiguration={
-                "LocationConstraint": org_settings["AWS_REGION"]
-            },
-        )
+    args = {"Bucket": name, "ACL": "private"}
+    if not org_settings["AWS_REGION"] == "us-east-1":
+        args["CreateBucketConfiguration"] = {
+            "LocationConstraint": org_settings["AWS_REGION"]
+        }
+    s3_client.create_bucket(**args)
 
     try:
         response = s3_client.put_public_access_block(

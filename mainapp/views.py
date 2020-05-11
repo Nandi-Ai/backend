@@ -10,6 +10,7 @@ import boto3
 import botocore.exceptions
 import dateparser
 import pyreadstat
+from botocore.config import Config
 from django.core import exceptions
 from django.db import transaction
 from django.db.utils import IntegrityError
@@ -2067,3 +2068,22 @@ class DocumentationViewSet(ModelViewSet):
         else:
             documentation_id = self.request.parser_context["kwargs"]["pk"]
             return Documentation.objects.filter(id=documentation_id)
+
+    @action(detail=True, methods=["get"])
+    def signed_url(self, request, pk=None):
+        documentation = self.get_object()
+        dataset = documentation.dataset
+        org_name = dataset.organization.name
+        s3_client = aws_service.create_s3_client(
+            org_name=org_name,
+            config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
+        )
+        url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": dataset.bucket,
+                "Key": f"documentation/{documentation.file_name}",
+            },
+            ExpiresIn=30,
+        )
+        return Response(url)
