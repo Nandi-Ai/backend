@@ -269,6 +269,9 @@ class DataSourceViewSet(ModelViewSet):
                 )
                 handle_zip_thread.start()
 
+            else:
+                data_source.state = "ready"
+
             data_source.save()
             return Response(
                 self.serializer_class(data_source, allow_null=True).data, status=201
