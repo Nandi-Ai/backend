@@ -86,8 +86,6 @@ class DocumentationViewSet(ModelViewSet):
 
                 for file_to_delete in validated_files:
                     s3_client.delete_object(Bucket=dataset.bucket, Key=file_to_delete)
-
-                s3_client.delete_object(Bucket=dataset.bucket, Key="documentation")
                 raise
 
         except Exception:
