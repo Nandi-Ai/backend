@@ -1,4 +1,6 @@
+import os
 import logging
+import shutil
 
 from botocore.config import Config
 from rest_framework.decorators import action
@@ -7,7 +9,8 @@ from rest_framework.viewsets import ModelViewSet
 
 from mainapp.models import Documentation
 from mainapp.serializers import DocumentationSerializer
-from mainapp.utils import aws_service
+from mainapp.utils import aws_service, lib
+from mainapp.utils.response_handler import BadRequestErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +57,44 @@ class DocumentationViewSet(ModelViewSet):
             ExpiresIn=30,
         )
         return Response(url)
+
+    def create(self, request, *args, **kwargs):
+        doc_serialized = self.get_serializer(data=request.data)
+        try:
+            doc_serialized.is_valid(raise_exception=True)
+            documentations = doc_serialized.save()
+            dataset = documentations[0].dataset
+            workdir = f"/tmp/documentation_{dataset.id}"
+            s3_client = aws_service.create_s3_client(org_name=dataset.organization.name)
+            validated_files = []
+            try:
+                for documentation in documentations:
+                    local_path = os.path.join(workdir, documentation.file_name)
+                    file_key = f"documentation/{documentation.file_name}"
+                    lib.validate_file_type(
+                        s3_client,
+                        documentation.dataset.bucket,
+                        workdir,
+                        file_key,
+                        local_path,
+                    )
+
+                    validated_files.append(file_key)
+            except Exception:
+                for documentation in documentations:
+                    documentation.delete()
+
+                for file_to_delete in validated_files:
+                    s3_client.delete_object(Bucket=dataset.bucket, Key=file_to_delete)
+
+                s3_client.delete_object(Bucket=dataset.bucket, Key="documentation")
+                raise
+
+        except Exception:
+            return BadRequestErrorResponse("Invalid documentation data")
+
+        return Response(
+            doc_serialized.data,
+            status=201,
+            headers=self.get_success_headers(doc_serialized.data),
+        )

@@ -1,6 +1,4 @@
 import json
-import magic
-import mimetypes
 import logging
 import os
 import shutil
@@ -164,37 +162,18 @@ class DataSourceViewSet(ModelViewSet):
                     )
 
             data_source = data_source_serialized.save()
-            data_source.state = "errored"
+            data_source.state = "error"
             s3_obj = data_source.s3_objects[0]["key"]
             _, file_name, _, _ = lib.break_s3_object(s3_obj)
             workdir = f"/tmp/{data_source.id}"
             s3_client = aws_service.create_s3_client(org_name=dataset.organization.name)
-            os.makedirs(workdir)
+            local_path = os.path.join(workdir, file_name)
             try:
-                try:
-                    local_path = os.path.join(workdir, file_name)
-                    s3_client.download_file(
-                        data_source.dataset.bucket, s3_obj, local_path
-                    )
-
-                    type_by_ext = mimetypes.guess_type(local_path)[0]
-                    with open(local_path, "rb") as file_to_validate:
-                        content = file_to_validate.read(2048)
-
-                    type_by_content = magic.Magic(mime=True).from_buffer(content)
-
-                    assert (
-                        all([type_by_content, type_by_ext])
-                        and type_by_content == type_by_ext
-                    )
-                except AssertionError:
-                    s3_client.delete_object(Bucket=dataset.bucket, Key=s3_obj)
-                    raise
-                finally:
-                    data_source.save()
-                    shutil.rmtree(workdir)
-
+                lib.validate_file_type(
+                    s3_client, data_source.dataset.bucket, workdir, s3_obj, local_path
+                )
             except Exception:
+                data_source.save()
                 return Response(
                     self.serializer_class(data_source, allow_null=True).data, status=201
                 )
