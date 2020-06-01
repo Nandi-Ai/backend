@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import os
 import shutil
 import subprocess
@@ -9,6 +10,7 @@ from time import sleep
 import logging
 
 import botocore
+import magic
 import pytz
 import requests
 import sqlparse
@@ -43,6 +45,20 @@ def break_s3_object(obj):
     path = "/".join(obj.split("/")[:-1])
 
     return path, file_name, file_name_no_ext, ext
+
+
+def validate_file_type(s3_client, bucket, workdir, object_key, local_path):
+    try:
+        os.makedirs(workdir)
+        s3_client.download_file(bucket, object_key, local_path)
+        type_by_ext = mimetypes.guess_type(local_path)[0].split("/")[1]
+        type_by_content = magic.from_file(local_path, mime=True).split("/")[1]
+        assert all([type_by_content, type_by_ext]) and type_by_content == type_by_ext
+    except AssertionError:
+        s3_client.delete_object(Bucket=bucket, Key=object_key)
+        raise
+    finally:
+        shutil.rmtree(workdir)
 
 
 @organization_dependent

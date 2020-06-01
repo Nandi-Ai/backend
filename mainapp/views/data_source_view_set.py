@@ -162,6 +162,22 @@ class DataSourceViewSet(ModelViewSet):
                     )
 
             data_source = data_source_serialized.save()
+            data_source.state = "error"
+            s3_obj = data_source.s3_objects[0]["key"]
+            _, file_name, _, _ = lib.break_s3_object(s3_obj)
+            workdir = f"/tmp/{data_source.id}"
+            s3_client = aws_service.create_s3_client(org_name=dataset.organization.name)
+            local_path = os.path.join(workdir, file_name)
+            try:
+                lib.validate_file_type(
+                    s3_client, data_source.dataset.bucket, workdir, s3_obj, local_path
+                )
+            except Exception:
+                data_source.save()
+                return Response(
+                    self.serializer_class(data_source, allow_null=True).data, status=201
+                )
+
             data_source.programmatic_name = (
                 slugify(data_source.name) + "-" + str(data_source.id).split("-")[0]
             )
