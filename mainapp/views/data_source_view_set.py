@@ -38,6 +38,16 @@ class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
     filter_fields = ("dataset",)
+    file_types = {
+        ".jpg": ["image/jpeg"],
+        ".jpeg": ["image/jpeg"],
+        ".tiff": ["image/tiff"],
+        ".png": ["image/png"],
+        ".csv": ["application/csv", "text/csv", "text/plain"],
+        ".sav": ["application/octet-stream"],
+        ".zsav": [],
+        ".zip": ["application/zip"],
+    }
 
     @action(detail=True, methods=["get"])
     def statistics(self, request, *args, **kwargs):
@@ -170,15 +180,18 @@ class DataSourceViewSet(ModelViewSet):
             local_path = os.path.join(workdir, file_name)
             try:
                 lib.validate_file_type(
-                    s3_client, data_source.dataset.bucket, workdir, s3_obj, local_path
+                    s3_client,
+                    data_source.dataset.bucket,
+                    workdir,
+                    s3_obj,
+                    local_path,
+                    self.file_types,
                 )
             except Exception:
-                # logger.exception(exc)
-                # data_source.save()
-                # return Response(
-                #     self.serializer_class(data_source, allow_null=True).data, status=201
-                # )
-                raise
+                data_source.save()
+                return Response(
+                    self.serializer_class(data_source, allow_null=True).data, status=201
+                )
 
             data_source.programmatic_name = (
                 slugify(data_source.name) + "-" + str(data_source.id).split("-")[0]

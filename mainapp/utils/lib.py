@@ -1,5 +1,4 @@
 import json
-import mimetypes
 import os
 import shutil
 import subprocess
@@ -47,13 +46,15 @@ def break_s3_object(obj):
     return path, file_name, file_name_no_ext, ext
 
 
-def validate_file_type(s3_client, bucket, workdir, object_key, local_path):
+def validate_file_type(s3_client, bucket, workdir, object_key, local_path, file_types):
     try:
         os.makedirs(workdir)
         s3_client.download_file(bucket, object_key, local_path)
-        type_by_ext = mimetypes.guess_type(local_path)[0].split("/")[1]
-        type_by_content = magic.from_file(local_path, mime=True).split("/")[1]
-        assert all([type_by_content, type_by_ext]) and type_by_content == type_by_ext
+        extension = os.path.splitext(local_path)[1]
+        mime_by_content = magic.from_file(local_path, mime=True)
+        assert all([mime_by_content, extension]) and mime_by_content in file_types.get(
+            extension
+        )
     except AssertionError:
         s3_client.delete_object(Bucket=bucket, Key=object_key)
         raise
