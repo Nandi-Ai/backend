@@ -1,6 +1,5 @@
 import os
 import logging
-import shutil
 
 from botocore.config import Config
 from rest_framework.decorators import action
@@ -18,6 +17,18 @@ logger = logging.getLogger(__name__)
 class DocumentationViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     serializer_class = DocumentationSerializer
+    file_types = {
+        ".jpg": ["image/jpeg"],
+        ".jpeg": ["image/jpeg"],
+        ".tiff": ["image/tiff"],
+        ".png": ["image/png"],
+        ".csv": ["application/csv", "text/csv", "text/plain"],
+        ".sav": ["application/octet-stream"],
+        ".zsav": [],
+        ".doc": ["application/msword"],
+        ".pdf": ["application/pdf"],
+        ".zip": ["application/zip"],
+    }
 
     def get_serializer(self, *args, **kwargs):
         if "data" in kwargs:
@@ -77,6 +88,7 @@ class DocumentationViewSet(ModelViewSet):
                         workdir,
                         file_key,
                         local_path,
+                        self.file_types,
                     )
 
                     validated_files.append(file_key)
