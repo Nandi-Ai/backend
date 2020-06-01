@@ -172,7 +172,8 @@ class DataSourceViewSet(ModelViewSet):
                 lib.validate_file_type(
                     s3_client, data_source.dataset.bucket, workdir, s3_obj, local_path
                 )
-            except Exception:
+            except Exception as exc:
+                logger.exception(exc)
                 data_source.save()
                 return Response(
                     self.serializer_class(data_source, allow_null=True).data, status=201
