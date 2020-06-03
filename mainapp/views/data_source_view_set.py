@@ -248,7 +248,7 @@ class DataSourceViewSet(ModelViewSet):
                 create_catalog_thread = threading.Thread(
                     target=lib.create_catalog,
                     kwargs={
-                        "org_name": user.organization.name,
+                        "org_name": dataset.organization.name,
                         "data_source": data_source,
                     },
                 )  # also setting the data_source state to ready when it's done
