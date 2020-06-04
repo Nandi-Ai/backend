@@ -23,7 +23,7 @@ def count_all_values_query(query, glue_database, bucket_name, org_name):
 
 
 def get_result_query(client, query_execution_result):
-    max_execution = 10
+    max_execution = 60
     state = "RUNNING"
 
     while max_execution > 0 and (state in ["RUNNING", "QUEUED"]):
@@ -34,7 +34,6 @@ def get_result_query(client, query_execution_result):
             raise InvalidExecutionId
 
         response = client.get_query_execution(QueryExecutionId=query_execution_id)
-
         state = response["QueryExecution"]["Status"]["State"]
         if state == "FAILED":
             raise QueryExecutionError
