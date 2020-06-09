@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentationViewSet(ModelViewSet):
-    http_method_names = ["get", "head", "post", "put", "delete"]
+    http_method_names = ["get", "head", "delete"]
     serializer_class = DocumentationSerializer
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -50,7 +50,7 @@ class DocumentationViewSet(ModelViewSet):
             documentation_id = self.request.parser_context["kwargs"]["pk"]
             return Documentation.objects.filter(id=documentation_id)
 
-    @action(detail=True, methods=["get"])
+    # @action(detail=True, methods=["get"])
     def signed_url(self, request, pk=None):
         documentation = self.get_object()
         dataset = documentation.dataset
