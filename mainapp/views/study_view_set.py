@@ -46,6 +46,7 @@ class StudyViewSet(ModelViewSet):
 
         return user.related_studies.all()
 
+    # @transaction.atomic
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
         if study_serialized.is_valid():
@@ -65,7 +66,12 @@ class StudyViewSet(ModelViewSet):
                     f"Not all datasets are related to the current user {request.user.id}"
                 )
 
-            study = Study.objects.create(name=study_name)
+            # set the study organization same as the first dataset
+            first_dataset_organization = req_datasets[0]["dataset"].organization
+
+            study = Study.objects.create(
+                name=study_name, organization=first_dataset_organization
+            )
             study.description = study_serialized.validated_data["description"]
             req_users = study_serialized.validated_data["users"]
 
@@ -73,6 +79,7 @@ class StudyViewSet(ModelViewSet):
                 lambda x: StudyDataset.objects.create(study=study, **x), req_datasets
             )
             study.studydataset_set.set(study_datasets)
+
             study.users.set(
                 [request.user]
                 + list(User.objects.filter(id__in=[x.id for x in req_users]))
@@ -85,7 +92,7 @@ class StudyViewSet(ModelViewSet):
             study.save()
 
             workspace_bucket_name = study.bucket
-            org_name = study.organization
+            org_name = study.organization.name
             s3 = aws_service.create_s3_client(org_name=org_name)
 
             try:
