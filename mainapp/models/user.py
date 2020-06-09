@@ -1,5 +1,6 @@
 import logging
 import uuid
+from mainapp import settings
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser
@@ -47,6 +48,22 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
+    def determine_user_organization(self, email):
+        org = None
+        for (
+            identity_provider,
+            corresponding_org,
+        ) in settings.COGNITO_SAML_PROVIDERS.items():
+            if identity_provider in email:
+                org = Organization.objects.get(name=corresponding_org)
+                break
+        if not org:
+            try:
+                org = Organization.objects.get(default=True)
+            except Organization.DoesNotExist:
+                org, _ = Organization.objects.create(name="default", default=True)
+        return org
+
     def get_or_create_for_cognito(self, payload):
 
         cognito_id = payload["sub"]
@@ -57,10 +74,7 @@ class UserManager(BaseUserManager):
             pass
 
         try:
-            try:
-                org = Organization.objects.get(default=True)
-            except Organization.DoesNotExist:
-                org, _ = Organization.objects.create(name="default", default=True)
+            org = self.determine_user_organization(payload["email"])
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload["email"],
