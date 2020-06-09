@@ -5,7 +5,7 @@ from mainapp.utils import aws_service
 
 
 def organization_dependent(func):
-    def inner(org_name="lynx", user=None, *args, **kwargs):
+    def inner(org_name="Lynx MD", user=None, *args, **kwargs):
         try:
             org_values = settings.ORG_VALUES
         except AttributeError as e:
@@ -32,7 +32,7 @@ def with_client(client):
         def inner(org_name, *args, **kwargs):
             if not org_name:
                 raise ValueError("org_name param is empty")
-            client_instance = client(org_name)
+            client_instance = client(org_name=org_name)
             return func(
                 boto3_client=client_instance, org_name=org_name, *args, **kwargs
             )

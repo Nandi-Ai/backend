@@ -46,7 +46,16 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
 ]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_HSTS_SECONDS = 63072000
+SECURE_HSTS_PRELOAD = True
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
 
 ROOT_URLCONF = "mainapp.urls"
 
@@ -147,7 +156,6 @@ if ENV != "local":
 
     value = json.loads(response["Parameter"]["Value"])
     globals().update(value)
-    SECURED_BUCKET = value.get("SECURED_BUCKET").lower() == "true"
 
 else:
     from .local_settings import *

@@ -1,12 +1,12 @@
 from django.db import transaction
 from mainapp.serializers.study_dataset import StudyDatasetSerializer
+from mainapp.serializers.user import UserSerializer
 from rest_framework.serializers import ModelSerializer
 
 from mainapp.models import Study, StudyDataset, Dataset
 
 
 class StudySerializer(ModelSerializer):
-    # users = ListField(required=False, write_only=True)
     datasets = StudyDatasetSerializer(
         source="studydataset_set", many=True, read_only=False
     )
@@ -67,3 +67,10 @@ class StudySerializer(ModelSerializer):
                 study_dataset.delete()
 
         return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        users_serializer = UserSerializer(instance.users, many=True, read_only=False)
+        data["users"] = users_serializer.data
+
+        return data

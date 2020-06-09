@@ -1,6 +1,8 @@
 import boto3
 import logging
 
+from botocore.client import Config
+
 from .decorators import organization_dependent
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,8 @@ def create_client(org_settings, org_name, service_name, *args, **kwargs):
         region_name=org_settings["AWS_REGION"],
         aws_access_key_id=org_settings["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=org_settings["AWS_SECRET_ACCESS_KEY"],
+        *args,
+        **kwargs,
     )
 
 
@@ -36,8 +40,8 @@ def create_athena_client(*args, **kwargs):
     return create_client(service_name="athena", *args, **kwargs)
 
 
-def create_s3_client(*args, **kwargs):
-    return create_client(service_name="s3", *args, **kwargs)
+def create_s3_client(config=Config(signature_version="s3v4"), *args, **kwargs):
+    return create_client(service_name="s3", config=config, *args, **kwargs)
 
 
 def create_iam_client(*args, **kwargs):

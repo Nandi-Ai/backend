@@ -7,6 +7,9 @@ from datetime import datetime as dt, timedelta as td
 from time import sleep
 
 import logging
+
+import botocore
+import magic
 import pytz
 import requests
 import sqlparse
@@ -29,6 +32,7 @@ from mainapp.utils.decorators import (
     with_s3_resource,
     with_iam_resource,
 )
+from mainapp.utils.response_handler import ForbiddenErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +44,22 @@ def break_s3_object(obj):
     path = "/".join(obj.split("/")[:-1])
 
     return path, file_name, file_name_no_ext, ext
+
+
+def validate_file_type(s3_client, bucket, workdir, object_key, local_path, file_types):
+    try:
+        os.makedirs(workdir)
+        s3_client.download_file(bucket, object_key, local_path)
+        extension = os.path.splitext(local_path)[1]
+        mime_by_content = magic.from_file(local_path, mime=True)
+        assert all([mime_by_content, extension]) and mime_by_content in file_types.get(
+            extension
+        )
+    except AssertionError:
+        s3_client.delete_object(Bucket=bucket, Key=object_key)
+        raise
+    finally:
+        shutil.rmtree(workdir)
 
 
 @organization_dependent
@@ -54,14 +74,36 @@ def create_s3_bucket(
     if not s3_client:
         s3_client = aws_service.create_s3_client(org_name=org_name)
     # https://github.com/boto/boto3/issues/125
-    if org_settings["AWS_REGION"] == "us-east-1":
-        s3_client.create_bucket(Bucket=name)
-    else:
-        s3_client.create_bucket(
+    args = {"Bucket": name, "ACL": "private"}
+    if not org_settings["AWS_REGION"] == "us-east-1":
+        args["CreateBucketConfiguration"] = {
+            "LocationConstraint": org_settings["AWS_REGION"]
+        }
+    s3_client.create_bucket(**args)
+
+    try:
+        response = s3_client.put_public_access_block(
             Bucket=name,
-            CreateBucketConfiguration={
-                "LocationConstraint": org_settings["AWS_REGION"]
+            PublicAccessBlockConfiguration={
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
             },
+        )
+    except BucketNotFound as e:
+        raise BucketNotFound(
+            f"The bucket queried does not exist. Bucket: {name}, in org {org_name}", e
+        )
+    except botocore.exceptions.ClientError as e:
+        raise ForbiddenErrorResponse(
+            f"Missing s3:PutBucketPublicAccessBlock permissions to put public access block policy for bucket: {name}, in org {org_name}",
+            e,
+        )
+    except Exception as e:
+        raise Exception(
+            f"There was an error when removing public access from bucket: {name} in org {org_name}",
+            e,
         )
 
     if encrypt:
