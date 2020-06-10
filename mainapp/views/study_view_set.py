@@ -235,7 +235,7 @@ class StudyViewSet(ModelViewSet):
                     f"Only the study creator can edit a study"
                 )
 
-            org_name = study.organization
+            org_name = study.organization.name
 
             client = aws_service.create_iam_client(org_name=org_name)
             account_number = settings.ORG_VALUES[org_name]["ACCOUNT_NUMBER"]

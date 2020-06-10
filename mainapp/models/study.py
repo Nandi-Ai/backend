@@ -55,7 +55,7 @@ class Study(models.Model):
 @receiver(signals.pre_delete, sender=Study)
 def delete_study(sender, instance, **kwargs):
     study = instance
-    org_name = study.organization
+    org_name = study.organization.name
 
     try:
         study.delete_bucket(org_name=org_name)
