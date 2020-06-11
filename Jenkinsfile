@@ -36,14 +36,17 @@ pipeline {
    steps {
     script {
      if ("${migration}" == "true") {
-      echo "Do Migration"
+      displayMessage ("Installing requirements")
       sh 'export ENV=prod'
       sh 'pip3 install -r requirements.txt'
-      echo "Finish Install requirements"
-      sh 'python3 manage.py migrate'
+      displayMessage ("Finished Installation of requirements")
      }
     }
-   }
+    steps {
+        displayMessage("Running migration")
+        sh 'python3 manage.py migrate'
+    }  
+  }
   }
   stage('Building image') {
    steps {
@@ -73,5 +76,13 @@ pipeline {
     }
    }
   }
+ }
+}
+
+
+
+def displayMessage(message) {
+ ansiColor('xterm') {
+  echo "\033[44m  ${message} \033[0m"
  }
 }
