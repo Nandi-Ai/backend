@@ -13,20 +13,7 @@ pipeline {
   gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH'
  }
  stages {
-  stage('Check migration') {
-   steps {
-    script {
-     if ("${migration}" == "true") {
-      echo "Do Migration"
-      sh 'export ENV=prod'
-      sh 'rm -rf ~/.local'
-      sh 'pip3 install -r requirements.txt'
-      echo "Finish Install requirements"
-      sh 'python3 manage.py migrate'
-     }
-    }
-   }
-  }
+  
   stage('Clone repository') {
    steps {
     echo "Branch name: ${params.BRANCH}"
@@ -45,12 +32,28 @@ pipeline {
     ])
    }
   }
+  
   stage('Building image') {
    steps {
     script {
-     dockerImage = docker.build("${env.registry}:${env.DATE}")
+        if ("${migration}" == "true") {
+            dockerImage = docker.build("${env.registry}:${env.DATE}", "-f Dockerfile-Migration ./")
+     }
+        else {
+            dockerImage = docker.build("${env.registry}:${env.DATE}")
+        }
+     
     }
    }
+  }
+  stage('Check migration') {
+   steps {
+    script {
+     if ("${migration}" == "true") {
+      docker.image("${env.registry}:${env.DATE}").withRun('python manage.py /home/lynx/lynx-be/migrate')
+     }
+    }  
+  }
   }
   stage('Push image') {
    steps {
@@ -73,5 +76,13 @@ pipeline {
     }
    }
   }
+ }
+}
+
+
+
+def displayMessage(message) {
+ ansiColor('xterm') {
+  echo "\033[44m  ${message} \033[0m"
  }
 }
