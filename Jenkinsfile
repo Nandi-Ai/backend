@@ -13,19 +13,7 @@ pipeline {
   gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH'
  }
  stages {
-  stage('Check migration') {
-   steps {
-    script {
-     if ("${migration}" == "true") {
-      echo "Do Migration"
-      sh 'export ENV=prod'
-      sh 'pip3 install -r requirements.txt'
-      echo "Finish Install requirements"
-      sh 'python3 manage.py migrate'
-     }
-    }
-   }
-  }
+  
   stage('Clone repository') {
    steps {
     echo "Branch name: ${params.BRANCH}"
@@ -42,6 +30,19 @@ pipeline {
       [url: 'git@bitbucket.org:lynxmd/lynx-be.git']
      ]
     ])
+   }
+  }
+  stage('Check migration') {
+   steps {
+    script {
+     if ("${migration}" == "true") {
+      echo "Do Migration"
+      sh 'export ENV=prod'
+      sh 'pip3 install -r requirements.txt'
+      echo "Finish Install requirements"
+      sh 'python3 manage.py migrate'
+     }
+    }
    }
   }
   stage('Building image') {
