@@ -19,6 +19,7 @@ pipeline {
      if ("${migration}" == "true") {
       echo "Do Migration"
       sh 'export ENV=prod'
+      sh 'rm -rf ~/.local'
       sh 'pip3 install -r requirements.txt'
       echo "Finish Install requirements"
       sh 'python3 manage.py migrate'
