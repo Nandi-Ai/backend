@@ -1,62 +1,76 @@
 import java.text.SimpleDateFormat
-import groovy.transform.Field
-
-
-node {
-
-    def DOCKER_IMAGE="lynx-be"
-    def registryurl = "015146638904.dkr.ecr.eu-west-1.amazonaws.com/lynx-be"
-    def AWS_REGION="eu-west-1"
-    def ECS_CLUSTER="lynx-ecs"
-    def ECS_TASK="lynx-be"
-    def ECS_SERVICE="backend"
-
-    stage('Clone repository') {
-        /* Let's make sure we have the repository cloned to our workspace */
-        checkout scm
-    }
-
-    stage('Building image') {
-          script {
-		        displayMessage("Building Docker ${dockerProject}")
-                dockerImage = docker.build registryurl
-
-          }
-
-   }
-
-   stage('Push image') {
-       script {
-            String currDate = current_timestamp().toString()
-            displayMessage("Pushing docker image for ${dockerProject}")
-            withDockerRegistry([url: registryurl]) {
-	                     dockerImage.push("latest")
-        	             dockerImage.push(currDate)
-              }
+pipeline {
+ agent any
+ environment {
+  DATE = sh(script: "echo `date +%Y-%m-%d-%H-%M-%S`", returnStdout: true).trim()
+  registry = "015146638904.dkr.ecr.eu-west-1.amazonaws.com/lynx-be"
+  CLUSTER = "lynx-ecs"
+  SERVICE_NAME = "backend"
+  AWS_REGION = "eu-west-1"
+  ECS_TASK = "lynx-be"
+ }
+ parameters {
+  gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH'
+ }
+ stages {
+  stage('Check migration') {
+   steps {
+    script {
+     if ("${migration}" == "true") {
+      echo "Do Migration"
+      sh 'export ENV=prod'
+      sh 'pip3 install -r requirements.txt'
+      echo "Finish Install requirements"
+      sh 'python3 manage.py migrate'
+     }
     }
    }
-   stage('Deployment') {
-       script {
-			displayMessage("Processing deployment")
-			sh '''
-		    aws ecs update-service  --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --task-definition ${ECS_TASK} --force-new-deployment --region eu-central-1
-		    '''
-            }
-        }
-
-
-}
-
-def displayMessage(message) {
-    ansiColor('xterm') {
-        echo "\033[44m  ${message} \033[0m"
+  }
+  stage('Clone repository') {
+   steps {
+    echo "Branch name: ${params.BRANCH}"
+    checkout([$class: 'GitSCM',
+     branches: [
+      [name: "${params.BRANCH}"]
+     ],
+     doGenerateSubmoduleConfigurations: false,
+     extensions: [
+      [$class: 'CleanCheckout']
+     ],
+     submoduleCfg: [],
+     userRemoteConfigs: [
+      [url: 'git@bitbucket.org:lynxmd/lynx-be.git']
+     ]
+    ])
+   }
+  }
+  stage('Building image') {
+   steps {
+    script {
+     dockerImage = docker.build("${env.registry}:${env.DATE}")
     }
-}
-
-
-def current_timestamp() {
-   def date = new Date()
-   currDate = new SimpleDateFormat("ddMMyyyyHHmm")
-   out = currDate.format(date)
-   return out
+   }
+  }
+  stage('Push image') {
+   steps {
+    script {
+     withAWS(region: 'eu-west-1') {
+      def login = ecrLogin()
+      sh login
+      dockerImage.push("${env.DATE}")
+      dockerImage.push("latest")
+     }
+    }
+   }
+  }
+  stage('Update service') {
+   steps {
+    script {
+     withAWS(region: 'eu-west-1') {
+      sh "aws ecs update-service  --region ${env.AWS_REGION}  --cluster ${env.CLUSTER} --service ${env.SERVICE_NAME} --task-definition ${env.ECS_TASK} --force-new-deployment"
+     }
+    }
+   }
+  }
+ }
 }
