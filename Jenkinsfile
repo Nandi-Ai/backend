@@ -43,8 +43,10 @@ pipeline {
      }
     }
     steps {
+        script {
         displayMessage("Running migration")
         sh 'python3 manage.py migrate'
+        }
     }  
   }
   }
