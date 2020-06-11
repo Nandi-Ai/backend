@@ -32,30 +32,22 @@ pipeline {
     ])
    }
   }
-  stage('Check migration') {
-   steps {
-    script {
-     if ("${migration}" == "true") {
-      displayMessage ("Installing requirements")
-      sh 'export ENV=prod'
-      sh 'pip3 install -r requirements.txt'
-      displayMessage ("Finished Installation of requirements")
-     }
-    }
-    steps {
-        script {
-        displayMessage("Running migration")
-        sh 'python3 manage.py migrate'
-        }
-    }  
-  }
-  }
+  
   stage('Building image') {
    steps {
     script {
      dockerImage = docker.build("${env.registry}:${env.DATE}")
     }
    }
+  }
+  stage('Check migration') {
+   steps {
+    script {
+     if ("${migration}" == "true") {
+      docker.image("${env.registry}:${env.DATE}").withRun('python manage.py /home/lynx/lynx-be/migrate')
+     }
+    }  
+  }
   }
   stage('Push image') {
    steps {
