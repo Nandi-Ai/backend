@@ -85,6 +85,11 @@ urlpatterns = [
         views.QuickSightActivitiesDashboard.as_view(),
         name="quicksight",
     ),
+    url(
+        r"^dashboards_clalit/?$",
+        views.QuickSightActivitiesClalitDashboard.as_view(),
+        name="quicksight",
+    ),
     url(r"^versions/?$", views.Version.as_view(), name="versions"),
     url(
         r"^requests/respond/(?P<user_request_id>[^/]+)/?$",

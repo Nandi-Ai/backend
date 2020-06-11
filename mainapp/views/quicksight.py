@@ -37,3 +37,17 @@ class QuickSightActivitiesDashboard(GenericAPIView):
             UndoRedoDisabled=True,
         )
         return Response(data)
+
+
+class QuickSightActivitiesClalitDashboard(GenericAPIView):
+    def get(self, request):
+        client = aws_service.create_client(service_name="quicksight")
+        data = client.get_dashboard_embed_url(
+            AwsAccountId=settings.ORG_VALUES["Lynx MD"]["ACCOUNT_NUMBER"],
+            DashboardId=settings.ORG_VALUES["Clalit"]["ACTIVITIES_DASHBOARD_ID"],
+            IdentityType="IAM",
+            SessionLifetimeInMinutes=100,
+            ResetDisabled=True,
+            UndoRedoDisabled=True,
+        )
+        return Response(data)
