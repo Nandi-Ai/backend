@@ -36,7 +36,13 @@ pipeline {
   stage('Building image') {
    steps {
     script {
-     dockerImage = docker.build("${env.registry}:${env.DATE}")
+        if ("${migration}" == "true") {
+            dockerImage = docker.build("${env.registry}:${env.DATE}", "-f Dockerfile-Migration ./")
+     }
+        else {
+            dockerImage = docker.build("${env.registry}:${env.DATE}")
+        }
+     
     }
    }
   }
