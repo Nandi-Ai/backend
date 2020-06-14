@@ -23,7 +23,7 @@ class GetStudySTS(APIView):  # for frontend uploads
             ) from e
 
         # generate sts token so the user can upload the dataset to the bucket
-        org_name = study.organization
+        org_name = study.organization.name
 
         sts_default_provider_chain = aws_service.create_sts_client(org_name=org_name)
 

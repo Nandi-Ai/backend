@@ -17,6 +17,7 @@ class StudySerializer(ModelSerializer):
             "id",
             "name",
             "datasets",
+            "organization",
             "users",
             "tags",
             "updated_at",
@@ -26,6 +27,7 @@ class StudySerializer(ModelSerializer):
         )
         extra_kwargs = {
             "users": {"allow_empty": True},  # required = False?
+            "organization": {"allow_empty": True, "read_only": True},
             "datasets": {"allow_empty": True},
             "tags": {"allow_empty": True},
         }
@@ -35,6 +37,7 @@ class StudySerializer(ModelSerializer):
         instance.__dict__.update(**validated_data)
         instance.tags.set(validated_data.get("tags", instance.tags))
         instance.users.set(validated_data.get("users", instance.users))
+        instance.organizaiton.set(validated_data.get("organization", instance.users))
         instance.save()
 
         prev_datasets = {
@@ -55,6 +58,11 @@ class StudySerializer(ModelSerializer):
                     dataset_instance = Dataset.objects.get(id=dataset_id)
                 except Dataset.DoesNotExist:
                     raise Exception(f"Dataset instance {dataset_id} not exist")
+                if dataset_instance.organization != instance.organization:
+                    raise Exception(
+                        "Dataset's organization doesn't match the study organization"
+                    )
+
                 StudyDataset.objects.create(
                     study=instance, dataset=dataset_instance, permission=permission
                 )

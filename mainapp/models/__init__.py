@@ -4,6 +4,7 @@ from .dataset import Dataset
 from .documentation import Documentation
 from .execution import Execution
 from .organization import Organization
+from .organization_preference import OrganizationPreference
 from .request import Request
 from .study import Study
 from .study_dataset import StudyDataset

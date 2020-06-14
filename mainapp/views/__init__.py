@@ -17,7 +17,11 @@ from .handle_dataset_access_request import HandleDatasetAccessRequest
 from .my_requests_view_set import MyRequestsViewSet
 from .organization_view_set import OrganizationViewSet
 from .query import Query
-from .quicksight import QuickSightActivitiesDashboard, QuickSightChallenges
+from .quicksight import (
+    QuickSightActivitiesDashboard,
+    QuickSightChallenges,
+    QuickSightActivitiesClalitDashboard,
+)
 from .request_view_set import RequestViewSet
 from .run_query import RunQuery
 from .study_view_set import StudyViewSet

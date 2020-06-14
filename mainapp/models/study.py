@@ -6,7 +6,6 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.exceptions import BucketNotFound, RoleNotFound, PolicyNotFound
-from mainapp.models import Organization
 from mainapp.utils import lib
 
 logger = logging.getLogger(__name__)
@@ -18,6 +17,13 @@ class Study(models.Model):
     description = models.TextField(null=True, blank=True, max_length=255)
     datasets = models.ManyToManyField(
         "Dataset", related_name="studies", through="StudyDataset"
+    )
+    organization = models.ForeignKey(
+        "Organization",
+        on_delete=models.CASCADE,
+        related_name="studies",
+        null=False,
+        blank=False,
     )
     users = models.ManyToManyField("User", related_name="studies")
     user_created = models.ForeignKey(
@@ -45,19 +51,11 @@ class Study(models.Model):
     def __str__(self):
         return f"<Study id={self.id} name={self.name}>"
 
-    @property
-    def organization(self):
-        dataset_from_study = self.datasets.first()
-        if dataset_from_study:
-            return dataset_from_study.organization.name
-        else:
-            return Organization.objects.get(default=True).name
-
 
 @receiver(signals.pre_delete, sender=Study)
 def delete_study(sender, instance, **kwargs):
     study = instance
-    org_name = study.organization
+    org_name = study.organization.name
 
     try:
         study.delete_bucket(org_name=org_name)
