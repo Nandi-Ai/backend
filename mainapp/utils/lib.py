@@ -106,6 +106,10 @@ def create_s3_bucket(
             e,
         )
 
+    s3_resource = aws_service.create_s3_resource(org_name)
+    bucket_versioning = s3_resource.BucketVersioning(name)
+    bucket_versioning.enable()
+
     if encrypt:
         logger.debug(f"Creating encrypted bucket: {name} for org_name {org_name}")
         kms_client = aws_service.create_kms_client(org_name=org_name)
