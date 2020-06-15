@@ -37,7 +37,6 @@ class StudySerializer(ModelSerializer):
         instance.__dict__.update(**validated_data)
         instance.tags.set(validated_data.get("tags", instance.tags))
         instance.users.set(validated_data.get("users", instance.users))
-        instance.organizaiton.set(validated_data.get("organization", instance.users))
         instance.save()
 
         prev_datasets = {
