@@ -76,6 +76,33 @@ Install DB of the project via docker
 docker-compose -f docker-compose.services.yml up -d
 ```
 
+DB and logging settings for local_settings.py
+```
+if 'test' not in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'lynx',
+            'USER': 'postgres',
+            'PASSWORD': 'lynx',
+            'HOST': os.environ.get('DATABASE_HOST', None) or 'localhost'
+        }
+    }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+```
+
 Create a user in Django admin:
 
 ```

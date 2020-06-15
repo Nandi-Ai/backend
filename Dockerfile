@@ -11,17 +11,15 @@ RUN curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add 
 
 RUN useradd -ms /bin/bash ${USER_NAME}
 
-WORKDIR ${APP_HOME}
-
-COPY requirements.txt ${APP}/
-
-RUN pip3 install -r ${APP_DIR}/requirements.txt
+WORKDIR ${APP_DIR}
 
 RUN pip3 install awscli --upgrade
 
-RUN python3 ${APP_DIR}/manage.py migrate
+COPY requirements.txt .
 
-ADD . ${APP}
+RUN pip3 install -r requirements.txt
+
+ADD . .
 
 EXPOSE 80
 

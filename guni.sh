@@ -22,6 +22,8 @@ export PYTHONPATH=$DJANGODIR:$PYTHONPATH
 RUNDIR=$(dirname $SOCKFILE)q
 test -d $RUNDIR || mkdir -p $RUNDIR
 
+exec python3 manage.py migrate
+
 # Start your Django Unicorn
 # Programs meant to be run under supervisor should not daemonize themselves (do not use --daemon)
 #--bind=unix:$SOCKFILE
