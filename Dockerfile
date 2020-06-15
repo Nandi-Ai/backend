@@ -19,6 +19,8 @@ RUN pip3 install -r ${APP_DIR}/requirements.txt
 
 RUN pip3 install awscli --upgrade
 
+RUN python3 ${APP_DIR}/manage.py migrate
+
 ADD . ${APP}
 
 EXPOSE 80
