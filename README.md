@@ -69,12 +69,39 @@ pre-commit uninstall --hook-type pre-commit --hook-type pre-push
 2. Create new file and name it `local_settings.py`
 3. Download the content from https://drive.google.com/open?id=1g-cmrDHILbiLbpAwNvYys6jmSzO3xASN
 4. Instead of 'XXXX' add valid credentials.
+5. DB and logging settings for local_settings.py
+```
+if 'test' not in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'lynx',
+            'USER': 'postgres',
+            'PASSWORD': 'lynx',
+            'HOST': os.environ.get('DATABASE_HOST', None) or 'localhost'
+        }
+    }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+```
 
 ### Postgres
 Install DB of the project via docker
 ```
 docker-compose -f docker-compose.services.yml up -d
 ```
+
 
 Create a user in Django admin:
 
