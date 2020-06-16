@@ -267,6 +267,9 @@ class DataSourceViewSet(ModelViewSet):
                 data_source.state = "ready"
 
             data_source.save()
+            logger.info(
+                f"New Datasource added : {data_source.name}:{data_source.id} in Dataset {dataset.name}:{dataset.id} by user {request.user_requested.name} in org {dataset.organization.name}"
+            )
             return Response(
                 self.serializer_class(data_source, allow_null=True).data, status=201
             )

@@ -74,6 +74,11 @@ class RunQuery(GenericAPIView):
                 meta={"query_string": query_string},
                 type="query",
             )
+
+            logger.info(
+                f"Running Query for Activity: {query_string} on dataset: {dataset.name}:{dataset.id} in org {dataset.organization} by user: {request.user_requested.name}"
+            )
+
             return Response({"query_execution_id": response["QueryExecutionId"]})
         else:
             return query_serialized.errors

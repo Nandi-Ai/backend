@@ -52,6 +52,9 @@ class GetStudySTS(APIView):  # for frontend uploads
                 f"Unexpected error. Server was not able to complete this request.",
                 error=error,
             )
+        logger.info(
+            f"Generated STS credentials for Study: {study.name}:{study.id} in org {study.organization.name}"
+        )
         config = {
             "bucket": study.bucket,
             "aws_sts_creds": sts_response["Credentials"],

@@ -57,6 +57,18 @@ class ActivityViewSet(ModelViewSet):
             activity = activity_serialized.save()
             activity.user = request.user
             activity.save()
+            if activity.dataset:
+                logger.info(
+                    f"New Activity added : {activity.id} by user {activity.user.name} on datatset {activity.dataset.name}:{activity.dataset.id} in org {activity.dataset.organization.name}"
+                )
+            elif activity.study:
+                logger.info(
+                    f"New Activity added : {activity.id} by user {activity.user.name} on study {activity.study.name}:{activity.study.id} in org {activity.study.organization.name}"
+                )
+            else:
+                logger.warning(
+                    "The Activity added does not have neither a Dataset not a Study :O"
+                )
             return Response(
                 self.serializer_class(activity, allow_null=True).data, status=201
             )

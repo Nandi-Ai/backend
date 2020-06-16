@@ -90,6 +90,9 @@ class StudyViewSet(ModelViewSet):
             study.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
 
             study.save()
+            logger.info(
+                f"New Study added : {study.name}:{study.id} by user {request.user_requested} in org {study.organization.name}"
+            )
 
             workspace_bucket_name = study.bucket
             org_name = study.organization.name
@@ -308,6 +311,9 @@ class StudyViewSet(ModelViewSet):
             existing_datasets = set(study.datasets.all())
             diff_datasets = updated_datasets ^ existing_datasets
             for d in diff_datasets & updated_datasets:
+                logger.info(
+                    f"Dataset: {d.name}:{d.id} assigned to Study: {study.name}:{study.id} in org {study.organization.name}"
+                )
                 Activity.objects.create(
                     type="dataset assignment", study=study, dataset=d, user=user
                 )

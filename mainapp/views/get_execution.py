@@ -57,6 +57,9 @@ class GetExecution(APIView):  # from frontend
             execution_user.organization = study.datasets.first().organization
             execution_user.is_execution = True
             execution_user.save()
+            logger.info(
+                f"Created Execution user with identifier: {study.execution.token} for Study: {study.name}:{study.id} in org {study.organization.name}"
+            )
             execution.execution_user = execution_user
             execution.save()
             study.execution = execution

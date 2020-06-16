@@ -52,7 +52,9 @@ def delete_data_source(sender, instance, **kwargs):
     data_source = instance
     org_name = instance.dataset.organization.name
     logger.info(
-        f"Deleting data source {data_source.name} for following dataset.id {data_source.id}"
+        f"Deleting data source {data_source.name}:{data_source.id}"
+        f"for following dataset {data_source.dataset.name}:{data_source.dataset.id}"
+        f"in org {data_source.dataset.organization.name}"
     )
     if data_source.glue_table:
         glue_client = aws_service.create_glue_client(org_name=org_name)
@@ -61,7 +63,9 @@ def delete_data_source(sender, instance, **kwargs):
                 DatabaseName=data_source.dataset.glue_database,
                 Name=data_source.glue_table,
             )
-            logger.info(f"Removed glue table: {data_source.glue_table} successfully")
+            logger.info(
+                f"Removed glue table: {data_source.glue_table} for datasource {data_source.name}:{data_source.id} successfully"
+            )
         except glue_client.exceptions.EntityNotFoundException as e:
             logger.warning("Unexpected error when deleting glue table", error=e)
 
@@ -78,7 +82,7 @@ def delete_data_source(sender, instance, **kwargs):
             except s3_resource.exceptions.NoSuchKey:
                 logger.warning(
                     f"Warning no such key {data_source.dir} in {data_source.bucket}. "
-                    f"Ignoring deleting dir while deleting data_source {data_source.name} ({data_source.id})"
+                    f"Ignoring deleting dir while deleting data_source {data_source.name}:{data_source.id}"
                 )
             except s3_resource.exceptions.NoSuchBucket:
                 logger.warning(
@@ -86,5 +90,5 @@ def delete_data_source(sender, instance, **kwargs):
                 )
 
     logger.info(
-        f"Data source {data_source.name} ({data_source.id}) was deleted successfully"
+        f"Data source {data_source.name}:{data_source.id} was deleted successfully"
     )

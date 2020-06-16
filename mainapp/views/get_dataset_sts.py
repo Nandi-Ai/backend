@@ -61,6 +61,9 @@ class GetDatasetSTS(APIView):  # for frontend uploads
                 error=error,
             )
 
+        logger.info(
+            f"Generated STS credentials for Dataset: {dataset.name}:{dataset.id} in org {dataset.organization.name}"
+        )
         config = {
             "bucket": dataset.bucket,
             "aws_sts_creds": sts_response["Credentials"],

@@ -162,6 +162,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         return requests
 
+    @property
+    def name(self):
+        return self.name or self.email
+
     objects = UserManager()
 
     USERNAME_FIELD = "email"

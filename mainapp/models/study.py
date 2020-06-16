@@ -44,7 +44,7 @@ class Study(models.Model):
         return "lynx-workspace-" + str(self.id)
 
     def delete_bucket(self, org_name):
-        logger.info(f"Deleting bucket {self.bucket} for study {self.id}")
+        logger.info(f"Deleting bucket {self.bucket} for study {self.name}:{self.id}")
         lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
         lib.delete_role_and_policy(bucket_name=self.bucket, org_name=org_name)
 

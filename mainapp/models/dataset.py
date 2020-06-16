@@ -75,7 +75,7 @@ class Dataset(models.Model):
         return "lynx-dataset-" + str(self.id)
 
     def delete_bucket(self, org_name):
-        logger.info(f"Deleting bucket {self.bucket} for dataset {self.id}")
+        logger.info(f"Deleting bucket {self.bucket} for dataset {self.name}:{self.id}")
         lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
         lib.delete_role_and_policy(bucket_name=self.bucket, org_name=org_name)
 
