@@ -104,7 +104,8 @@ class DocumentationViewSet(ModelViewSet):
             return BadRequestErrorResponse("Invalid documentation data")
 
         logger.info(
-            f"Documentation: {documentation.file_name} was added to Dataset: {dataset.name}:{dataset.id} by user {request.user_requested.name} in org {dataset.organization.name}"
+            f"Documentation: {documentation.file_name} was added to Dataset: {dataset.name}:{dataset.id} "
+            f"by user {request.user.display_name} in org {dataset.organization.name}"
         )
         return Response(
             doc_serialized.data,

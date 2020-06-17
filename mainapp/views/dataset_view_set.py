@@ -222,9 +222,6 @@ class DatasetViewSet(ModelViewSet):
                 )
 
             dataset.save()
-            logger.info(
-                f"New Dataset added : {dataset.name}:{dataset.id} by user {request.user_requested.name} in org {dataset.organization.name}"
-            )
 
             dataset.description = dataset_data["description"]
             dataset.readme = dataset_data["readme"]
@@ -264,6 +261,11 @@ class DatasetViewSet(ModelViewSet):
             )
 
             dataset.save()
+            logger.info(
+                f"New Dataset added : {dataset.name}:{dataset.id} "
+                f"by user {request.user.display_name} "
+                f"in org {dataset.organization.name}"
+            )
 
             # the role takes this time to be created!
             # it is here in order to prevent calling GetDatasetSTS before creation
@@ -350,7 +352,7 @@ class DatasetViewSet(ModelViewSet):
                         add_remove="Added",
                         dataset_name=dataset.name,
                         dataset_id=dataset.id,
-                        user_list=[user.name for user in new],
+                        user_list=[user.display_name for user in new],
                         org=dataset.organization.name,
                     )
                 )
@@ -361,7 +363,7 @@ class DatasetViewSet(ModelViewSet):
                         add_remove="Removed",
                         dataset_name=dataset.name,
                         dataset_id=dataset.id,
-                        user_list=[user.name for user in removed_admins],
+                        user_list=[user.display_name for user in removed_admins],
                         org=dataset.organization.name,
                     )
                 )
@@ -402,7 +404,7 @@ class DatasetViewSet(ModelViewSet):
                         add_remove="Added",
                         dataset_name=dataset.name,
                         dataset_id=dataset.id,
-                        user_list=[user.name for user in new],
+                        user_list=[user.display_name for user in new],
                         org=dataset.organization.name,
                     )
                 )
@@ -413,7 +415,7 @@ class DatasetViewSet(ModelViewSet):
                         add_remove="Removed",
                         dataset_name=dataset.name,
                         dataset_id=dataset.id,
-                        user_list=[user.name for user in removed_agg],
+                        user_list=[user.display_name for user in removed_agg],
                         org=dataset.organization.name,
                     )
                 )
@@ -443,7 +445,7 @@ class DatasetViewSet(ModelViewSet):
                         add_remove="Added",
                         dataset_name=dataset.name,
                         dataset_id=dataset.id,
-                        user_list=[user.name for user in new],
+                        user_list=[user.display_name for user in new],
                         org=dataset.organization.name,
                     )
                 )
@@ -454,7 +456,7 @@ class DatasetViewSet(ModelViewSet):
                         add_remove="Removed",
                         dataset_name=dataset.name,
                         dataset_id=dataset.id,
-                        user_list=[user.name for user in removed_full],
+                        user_list=[user.display_name for user in removed_full],
                         org=dataset.organization.name,
                     )
                 )
@@ -502,7 +504,8 @@ class DatasetViewSet(ModelViewSet):
                 delete_dataset_tree(child_dataset)
                 child_dataset.delete()
             logger.info(
-                f"All subsets were deleted for dataset {dataset_to_delete.name}:{dataset_to_delete.id}"
+                f"All subsets were deleted for dataset {dataset_to_delete.name}:{dataset_to_delete.id} "
+                f"in org {dataset_to_delete.organization.name}"
             )
 
         delete_tree_raw = request.GET.get("delete_tree")
@@ -516,7 +519,9 @@ class DatasetViewSet(ModelViewSet):
                 child.ancestor = dataset.ancestor
                 child.save()
         logger.info(
-            f"Dataset Deleted : {dataset.name}:{dataset.id} by user {request.user_requested.name} in org {dataset.organization.name}"
+            f"Dataset Deleted : {dataset.name}:{dataset.id} "
+            f"by user {request.user.display_name} "
+            f"in org {dataset.organization.name}"
         )
         dataset.delete()
         return Response(status=204)

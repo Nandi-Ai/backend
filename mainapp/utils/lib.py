@@ -111,7 +111,7 @@ def create_s3_bucket(
     bucket_versioning.enable()
 
     if encrypt:
-        logger.debug(f"Creating encrypted bucket: {name} for org_name {org_name}")
+        logger.debug(f"Creating encrypted bucket: {name} in org {org_name}")
         kms_client = aws_service.create_kms_client(org_name=org_name)
         try:
             response = kms_client.describe_key(KeyId="alias/aws/s3")
@@ -206,7 +206,8 @@ class MyTokenAuthentication(TokenAuthentication):
 @with_glue_client
 def create_glue_database(boto3_client, org_name, dataset):
     logger.info(
-        f"Creating glue database {dataset.glue_database} for org_name {org_name} for dataset {dataset.name}:{dataset.id}"
+        f"Creating glue database {dataset.glue_database} for dataset {dataset.name}:{dataset.id} "
+        f"in org {org_name} "
     )
     boto3_client.create_database(DatabaseInput={"Name": dataset.glue_database})
 
@@ -219,7 +220,8 @@ def create_catalog(boto3_client, org_name, data_source):
 
     boto3_client.start_crawler(Name=f"data_source-{data_source.id}")
     logger.info(
-        f"Glue database crawler for datasource {data_source.name}:{data_source.id} in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name}"
+        f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
+        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
         f"was created and started successfully"
     )
     crawler_ready = False
@@ -232,11 +234,13 @@ def create_catalog(boto3_client, org_name, data_source):
         retries -= 1
 
     logger.info(
-        f"Is crawler for datasource {data_source.name}:{data_source.id} in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} has finished: {crawler_ready}"
+        f"Is crawler for datasource {data_source.name}:{data_source.id} "
+        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
+        f"for org_name {org_name} has finished: {crawler_ready}"
     )
     if not crawler_ready:
         logger.warning(
-            f"The crawler for data_source {data_source.name}:{data_source.id} in organization {org_name} "
+            f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
             f"had a failure after 3 tries"
         )
         data_source.state = "crawling error"
@@ -244,7 +248,7 @@ def create_catalog(boto3_client, org_name, data_source):
 
     else:
         logger.debug(
-            f"The crawler for datasource {data_source.name} ({data_source.id}) in organization {org_name} "
+            f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
             f"was finished succesfully. "
             f"Updating data_source state accordingly."
         )
@@ -256,7 +260,8 @@ def create_catalog(boto3_client, org_name, data_source):
 @organization_dependent
 def create_glue_crawler(org_settings, data_source, org_name):
     logger.info(
-        f"Started create_glue_crawler for datasource {data_source.name}:{data_source.id} in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name}"
+        f"Started create_glue_crawler for datasource {data_source.name}:{data_source.id} "
+        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} in org {org_name}"
     )
     glue_client = aws_service.create_glue_client(org_name=org_name)
 
@@ -408,7 +413,7 @@ def get_s3_object(boto3_client, bucket, key, org_name, s3_client=None, retries=6
         try:
             obj = s3_client.get_object(Bucket=bucket, Key=key)
             logger.exception(
-                f"Object {key} was fetched successfully from s3 bucket {bucket} for org_name {org_name}"
+                f"Object {key} was fetched successfully from s3 bucket {bucket} in org {org_name}"
             )
             return obj
         except s3_client.exceptions.NoSuchKey:
@@ -418,7 +423,7 @@ def get_s3_object(boto3_client, bucket, key, org_name, s3_client=None, retries=6
 
                 continue
             logger.exception(
-                f"Failed to fetch object {key} from s3 bucket {bucket} for org_name {org_name}"
+                f"Failed to fetch object {key} from s3 bucket {bucket} in org {org_name}"
             )
             raise
         except s3_client.exceptions.NoSuchBucket as e:

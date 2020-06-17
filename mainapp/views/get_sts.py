@@ -25,7 +25,9 @@ class GetSTS(APIView):  # from execution
             return ErrorResponse("This is not the execution of any study")
 
         logger.debug(
-            f"Got a request from execution user {execution.name} in Study {study.name}:{study.id} in org {study.organization.name}"
+            f"Got a request from execution user {execution.name} "
+            f"in Study {study.name}:{study.id} "
+            f"in org {study.organization.name}"
         )
 
         # Create IAM client
@@ -62,7 +64,8 @@ class GetSTS(APIView):  # from execution
             )
 
         logger.info(
-            f"Generated STS credentials for Study: {study.name}:{study.id}, with Execution ID {execution.id} in org {study.organization.name}"
+            f"Generated STS credentials for Study: {study.name}:{study.id}, with Execution ID {execution.id} "
+            f"in org {study.organization.name}"
         )
         config = {
             "bucket": workspace_bucket_name,

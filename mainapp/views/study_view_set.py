@@ -91,7 +91,7 @@ class StudyViewSet(ModelViewSet):
 
             study.save()
             logger.info(
-                f"New Study added : {study.name}:{study.id} by user {request.user_requested} in org {study.organization.name}"
+                f"New Study added : {study.name}:{study.id} by user {request.user.display_name} in org {study.organization.name}"
             )
 
             workspace_bucket_name = study.bucket
@@ -312,7 +312,8 @@ class StudyViewSet(ModelViewSet):
             diff_datasets = updated_datasets ^ existing_datasets
             for d in diff_datasets & updated_datasets:
                 logger.info(
-                    f"Dataset: {d.name}:{d.id} assigned to Study: {study.name}:{study.id} in org {study.organization.name}"
+                    f"Dataset: {d.name}:{d.id} assigned to Study: {study.name}:{study.id} "
+                    f"in org {study.organization.name}"
                 )
                 Activity.objects.create(
                     type="dataset assignment", study=study, dataset=d, user=user

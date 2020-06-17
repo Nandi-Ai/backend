@@ -147,7 +147,8 @@ class CreateCohort(GenericAPIView):
             try:
                 new_data_source.save()
                 logger.info(
-                    f"New Cohort added : {new_data_source.name}:{new_data_source.id} by user {request.user_requested.name} in org {dataset.organization.name}"
+                    f"New Cohort added : {new_data_source.name}:{new_data_source.id} by user {request.user.display_name} "
+                    f"in org {dataset.organization.name}"
                 )
             except IntegrityError as e:
                 return ErrorResponse(

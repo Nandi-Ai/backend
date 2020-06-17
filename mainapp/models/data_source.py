@@ -64,15 +64,24 @@ def delete_data_source(sender, instance, **kwargs):
                 Name=data_source.glue_table,
             )
             logger.info(
-                f"Removed glue table: {data_source.glue_table} for datasource {data_source.name}:{data_source.id} successfully"
+                f"Removed glue table: {data_source.glue_table} "
+                f"for datasource {data_source.name}:{data_source.id} successfully "
+                f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
+                f"in org {data_source.dataset.organization.name}"
             )
         except glue_client.exceptions.EntityNotFoundException as e:
-            logger.warning("Unexpected error when deleting glue table", error=e)
+            logger.warning(
+                f"Unexpected error when deleting glue table "
+                f"for datasource {data_source.name}:{data_source.id}",
+                error=e,
+            )
 
     if data_source.dir:
         if data_source.dir == "":
             logger.warning(
-                f"Warning: data source {data_source.name} {data_source.id} 'dir' field is an empty string ('')"
+                f"Warning: data source {data_source.name}:{data_source.id} "
+                f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
+                f"in org {data_source.dataset.organization.name}'dir' field is an empty string ('')"
             )
         else:  # delete dir in bucket
             s3_resource = aws_service.create_s3_resource(org_name=org_name)
@@ -82,7 +91,8 @@ def delete_data_source(sender, instance, **kwargs):
             except s3_resource.exceptions.NoSuchKey:
                 logger.warning(
                     f"Warning no such key {data_source.dir} in {data_source.bucket}. "
-                    f"Ignoring deleting dir while deleting data_source {data_source.name}:{data_source.id}"
+                    f"Ignoring deleting dir while deleting data_source {data_source.name}:{data_source.id} "
+                    f"in org {data_source.dataset.organization.name}"
                 )
             except s3_resource.exceptions.NoSuchBucket:
                 logger.warning(
@@ -90,5 +100,7 @@ def delete_data_source(sender, instance, **kwargs):
                 )
 
     logger.info(
-        f"Data source {data_source.name}:{data_source.id} was deleted successfully"
+        f"Data source {data_source.name}:{data_source.id} "
+        f"in Dataset {data_source.dataset.name}:{data_source.dataset.id} "
+        f"in org {data_source.dataset.organization.name } was deleted successfully"
     )

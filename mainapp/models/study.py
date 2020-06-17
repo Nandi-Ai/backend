@@ -61,13 +61,13 @@ def delete_study(sender, instance, **kwargs):
         study.delete_bucket(org_name=org_name)
     except BucketNotFound as e:
         logger.warning(
-            f"Bucket {e.bucket_name} was not found for study id {study.id} at delete bucket operation"
+            f"Bucket {e.bucket_name} was not found for study {study.name}:{study.id} at delete bucket operation"
         )
     except PolicyNotFound as e:
         logger.warning(
-            f"Policy {e.policy} was not found for dataset id {study.id} at delete bucket operation"
+            f"Policy {e.policy} was not found for study {study.name}:{study.id} at delete bucket operation"
         )
     except RoleNotFound as e:
         logger.warning(
-            f"Role {e.role} was not found for dataset id {study.id} at delete bucket operation"
+            f"Role {e.role} was not found for study {study.name}:{study.id} at delete bucket operation"
         )

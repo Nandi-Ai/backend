@@ -120,13 +120,13 @@ def delete_dataset(sender, instance, **kwargs):
         dataset.delete_bucket(org_name=dataset.organization.name)
     except BucketNotFound as e:
         logger.warning(
-            f"Bucket {e.bucket_name} was not found for dataset id {dataset.id} at delete bucket operation"
+            f"Bucket {e.bucket_name} was not found for dataset {dataset.name}:{dataset.id} at delete bucket operation"
         )
     except PolicyNotFound as e:
         logger.warning(
-            f"Policy {e.policy} was not found for dataset id {dataset.id} at delete bucket operation"
+            f"Policy {e.policy} was not found for dataset {dataset.name}{dataset.id} at delete bucket operation"
         )
     except RoleNotFound as e:
         logger.warning(
-            f"Role {e.role} was not found for dataset id {dataset.id} at delete bucket operation"
+            f"Role {e.role} was not found for dataset {dataset.name}:{dataset.id} at delete bucket operation"
         )

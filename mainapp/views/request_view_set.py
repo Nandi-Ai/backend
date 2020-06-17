@@ -119,11 +119,13 @@ class RequestViewSet(ModelViewSet):
 
                 if request.dataset:
                     logger.info(
-                        f"Request created {request.id} by user: {request.user_requested.name} for {request.permission} on dataset {request.dataset.name}:{request.dataset.id} in org {request.dataset.organization.name}"
+                        f"Request created {request.id} by user: {request.user.display_name} for {request.permission} "
+                        f"on dataset {request.dataset.name}:{request.dataset.id} in org {request.dataset.organization.name}"
                     )
                 if request.study:
                     logger.info(
-                        f"Request created {request.id} by user: {request.user_requested.name} for {request.permission} on study {request.study.name}:{request.study.id} in org {request.study.organization.name}"
+                        f"Request created {request.id} by user: {request.user.display_name} for {request.permission} "
+                        f"on study {request.study.name}:{request.study.id} in org {request.study.organization.name}"
                     )
 
                 return Response(

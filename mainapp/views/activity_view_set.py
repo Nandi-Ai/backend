@@ -59,11 +59,15 @@ class ActivityViewSet(ModelViewSet):
             activity.save()
             if activity.dataset:
                 logger.info(
-                    f"New Activity added : {activity.id} by user {activity.user.name} on datatset {activity.dataset.name}:{activity.dataset.id} in org {activity.dataset.organization.name}"
+                    f"New Activity added : {activity.id} by user {activity.user.display_name} "
+                    f"on datatset {activity.dataset.name}:{activity.dataset.id} "
+                    f"in org {activity.dataset.organization.name}"
                 )
             elif activity.study:
                 logger.info(
-                    f"New Activity added : {activity.id} by user {activity.user.name} on study {activity.study.name}:{activity.study.id} in org {activity.study.organization.name}"
+                    f"New Activity added : {activity.id} by user {activity.user.display_name} "
+                    f"on study {activity.study.name}:{activity.study.id} "
+                    f"in org {activity.study.organization.name}"
                 )
             else:
                 logger.warning(

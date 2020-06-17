@@ -5,4 +5,7 @@ services:
     ports:
       - 80:80
     environment:
-        - DATABASE_HOST=db
+    #      for local
+      - DATABASE_HOST=db
+    volumes:
+      - ./:/home/lynx/lynx-be/
