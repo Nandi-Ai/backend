@@ -25,7 +25,7 @@ class GetSTS(APIView):  # from execution
             return ErrorResponse("This is not the execution of any study")
 
         logger.debug(
-            f"Got a request from execution user {execution.name} "
+            f"Got a request from execution user {request.user.id} "
             f"in Study {study.name}:{study.id} "
             f"in org {study.organization.name}"
         )
