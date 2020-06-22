@@ -70,7 +70,9 @@ class StudyViewSet(ModelViewSet):
             first_dataset_organization = req_datasets[0]["dataset"].organization
 
             study = Study.objects.create(
-                name=study_name, organization=first_dataset_organization
+                name=study_name,
+                organization=first_dataset_organization,
+                cover=study_serialized.validated_data.get("cover"),
             )
             study.description = study_serialized.validated_data["description"]
             req_users = study_serialized.validated_data["users"]

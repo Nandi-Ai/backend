@@ -75,6 +75,7 @@ class DatasetViewSet(ModelViewSet):
             dataset = Dataset(
                 name=dataset_data["name"],
                 is_discoverable=dataset_data["is_discoverable"],
+                cover=dataset_data.get("cover"),
             )
             dataset.id = uuid.uuid4()
 
