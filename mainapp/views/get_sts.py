@@ -24,6 +24,12 @@ class GetSTS(APIView):  # from execution
         except Study.DoesNotExist:
             return ErrorResponse("This is not the execution of any study")
 
+        logger.debug(
+            f"Got a request from execution user {request.user.id} "
+            f"in Study {study.name}:{study.id} "
+            f"in org {study.organization.name}"
+        )
+
         # Create IAM client
         # request user is the execution user
         sts_default_provider_chain = aws_service.create_sts_client(
@@ -57,6 +63,10 @@ class GetSTS(APIView):  # from execution
                 error=error,
             )
 
+        logger.info(
+            f"Generated STS credentials for Study: {study.name}:{study.id}, with Execution ID {execution.id} "
+            f"in org {study.organization.name}"
+        )
         config = {
             "bucket": workspace_bucket_name,
             "aws_sts_creds": response["Credentials"],

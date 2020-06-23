@@ -29,3 +29,4 @@ from .swagger import schema_view
 from .tag_view_set import TagViewSet
 from .user_view_set import UserViewSet
 from .version import Version
+from .monitoring import Monitoring

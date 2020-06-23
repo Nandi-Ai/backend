@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @organization_dependent
 def create_client(org_settings, org_name, service_name, *args, **kwargs):
-    logger.debug(f"Creation of {service_name} client for organization {org_name}")
+    logger.debug(f"Creating {service_name} client for organization {org_name}")
     return boto3.client(
         service_name,
         region_name=org_settings["AWS_REGION"],
@@ -23,7 +23,7 @@ def create_client(org_settings, org_name, service_name, *args, **kwargs):
 
 @organization_dependent
 def create_resource(org_settings, org_name, service_name, *args, **kwargs):
-    logger.debug(f"Creation of {service_name} resource for organization {org_name}")
+    logger.debug(f"Creating {service_name} resource for organization {org_name}")
     return boto3.resource(
         service_name,
         region_name=org_settings["AWS_REGION"],

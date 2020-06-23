@@ -89,6 +89,13 @@ class Query(GenericAPIView):
             req_res = {}
 
             final_query = query_no_limit
+            logger.info(
+                f"Executing Query : {final_query} "
+                f"on dataset: {dataset.name}:{dataset.id} "
+                f"and datasource: {data_source.name}:{data_source.id} "
+                f"in org {dataset.organization.name} "
+                f"by user: {request.user.display_name}"
+            )
 
             return_count = True if request.GET.get("return_count") == "true" else False
             if sample_aprx or return_count:
@@ -149,7 +156,9 @@ class Query(GenericAPIView):
                 error = Exception(
                     f"Failed to start_query_execution with the following error"
                 ).with_traceback(e.__traceback__)
-                logger.info(f"Final query {final_query}")
+                logger.info(
+                    f"Final query {final_query} on Dataset {dataset.name}:{dataset.id} in org {dataset.organization.name}"
+                )
                 return ErrorResponse(f"Query execution failed", error=error)
 
             req_res["query"] = final_query
@@ -190,7 +199,10 @@ class Query(GenericAPIView):
                     error = Exception(
                         f"Query result file does not exist in bucket. Query string: {query}"
                     ).with_traceback(e.__traceback__)
-                    logger.info(f"No result for query: {query}")
+                    logger.info(
+                        f"No result for query: {query} on Dataset {dataset.name}:{dataset.id} "
+                        f"in org {dataset.organization.name}"
+                    )
                     return ErrorResponse(
                         f"Could not create result for following query", error=error
                     )

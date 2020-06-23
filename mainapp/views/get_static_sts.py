@@ -38,7 +38,7 @@ class GetStaticSTS(APIView):  # from execution
                 f"Unexpected error. Server was not able to complete this request.",
                 error=error,
             )
-
+        logger.info(f"Generated STS credentials for static bucket in org Lynx MD")
         config = {
             "bucket": static_bucket_name,
             "aws_sts_creds": response["Credentials"],

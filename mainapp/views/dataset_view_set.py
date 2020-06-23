@@ -75,6 +75,7 @@ class DatasetViewSet(ModelViewSet):
             dataset = Dataset(
                 name=dataset_data["name"],
                 is_discoverable=dataset_data["is_discoverable"],
+                cover=dataset_data.get("cover"),
             )
             dataset.id = uuid.uuid4()
 
@@ -261,6 +262,11 @@ class DatasetViewSet(ModelViewSet):
             )
 
             dataset.save()
+            logger.info(
+                f"New Dataset added : {dataset.name}:{dataset.id} "
+                f"by user {request.user.display_name} "
+                f"in org {dataset.organization.name}"
+            )
 
             # the role takes this time to be created!
             # it is here in order to prevent calling GetDatasetSTS before creation
@@ -338,6 +344,31 @@ class DatasetViewSet(ModelViewSet):
             new = diff & updated_admin
             removed_admins = diff & existing
 
+            message = "New {permission} Users {add_remove}. Dataset: {dataset_name}:{dataset_id} : {user_list} in org {org}"
+
+            if new:
+                logger.info(
+                    message.format(
+                        permission="Admin",
+                        add_remove="Added",
+                        dataset_name=dataset.name,
+                        dataset_id=dataset.id,
+                        user_list=[user.display_name for user in new],
+                        org=dataset.organization.name,
+                    )
+                )
+            if removed_admins:
+                logger.info(
+                    message.format(
+                        permission="Admin",
+                        add_remove="Removed",
+                        dataset_name=dataset.name,
+                        dataset_id=dataset.id,
+                        user_list=[user.display_name for user in removed_admins],
+                        org=dataset.organization.name,
+                    )
+                )
+
             for user in new:
                 Activity.objects.create(
                     type="dataset permission",
@@ -367,6 +398,29 @@ class DatasetViewSet(ModelViewSet):
             new = diff & updated_agg
             removed_agg = diff & existing
 
+            if new:
+                logger.info(
+                    message.format(
+                        permission="Aggregated",
+                        add_remove="Added",
+                        dataset_name=dataset.name,
+                        dataset_id=dataset.id,
+                        user_list=[user.display_name for user in new],
+                        org=dataset.organization.name,
+                    )
+                )
+            if removed_agg:
+                logger.info(
+                    message.format(
+                        permission="Aggregated",
+                        add_remove="Removed",
+                        dataset_name=dataset.name,
+                        dataset_id=dataset.id,
+                        user_list=[user.display_name for user in removed_agg],
+                        org=dataset.organization.name,
+                    )
+                )
+
             for user in new:
                 Activity.objects.create(
                     type="dataset permission",
@@ -378,15 +432,35 @@ class DatasetViewSet(ModelViewSet):
                         "permission": "aggregated_access",
                     },
                 )
-            # for user in removed_agg:
-            #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
-            #                             meta={"user_affected":  str(user.id),"permission":"aggregated"})
 
             updated_full = set(dataset_data["full_access_users"])
             existing = set(dataset.full_access_users.all())
             diff = updated_full ^ existing
             new = diff & updated_full
             removed_full = diff & existing
+
+            if new:
+                logger.info(
+                    message.format(
+                        permission="Full Access",
+                        add_remove="Added",
+                        dataset_name=dataset.name,
+                        dataset_id=dataset.id,
+                        user_list=[user.display_name for user in new],
+                        org=dataset.organization.name,
+                    )
+                )
+            if removed_full:
+                logger.info(
+                    message.format(
+                        permission="Full Access",
+                        add_remove="Removed",
+                        dataset_name=dataset.name,
+                        dataset_id=dataset.id,
+                        user_list=[user.display_name for user in removed_full],
+                        org=dataset.organization.name,
+                    )
+                )
 
             for user in new:
                 Activity.objects.create(
@@ -399,9 +473,6 @@ class DatasetViewSet(ModelViewSet):
                         "permission": "full_access",
                     },
                 )
-            # for user in removed_full:
-            #     Activity.objects.create(type="dataset remove permission", dataset=dataset, user=request.user,
-            #                             meta={"user_affected": str(user.id), "permission": "full"})
 
             all_removed_users = removed_admins | removed_agg | removed_full
             for user in all_removed_users:
@@ -433,7 +504,10 @@ class DatasetViewSet(ModelViewSet):
             for child_dataset in dataset_to_delete.children.all():
                 delete_dataset_tree(child_dataset)
                 child_dataset.delete()
-            logger.info(f"All subsets were deleted for dataset {dataset_to_delete.id}")
+            logger.info(
+                f"All subsets were deleted for dataset {dataset_to_delete.name}:{dataset_to_delete.id} "
+                f"in org {dataset_to_delete.organization.name}"
+            )
 
         delete_tree_raw = request.GET.get("delete_tree")
         delete_tree = True if delete_tree_raw == "true" else False
@@ -445,8 +519,11 @@ class DatasetViewSet(ModelViewSet):
             for child in dataset.children.all():
                 child.ancestor = dataset.ancestor
                 child.save()
-
+        logger.info(
+            f"Dataset Deleted : {dataset.name}:{dataset.id} "
+            f"by user {request.user.display_name} "
+            f"in org {dataset.organization.name}"
+        )
         dataset.delete()
-        logger.info(f"Dataset root was deleted {dataset.id}")
         return Response(status=204)
         # return super(self.__class__, self).destroy(request=self.request)

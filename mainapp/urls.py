@@ -96,4 +96,5 @@ urlpatterns = [
         views.HandleDatasetAccessRequest.as_view(),
         name="respond_request",
     ),
+    url(r"^monitoring/?$", views.Monitoring.as_view(), name="monitoring"),
 ]
