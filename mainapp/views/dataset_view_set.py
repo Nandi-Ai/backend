@@ -80,7 +80,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.id = uuid.uuid4()
 
             # aws stuff
-            org_name = request.user.organization.name
+            org_name = dataset_data.get("ancestor", request.user).organization.name
             s3 = aws_service.create_s3_client(org_name=org_name)
 
             try:
