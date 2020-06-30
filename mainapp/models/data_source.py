@@ -7,6 +7,7 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.utils import aws_service
+from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +100,15 @@ def delete_data_source(sender, instance, **kwargs):
                     f"Warning no such bucket {data_source.bucket} while trying to delete dir {dir}"
                 )
 
+    ElasticsearchService.write_monitoring_event(
+        event_type=MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE,
+        datasource_id=data_source.id,
+        dataset_id=data_source.dataset.id,
+        organization_name=data_source.dataset.organization.name,
+    )
     logger.info(
-        f"Data source {data_source.name}:{data_source.id} "
-        f"in Dataset {data_source.dataset.name}:{data_source.dataset.id} "
-        f"in org {data_source.dataset.organization.name } was deleted successfully"
+        f"Datasource Event: {MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE.value} "
+        f"on dataset {data_source.dataset.name}:{data_source.dataset.id} "
+        f"and datasource {data_source.name}:{data_source.id} "
+        f"in org {data_source.dataset.organization}"
     )

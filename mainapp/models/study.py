@@ -7,6 +7,7 @@ from django.dispatch import receiver
 
 from mainapp.exceptions import BucketNotFound, RoleNotFound, PolicyNotFound
 from mainapp.utils import lib
+from mainapp.utils.elasticsearch_service import ElasticsearchService, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +72,14 @@ def delete_study(sender, instance, **kwargs):
         logger.warning(
             f"Role {e.role} was not found for study {study.name}:{study.id} at delete bucket operation"
         )
+
+    ElasticsearchService.write_monitoring_event(
+        event_type=MonitorEvents.EVENT_STUDY_DELETED,
+        study_id=study.id,
+        organization_name=study.organization.name,
+    )
+    logger.info(
+        f"Study Event: {MonitorEvents.EVENT_STUDY_DELETED.value} "
+        f"on study {study.name}:{study.id} "
+        f"in org {study.organization}"
+    )
