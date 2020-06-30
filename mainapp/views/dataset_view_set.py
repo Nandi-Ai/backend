@@ -278,6 +278,11 @@ class DatasetViewSet(ModelViewSet):
             if "ancestor" in dataset_data:
                 dataset.is_discoverable = False
                 dataset.state = "private"
+                # for public dataset case
+                if dataset.default_user_permission is None:
+                    dataset.default_user_permission = "None"
+                    dataset.full_access_users.add(request.user.id)
+                # for private dataset case with aggregated_access permission
                 if dataset.default_user_permission == "aggregated_access":
                     dataset.aggregated_users.add(request.user.id)
             dataset.organization = (
