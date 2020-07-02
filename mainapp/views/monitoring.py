@@ -21,9 +21,10 @@ class Monitoring(GenericAPIView):
             study = Study.objects.get(id=request.data.get("data")["study"])
             event_id = request.data.get("data")["event_id"]
             if not user or not study:
-                return BadRequestErrorResponse(
+                logger.exception(
                     "Data for event was not specified correctly. Can not log event"
                 )
+                return
 
             ElasticsearchService.write_monitoring_event(
                 event_type=MonitorEvents.EVENT_REQUEST_NOTEBOOK,
@@ -45,9 +46,10 @@ class Monitoring(GenericAPIView):
             load_time = request.data.get("data")["load_time"]
             event_id = request.data.get("data")["event_id"]
             if not user or not study or not load_time:
-                return BadRequestErrorResponse(
+                logger.exception(
                     "Data for event was not specified correctly. Can not log event"
                 )
+                return
 
             ElasticsearchService.write_monitoring_event(
                 event_type=MonitorEvents.EVENT_NOTEBOOK_READY,
@@ -64,6 +66,28 @@ class Monitoring(GenericAPIView):
                 f"is ready for User {user.display_name} "
                 f"from org {user.organization.name} "
                 f"and took {load_time} ms to load"
+            )
+        elif event_type == MonitorEvents.EVENT_NOTEBOOK_LOAD_FAIL.value:
+            user = User.objects.get(id=request.data.get("data")["user"])
+            study = Study.objects.get(id=request.data.get("data")["study"])
+            if not user or not study:
+                logger.exception(
+                    "Data for event was not specified correctly. Can not log event"
+                )
+                return
+
+            ElasticsearchService.write_monitoring_event(
+                event_type=MonitorEvents.EVENT_NOTEBOOK_LOAD_FAIL,
+                study_id=study.id,
+                execution_token=study.execution.token if study.execution else "",
+                user_name=user.display_name,
+                organization_name=study.organization.name,
+            )
+            logger.info(
+                f"Notebook jupyter-{study.execution.token if study.execution else ' '} "
+                f"for Study {study.name}:{study.id} "
+                f"failed to load for User {user.display_name} "
+                f"from org {user.organization.name} "
             )
 
         return Response()
