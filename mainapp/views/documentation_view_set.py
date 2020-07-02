@@ -31,9 +31,12 @@ class DocumentationViewSet(ModelViewSet):
         ".zip": ["application/zip"],
     }
 
-    def __monitor_documentation(self, event_type, dataset, user, additional_data):
+    def __monitor_documentation(
+        self, event_type, user_ip, dataset, user, additional_data
+    ):
         ElasticsearchService.write_monitoring_event(
             event_type=event_type,
+            user_ip=user_ip,
             user_name=user.display_name,
             dataset_id=dataset.id,
             organization_name=dataset.organization.name,
@@ -126,7 +129,7 @@ class DocumentationViewSet(ModelViewSet):
 
         self.__monitor_documentation(
             event_type=MonitorEvents.EVENT_DATASET_ADD_DOCUMENTATION,
-            documentation=documentation,
+            user_ip=lib.get_client_ip(request),
             user=request.user,
             dataset=dataset,
             additional_data={"documentation_file": documentation.file_name},

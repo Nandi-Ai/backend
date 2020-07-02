@@ -30,10 +30,11 @@ class DatasetViewSet(ModelViewSet):
     filter_fields = ("ancestor",)
 
     def __monitor_dataset(
-        self, dataset, event_type, user, datasource=None, additional_data=None
+        self, dataset, event_type, user_ip, user, datasource=None, additional_data=None
     ):
         ElasticsearchService.write_monitoring_event(
             event_type=event_type,
+            user_ip=user_ip,
             dataset_id=dataset.id,
             user_name=user.display_name,
             datasource_id=datasource if datasource else "",
@@ -298,6 +299,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.save()
             self.__monitor_dataset(
                 event_type=MonitorEvents.EVENT_DATASET_CREATED,
+                user_ip=lib.get_client_ip(request),
                 dataset=dataset,
                 user=request.user,
             )
@@ -382,6 +384,7 @@ class DatasetViewSet(ModelViewSet):
                 self.__monitor_dataset(
                     dataset=dataset,
                     event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
+                    user_ip=lib.get_client_ip(request),
                     user=request.user,
                     additional_data={
                         "user_list": [user.display_name for user in new],
@@ -393,6 +396,7 @@ class DatasetViewSet(ModelViewSet):
                 self.__monitor_dataset(
                     dataset=dataset,
                     event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    user_ip=lib.get_client_ip(request),
                     user=request.user,
                     additional_data={
                         "user_list": [user.display_name for user in removed_admins],
@@ -432,6 +436,7 @@ class DatasetViewSet(ModelViewSet):
             if new:
                 self.__monitor_dataset(
                     event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
+                    user_ip=lib.get_client_ip(request),
                     dataset=dataset,
                     user=request.user,
                     additional_data={
@@ -443,6 +448,7 @@ class DatasetViewSet(ModelViewSet):
             if removed_agg:
                 self.__monitor_dataset(
                     event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    user_ip=lib.get_client_ip(request),
                     dataset=dataset,
                     user=request.user,
                     additional_data={
@@ -472,6 +478,7 @@ class DatasetViewSet(ModelViewSet):
             if new:
                 self.__monitor_dataset(
                     event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
+                    user_ip=lib.get_client_ip(request),
                     dataset=dataset,
                     user=request.user,
                     additional_data={
@@ -483,6 +490,7 @@ class DatasetViewSet(ModelViewSet):
             if removed_full:
                 self.__monitor_dataset(
                     event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    user_ip=lib.get_client_ip(request),
                     dataset=dataset,
                     user=request.user,
                     additional_data={
@@ -551,6 +559,7 @@ class DatasetViewSet(ModelViewSet):
 
         self.__monitor_dataset(
             event_type=MonitorEvents.EVENT_DATASET_DELETED,
+            user_ip=lib.get_client_ip(request),
             dataset=dataset,
             user=request.user,
         )

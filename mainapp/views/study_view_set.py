@@ -27,8 +27,9 @@ class StudyViewSet(ModelViewSet):
 
     serializer_class = StudySerializer
 
-    def __monitor_study(self, study, event_type, user, dataset=None):
+    def __monitor_study(self, study, user_ip, event_type, user, dataset=None):
         ElasticsearchService.write_monitoring_event(
+            user_ip=user_ip,
             study_id=study.id,
             event_type=event_type,
             user_name=user.display_name,
@@ -113,6 +114,7 @@ class StudyViewSet(ModelViewSet):
             study.save()
             self.__monitor_study(
                 event_type=MonitorEvents.EVENT_STUDY_CREATED,
+                user_ip=lib.get_client_ip(request),
                 user=request.user,
                 study=study,
             )
@@ -336,6 +338,7 @@ class StudyViewSet(ModelViewSet):
             for d in diff_datasets & updated_datasets:
                 self.__monitor_study(
                     event_type=MonitorEvents.EVENT_STUDY_ASSIGN_DATASET,
+                    user_ip=lib.get_client_ip(request),
                     study=study,
                     user=request.user,
                     dataset=d,

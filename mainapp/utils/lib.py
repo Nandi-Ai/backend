@@ -574,3 +574,12 @@ def set_policy_clear_athena_history(
             ]
         },
     )
+
+
+def get_client_ip(request):
+    client_address = request.META.get("HTTP_X_FORWARDED_FOR")
+    return (
+        client_address.split(",")[0]
+        if client_address
+        else request.META.get("REMOTE_ADDR")
+    )

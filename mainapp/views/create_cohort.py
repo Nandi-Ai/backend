@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 class CreateCohort(GenericAPIView):
     serializer_class = CohortSerializer
 
-    def __monitor_cohort(self, event_type, datasource, user):
+    def __monitor_cohort(self, event_type, user_ip, datasource, user):
         ElasticsearchService.write_monitoring_event(
             event_type=event_type,
+            user_ip=user_ip,
             dataset_id=datasource.dataset.id,
             user_name=user.display_name,
             datasource_id=datasource,
@@ -166,6 +167,7 @@ class CreateCohort(GenericAPIView):
                 new_data_source.save()
                 self.__monitor_cohort(
                     event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                    user_ip=lib.get_client_ip(request),
                     datasource=new_data_source,
                     user=request.user,
                 )

@@ -15,6 +15,8 @@ if not HOST:
 
 
 class MonitorEvents(Enum):
+    EVENT_USER_LOGIN = "user_login"
+
     EVENT_REQUEST_NOTEBOOK = "request_notebook"
     EVENT_NOTEBOOK_READY = "notebook_ready"
     EVENT_NOTEBOOK_LOAD_FAIL = "notebook_load_fail"
@@ -54,6 +56,7 @@ class ElasticsearchService(object):
     def write_monitoring_event(
         cls,
         event_type,
+        user_ip="127.0.0.1",
         event_id="",
         dataset_id="",
         study_id="",
@@ -72,6 +75,7 @@ class ElasticsearchService(object):
             "dataset": dataset_id,
             "study": study_id,
             "user": user_name,
+            "user_ip": user_ip,
             "datasource": datasource_id,
             "event_type": event_type.value,
             "organization": organization_name,

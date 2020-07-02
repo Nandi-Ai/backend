@@ -50,9 +50,10 @@ class DataSourceViewSet(ModelViewSet):
         ".zip": ["application/zip"],
     }
 
-    def __monitor_datasource(self, event_type, datasource, user):
+    def __monitor_datasource(self, event_type, user_ip, datasource, user):
         ElasticsearchService.write_monitoring_event(
             event_type=event_type,
+            user_ip=user_ip,
             dataset_id=datasource.dataset.id,
             user_name=user.display_name,
             datasource_id=datasource.id,
@@ -287,6 +288,7 @@ class DataSourceViewSet(ModelViewSet):
             data_source.save()
             self.__monitor_datasource(
                 event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                user_ip=lib.get_client_ip(request),
                 datasource=data_source,
                 user=request.user,
             )
