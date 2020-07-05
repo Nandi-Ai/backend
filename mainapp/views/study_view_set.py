@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+import uuid
 
 import botocore.exceptions
 from rest_framework.decorators import action
@@ -69,6 +70,32 @@ class StudyViewSet(ModelViewSet):
 
         return user.related_studies.all()
 
+    def __create_execution(self, study, user):
+        """
+        Creates an execution object for the created study
+        @param study: The created study
+        @type study: L{Study}
+        @param user: The user that created the study
+        @type user: L{User}
+        """
+        execution_id = uuid.uuid4()
+
+        execution = Execution.objects.create(id=execution_id)
+        execution.real_user = user
+        execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
+        execution_user.set_password(execution.token)
+        execution_user.organization = study.datasets.first().organization
+        execution_user.is_execution = True
+        execution_user.save()
+        logger.info(
+            f"Created Execution user with identifier: {execution.token} for Study: {study.name}:{study.id} "
+            f"in org {study.organization.name}"
+        )
+        execution.execution_user = execution_user
+        execution.save()
+        study.execution = execution
+        study.save()
+
     # @transaction.atomic
     def create(self, request, **kwargs):
         study_serialized = self.serializer_class(data=request.data)
@@ -97,6 +124,7 @@ class StudyViewSet(ModelViewSet):
                 organization=first_dataset_organization,
                 cover=study_serialized.validated_data.get("cover"),
             )
+
             study.description = study_serialized.validated_data["description"]
             req_users = study_serialized.validated_data["users"]
 
@@ -242,6 +270,13 @@ class StudyViewSet(ModelViewSet):
                     user=request.user,
                     type="dataset assignment",
                 )
+
+            self.__create_execution(study, request.user)
+            lib.setup_study_workspace(
+                org_name=study.organization.org_name,
+                execution_token=study.execution.token,
+                workspace_bucket=study.bucket,
+            )
 
             return Response(
                 self.serializer_class(study, allow_null=True).data, status=201
