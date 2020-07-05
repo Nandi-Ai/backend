@@ -5,6 +5,7 @@ import subprocess
 import zipfile
 from datetime import datetime as dt, timedelta as td
 from time import sleep
+from jinja2 import Template
 
 import logging
 
@@ -31,8 +32,11 @@ from mainapp.utils.decorators import (
     with_s3_client,
     with_s3_resource,
     with_iam_resource,
+    with_ec2_client,
 )
 from mainapp.utils.response_handler import ForbiddenErrorResponse
+
+USER_DATA_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "user_data.jinja")
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +205,46 @@ class MyTokenAuthentication(TokenAuthentication):
         # token.save()
 
         return token.user, token
+
+
+@with_ec2_client
+def setup_study_workspace(boto3_client, org_name, execution_token, workspace_bucket):
+    organization_value = settings.ORG_VALUES[org_name]
+    org_hosted_zone = organization_value["HOSTED_ZONE_ID"]
+    org_region = organization_value["AWS_REGION"]
+    org_fs_server = organization_value["FS_SERVER"]
+    org_domain = organization_value["DOMAIN"]
+    lynx_org_value = settings.ORG_VALUES[settings.LYNX_ORGANIZATION]
+
+    with open(USER_DATA_TEMPLATE_PATH) as user_data_template_file:
+        user_data_template = Template(user_data_template_file.read())
+        user_data = user_data_template.render(
+            execution_token=execution_token,
+            bucket=workspace_bucket,
+            hosted_zone=org_hosted_zone,
+            org_region=org_region,
+            fs_server=org_fs_server,
+            domain=org_domain,
+            lynx_account=lynx_org_value["ACCOUNT_NUMBER"],
+            lynx_region=lynx_org_value["AWS_REGION"],
+            backend=settings.BACKEND_URL,
+            notebook_image=settings.NOTEBOOK_IMAGE,
+            fs_branch=settings.FS_BRANCH,
+            fs_repo=settings.FS_REPO,
+        )
+
+    boto3_client.run_instances(
+        LaunchTemplate={"LaunchTemplateName": "Jupyter-Notebook"},
+        TagSpecifications=[
+            {
+                "ResourceType": "instance",
+                "Tags": [{"Key": "Name", "Value": f"jupyter-{execution_token}"}],
+            }
+        ],
+        UserData=user_data,
+        MinCount=1,
+        MaxCount=1,
+    )
 
 
 @with_glue_client
