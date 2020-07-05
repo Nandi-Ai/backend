@@ -5,7 +5,10 @@ yum install -y python3 fuse* afuse git docker s3fs-fuse
 usermod -a -G docker ec2-user
 sed -i '/^#.*user_allow_other/s/^#//' /etc/fuse.conf
 mkdir /home/fs_client
+mkdir ~/.aws
 echo -e "[profile git]\nrole_arn = arn:aws:iam::{{lynx_account}}:role/GitLynxFS\ncredential_source = Ec2InstanceMetadata\noutput = json\nregion = {{lynx_region}}" > ~/.aws/config
+git config --system credential.helper '!aws codecommit --profile git credential-helper $@'
+git config --system credential.UseHttpPath true
 git clone -b {{fs_branch}} --single-branch {{fs_repo}} /home/fs_client
 pip3 install -r /home/fs_client/requirements.txt
 mkdir /home/ec2-user/data
