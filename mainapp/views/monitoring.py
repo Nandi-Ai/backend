@@ -32,9 +32,11 @@ class Monitoring(GenericAPIView):
                 user_ip=lib.get_client_ip(request),
                 event_id=event_id,
                 study_id=study.id,
+                study_name=study.name,
                 user_name=user.display_name,
                 execution_token=study.execution.token if study.execution else "",
-                organization_name=study.organization.name,
+                environment_name=study.organization.name,
+                user_organization=user.organization.name,
             )
 
             logger.info(
@@ -58,9 +60,11 @@ class Monitoring(GenericAPIView):
                 event_id=event_id,
                 user_ip=lib.get_client_ip(request),
                 study_id=study.id,
+                study_name=study.name,
                 execution_token=study.execution.token if study.execution else "",
                 user_name=user.display_name,
-                organization_name=study.organization.name,
+                environment_name=study.organization.name,
+                user_organization=user.organization.name,
                 additional_data={"load_time": load_time},
             )
             logger.info(
@@ -82,10 +86,12 @@ class Monitoring(GenericAPIView):
             ElasticsearchService.write_monitoring_event(
                 event_type=MonitorEvents.EVENT_NOTEBOOK_LOAD_FAIL,
                 study_id=study.id,
+                study_name=study.name,
                 execution_token=study.execution.token if study.execution else "",
                 user_name=user.display_name,
                 user_ip=lib.get_client_ip(request),
-                organization_name=study.organization.name,
+                environment_name=study.organization.name,
+                user_organization=user.organization.name,
             )
             logger.info(
                 f"Notebook jupyter-{study.execution.token if study.execution else ' '} "
@@ -104,7 +110,7 @@ class Monitoring(GenericAPIView):
                 event_type=MonitorEvents.EVENT_USER_LOGIN,
                 user_ip=lib.get_client_ip(request),
                 user_name=user.display_name,
-                organization_name=user.organization.name,
+                user_organization=user.organization.name,
             )
             logger.info(
                 f"User {user.display_name} from org {user.organization.name} has logged in"

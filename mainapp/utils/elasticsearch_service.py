@@ -59,11 +59,15 @@ class ElasticsearchService(object):
         user_ip="127.0.0.1",
         event_id="",
         dataset_id="",
+        dataset_name="",
         study_id="",
+        study_name="",
         user_name="",
         datasource_id="",
+        datasource_name="",
         execution_token="",
-        organization_name="",
+        user_organization="",
+        environment_name="",
         additional_data=None,
     ):
         if not HOST:
@@ -72,15 +76,19 @@ class ElasticsearchService(object):
         event_monitor_object = {
             "event_id": event_id or str(uuid.uuid1()),
             "timestamp": datetime.now(),
-            "dataset": dataset_id,
-            "study": study_id,
-            "user": user_name,
-            "user_ip": user_ip,
-            "datasource": datasource_id,
+            "user_name": user_name,
+            "user_organization": user_organization,
+            "environment_name": environment_name,
             "event_type": event_type.value,
-            "organization": organization_name,
-            "execution": execution_token,
+            "study_name": study_name,
+            "dataset_name": dataset_name,
+            "datasource_name": datasource_name,
             "additional_data": additional_data or {},
+            "user_ip": user_ip,
+            "study_id": study_id,
+            "execution": execution_token,
+            "dataset_id": dataset_id,
+            "datasource_id": datasource_id,
         }
 
         index_exists = cls.__get_client().indices.exists(index=cls.__INDEX_NAME)
