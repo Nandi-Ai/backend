@@ -23,6 +23,7 @@ from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import statistics, lib, aws_service
+from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -48,6 +49,24 @@ class DataSourceViewSet(ModelViewSet):
         ".zsav": [],
         ".zip": ["application/zip"],
     }
+
+    def __monitor_datasource(self, event_type, user_ip, datasource, user):
+        ElasticsearchService.write_monitoring_event(
+            event_type=event_type,
+            user_ip=user_ip,
+            dataset_id=datasource.dataset.id,
+            user_name=user.display_name,
+            datasource_id=datasource.id,
+            organization_name=datasource.dataset.organization.name,
+        )
+
+        logger.info(
+            f"Datasource Event: {event_type.value} "
+            f"on dataset {datasource.dataset.name}:{datasource.dataset.id} "
+            f"and datasource {datasource.name}:{datasource.id}"
+            f"by user {user.display_name} "
+            f"in org {datasource.dataset.organization.name}"
+        )
 
     @action(detail=True, methods=["get"])
     def statistics(self, request, *args, **kwargs):
@@ -267,12 +286,13 @@ class DataSourceViewSet(ModelViewSet):
                 data_source.state = "ready"
 
             data_source.save()
-            logger.info(
-                f"New Datasource added : {data_source.name}:{data_source.id} "
-                f"in Dataset {dataset.name}:{dataset.id} "
-                f"by user {request.user.display_name} "
-                f"in org {dataset.organization.name}"
+            self.__monitor_datasource(
+                event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                user_ip=lib.get_client_ip(request),
+                datasource=data_source,
+                user=request.user,
             )
+
             return Response(
                 self.serializer_class(data_source, allow_null=True).data, status=201
             )

@@ -14,6 +14,7 @@ from mainapp import resources
 from mainapp.models import User, Dataset, Tag, Execution, Activity
 from mainapp.serializers import DatasetSerializer
 from mainapp.utils import lib, aws_service
+from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -27,6 +28,35 @@ class DatasetViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     serializer_class = DatasetSerializer
     filter_fields = ("ancestor",)
+
+    def __monitor_dataset(
+        self, dataset, event_type, user_ip, user, datasource=None, additional_data=None
+    ):
+        ElasticsearchService.write_monitoring_event(
+            event_type=event_type,
+            user_ip=user_ip,
+            dataset_id=dataset.id,
+            user_name=user.display_name,
+            datasource_id=datasource if datasource else "",
+            organization_name=dataset.organization.name,
+            additional_data=additional_data if additional_data else None,
+        )
+
+        datasource_log = (
+            f"and datasource {datasource.name}:{datasource.id}" if datasource else ""
+        )
+        additional_data_log = (
+            f"additional data for event : {str(additional_data)}"
+            if additional_data
+            else ""
+        )
+        logger.info(
+            f"Dataset Event: {event_type.value} "
+            f"on dataset {dataset.name}:{dataset.id} "
+            f"by user {user.display_name}. "
+            f"{datasource_log}"
+            f"{additional_data_log}"
+        )
 
     # noinspection PyMethodMayBeStatic
     def logic_validate(
@@ -80,7 +110,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.id = uuid.uuid4()
 
             # aws stuff
-            org_name = request.user.organization.name
+            org_name = dataset_data.get("ancestor", request.user).organization.name
             s3 = aws_service.create_s3_client(org_name=org_name)
 
             try:
@@ -249,6 +279,11 @@ class DatasetViewSet(ModelViewSet):
             if "ancestor" in dataset_data:
                 dataset.is_discoverable = False
                 dataset.state = "private"
+                # for public dataset case
+                if dataset.default_user_permission is None:
+                    dataset.default_user_permission = "None"
+                    dataset.full_access_users.add(request.user.id)
+                # for private dataset case with aggregated_access permission
                 if dataset.default_user_permission == "aggregated_access":
                     dataset.aggregated_users.add(request.user.id)
             dataset.organization = (
@@ -262,10 +297,11 @@ class DatasetViewSet(ModelViewSet):
             )
 
             dataset.save()
-            logger.info(
-                f"New Dataset added : {dataset.name}:{dataset.id} "
-                f"by user {request.user.display_name} "
-                f"in org {dataset.organization.name}"
+            self.__monitor_dataset(
+                event_type=MonitorEvents.EVENT_DATASET_CREATED,
+                user_ip=lib.get_client_ip(request),
+                dataset=dataset,
+                user=request.user,
             )
 
             # the role takes this time to be created!
@@ -344,29 +380,28 @@ class DatasetViewSet(ModelViewSet):
             new = diff & updated_admin
             removed_admins = diff & existing
 
-            message = "New {permission} Users {add_remove}. Dataset: {dataset_name}:{dataset_id} : {user_list} in org {org}"
-
             if new:
-                logger.info(
-                    message.format(
-                        permission="Admin",
-                        add_remove="Added",
-                        dataset_name=dataset.name,
-                        dataset_id=dataset.id,
-                        user_list=[user.display_name for user in new],
-                        org=dataset.organization.name,
-                    )
+                self.__monitor_dataset(
+                    dataset=dataset,
+                    event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
+                    user_ip=lib.get_client_ip(request),
+                    user=request.user,
+                    additional_data={
+                        "user_list": [user.display_name for user in new],
+                        "permission": "admin",
+                    },
                 )
+
             if removed_admins:
-                logger.info(
-                    message.format(
-                        permission="Admin",
-                        add_remove="Removed",
-                        dataset_name=dataset.name,
-                        dataset_id=dataset.id,
-                        user_list=[user.display_name for user in removed_admins],
-                        org=dataset.organization.name,
-                    )
+                self.__monitor_dataset(
+                    dataset=dataset,
+                    event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    user_ip=lib.get_client_ip(request),
+                    user=request.user,
+                    additional_data={
+                        "user_list": [user.display_name for user in removed_admins],
+                        "permission": "admin",
+                    },
                 )
 
             for user in new:
@@ -399,26 +434,27 @@ class DatasetViewSet(ModelViewSet):
             removed_agg = diff & existing
 
             if new:
-                logger.info(
-                    message.format(
-                        permission="Aggregated",
-                        add_remove="Added",
-                        dataset_name=dataset.name,
-                        dataset_id=dataset.id,
-                        user_list=[user.display_name for user in new],
-                        org=dataset.organization.name,
-                    )
+                self.__monitor_dataset(
+                    event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
+                    user_ip=lib.get_client_ip(request),
+                    dataset=dataset,
+                    user=request.user,
+                    additional_data={
+                        "user_list": [user.display_name for user in new],
+                        "permission": "aggregated",
+                    },
                 )
+
             if removed_agg:
-                logger.info(
-                    message.format(
-                        permission="Aggregated",
-                        add_remove="Removed",
-                        dataset_name=dataset.name,
-                        dataset_id=dataset.id,
-                        user_list=[user.display_name for user in removed_agg],
-                        org=dataset.organization.name,
-                    )
+                self.__monitor_dataset(
+                    event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    user_ip=lib.get_client_ip(request),
+                    dataset=dataset,
+                    user=request.user,
+                    additional_data={
+                        "user_list": [user.display_name for user in removed_agg],
+                        "permission": "aggregated",
+                    },
                 )
 
             for user in new:
@@ -440,26 +476,27 @@ class DatasetViewSet(ModelViewSet):
             removed_full = diff & existing
 
             if new:
-                logger.info(
-                    message.format(
-                        permission="Full Access",
-                        add_remove="Added",
-                        dataset_name=dataset.name,
-                        dataset_id=dataset.id,
-                        user_list=[user.display_name for user in new],
-                        org=dataset.organization.name,
-                    )
+                self.__monitor_dataset(
+                    event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
+                    user_ip=lib.get_client_ip(request),
+                    dataset=dataset,
+                    user=request.user,
+                    additional_data={
+                        "user_list": [user.display_name for user in new],
+                        "permission": "full_access",
+                    },
                 )
+
             if removed_full:
-                logger.info(
-                    message.format(
-                        permission="Full Access",
-                        add_remove="Removed",
-                        dataset_name=dataset.name,
-                        dataset_id=dataset.id,
-                        user_list=[user.display_name for user in removed_full],
-                        org=dataset.organization.name,
-                    )
+                self.__monitor_dataset(
+                    event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    user_ip=lib.get_client_ip(request),
+                    dataset=dataset,
+                    user=request.user,
+                    additional_data={
+                        "user_list": [user.display_name for user in removed_full],
+                        "permission": "full_access",
+                    },
                 )
 
             for user in new:
@@ -519,11 +556,14 @@ class DatasetViewSet(ModelViewSet):
             for child in dataset.children.all():
                 child.ancestor = dataset.ancestor
                 child.save()
-        logger.info(
-            f"Dataset Deleted : {dataset.name}:{dataset.id} "
-            f"by user {request.user.display_name} "
-            f"in org {dataset.organization.name}"
+
+        self.__monitor_dataset(
+            event_type=MonitorEvents.EVENT_DATASET_DELETED,
+            user_ip=lib.get_client_ip(request),
+            dataset=dataset,
+            user=request.user,
         )
+
         dataset.delete()
         return Response(status=204)
         # return super(self.__class__, self).destroy(request=self.request)

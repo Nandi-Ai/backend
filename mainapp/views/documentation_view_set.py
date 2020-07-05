@@ -9,6 +9,7 @@ from rest_framework.viewsets import ModelViewSet
 from mainapp.models import Documentation
 from mainapp.serializers import DocumentationSerializer
 from mainapp.utils import aws_service, lib
+from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import BadRequestErrorResponse
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,29 @@ class DocumentationViewSet(ModelViewSet):
         ".pdf": ["application/pdf"],
         ".zip": ["application/zip"],
     }
+
+    def __monitor_documentation(
+        self, event_type, user_ip, dataset, user, additional_data
+    ):
+        ElasticsearchService.write_monitoring_event(
+            event_type=event_type,
+            user_ip=user_ip,
+            user_name=user.display_name,
+            dataset_id=dataset.id,
+            organization_name=dataset.organization.name,
+            additional_data=additional_data,
+        )
+        additional_data_log = (
+            f"additional data for event : {str(additional_data)}"
+            if additional_data
+            else ""
+        )
+        logger.info(
+            f"Documentation Event: {event_type.value} "
+            f"on dataset {dataset.name}:{dataset.id} "
+            f"by user {user.display_name}. "
+            f"{additional_data_log}"
+        )
 
     def get_serializer(self, *args, **kwargs):
         if "data" in kwargs:
@@ -103,10 +127,14 @@ class DocumentationViewSet(ModelViewSet):
         except Exception:
             return BadRequestErrorResponse("Invalid documentation data")
 
-        logger.info(
-            f"Documentation: {documentation.file_name} was added to Dataset: {dataset.name}:{dataset.id} "
-            f"by user {request.user.display_name} in org {dataset.organization.name}"
+        self.__monitor_documentation(
+            event_type=MonitorEvents.EVENT_DATASET_ADD_DOCUMENTATION,
+            user_ip=lib.get_client_ip(request),
+            user=request.user,
+            dataset=dataset,
+            additional_data={"documentation_file": documentation.file_name},
         )
+
         return Response(
             doc_serialized.data,
             status=201,

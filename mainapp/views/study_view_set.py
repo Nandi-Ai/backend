@@ -11,6 +11,7 @@ from mainapp import resources, settings
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
 from mainapp.utils import lib, aws_service
+from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -25,6 +26,25 @@ class StudyViewSet(ModelViewSet):
     filter_fields = ("user_created",)
 
     serializer_class = StudySerializer
+
+    def __monitor_study(self, study, user_ip, event_type, user, dataset=None):
+        ElasticsearchService.write_monitoring_event(
+            user_ip=user_ip,
+            study_id=study.id,
+            event_type=event_type,
+            user_name=user.display_name,
+            organization_name=study.organization.name,
+            dataset_id=dataset.id if dataset else "",
+        )
+
+        dataset_log = f"and dataset {dataset.name}:{dataset.id}" if dataset else ""
+        logger.info(
+            f"Study Event: {event_type.value} "
+            f"on study {study.name}:{study.id} "
+            f"{dataset_log}"
+            f"by user {user.display_name} "
+            f" in org {study.organization.name}"
+        )
 
     @action(detail=True, methods=["get"])
     def get_study_per_organization(self, request, pk=None):
@@ -92,8 +112,11 @@ class StudyViewSet(ModelViewSet):
             study.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
 
             study.save()
-            logger.info(
-                f"New Study added : {study.name}:{study.id} by user {request.user.display_name} in org {study.organization.name}"
+            self.__monitor_study(
+                event_type=MonitorEvents.EVENT_STUDY_CREATED,
+                user_ip=lib.get_client_ip(request),
+                user=request.user,
+                study=study,
             )
 
             workspace_bucket_name = study.bucket
@@ -313,9 +336,12 @@ class StudyViewSet(ModelViewSet):
             existing_datasets = set(study.datasets.all())
             diff_datasets = updated_datasets ^ existing_datasets
             for d in diff_datasets & updated_datasets:
-                logger.info(
-                    f"Dataset: {d.name}:{d.id} assigned to Study: {study.name}:{study.id} "
-                    f"in org {study.organization.name}"
+                self.__monitor_study(
+                    event_type=MonitorEvents.EVENT_STUDY_ASSIGN_DATASET,
+                    user_ip=lib.get_client_ip(request),
+                    study=study,
+                    user=request.user,
+                    dataset=d,
                 )
                 Activity.objects.create(
                     type="dataset assignment", study=study, dataset=d, user=user
