@@ -46,6 +46,10 @@ def with_glue_client(func):
     return with_client(client=aws_service.create_glue_client)(func)
 
 
+def with_ec2_client(func):
+    return with_client(client=aws_service.create_ec2_client)(func)
+
+
 def with_s3_client(func):
     return with_client(client=aws_service.create_s3_client)(func)
 
