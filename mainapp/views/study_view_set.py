@@ -273,7 +273,7 @@ class StudyViewSet(ModelViewSet):
 
             self.__create_execution(study, request.user)
             lib.setup_study_workspace(
-                org_name=study.organization.org_name,
+                org_name=org_name,
                 execution_token=study.execution.token,
                 workspace_bucket=study.bucket,
             )
