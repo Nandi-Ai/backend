@@ -39,7 +39,9 @@ class DocumentationViewSet(ModelViewSet):
             user_ip=user_ip,
             user_name=user.display_name,
             dataset_id=dataset.id,
-            organization_name=dataset.organization.name,
+            dataset_name=dataset.name,
+            environment_name=dataset.organization.name,
+            user_organization=user.organization.name,
             additional_data=additional_data,
         )
         additional_data_log = (

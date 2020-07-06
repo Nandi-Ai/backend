@@ -36,9 +36,12 @@ class DatasetViewSet(ModelViewSet):
             event_type=event_type,
             user_ip=user_ip,
             dataset_id=dataset.id,
+            dataset_name=dataset.name,
             user_name=user.display_name,
-            datasource_id=datasource if datasource else "",
-            organization_name=dataset.organization.name,
+            datasource_id=datasource.id if datasource else "",
+            datasource_name=datasource.name if datasource else "",
+            environment_name=dataset.organization.name,
+            user_organization=user.organization.name,
             additional_data=additional_data if additional_data else None,
         )
 

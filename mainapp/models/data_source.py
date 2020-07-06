@@ -103,8 +103,10 @@ def delete_data_source(sender, instance, **kwargs):
     ElasticsearchService.write_monitoring_event(
         event_type=MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE,
         datasource_id=data_source.id,
+        datasource_name=data_source.name,
         dataset_id=data_source.dataset.id,
-        organization_name=data_source.dataset.organization.name,
+        dataset_name=data_source.dataset.name,
+        environment_name=data_source.dataset.organization.name,
     )
     logger.info(
         f"Datasource Event: {MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE.value} "

@@ -48,6 +48,7 @@ class DataSourceViewSet(ModelViewSet):
         ".sav": ["application/octet-stream"],
         ".zsav": [],
         ".zip": ["application/zip"],
+        ".xml": ["text/html"],
     }
 
     def __monitor_datasource(self, event_type, user_ip, datasource, user):
@@ -55,9 +56,12 @@ class DataSourceViewSet(ModelViewSet):
             event_type=event_type,
             user_ip=user_ip,
             dataset_id=datasource.dataset.id,
+            dataset_name=datasource.dataset.name,
             user_name=user.display_name,
             datasource_id=datasource.id,
-            organization_name=datasource.dataset.organization.name,
+            datasource_name=datasource.name,
+            environment_name=datasource.dataset.organization.name,
+            user_organization=user.organization.name,
         )
 
         logger.info(
@@ -145,7 +149,7 @@ class DataSourceViewSet(ModelViewSet):
         return self.request.user.data_sources
 
     def create(self, request, *args, **kwargs):
-        ds_types = ["structured", "images", "zip"]
+        ds_types = ["structured", "images", "zip", "xml"]
         data_source_serialized = self.serializer_class(
             data=request.data, allow_null=True
         )
@@ -173,7 +177,7 @@ class DataSourceViewSet(ModelViewSet):
                 if not isinstance(data_source_data["s3_objects"], list):
                     return ForbiddenErrorResponse("s3 objects must be a (json) list")
 
-            if data_source_data["type"] in ["zip", "structured"]:
+            if data_source_data["type"] in ["zip", "structured" "xml"]:
                 if "s3_objects" not in data_source_data:
                     logger.exception("s3_objects field must be included")
 
@@ -185,7 +189,7 @@ class DataSourceViewSet(ModelViewSet):
 
                 s3_obj = data_source_data["s3_objects"][0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
-                if ext not in ["sav", "zsav", "csv"]:
+                if ext not in ["sav", "zsav", "csv", "xml"]:
                     return BadRequestErrorResponse(
                         "File type is not supported as a structured data source"
                     )

@@ -76,7 +76,8 @@ def delete_study(sender, instance, **kwargs):
     ElasticsearchService.write_monitoring_event(
         event_type=MonitorEvents.EVENT_STUDY_DELETED,
         study_id=study.id,
-        organization_name=study.organization.name,
+        study_name=study.name,
+        environment_name=study.organization.name,
     )
     logger.info(
         f"Study Event: {MonitorEvents.EVENT_STUDY_DELETED.value} "

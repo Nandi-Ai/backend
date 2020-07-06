@@ -27,9 +27,12 @@ class CreateCohort(GenericAPIView):
             event_type=event_type,
             user_ip=user_ip,
             dataset_id=datasource.dataset.id,
+            dataset_name=datasource.dataset.name,
             user_name=user.display_name,
-            datasource_id=datasource,
-            organization_name=datasource.dataset.organization.name,
+            datasource_id=datasource.id,
+            datasource_name=datasource.name,
+            environment_name=datasource.dataset.organization.name,
+            user_organization=user.organization.name,
         )
 
         logger.info(

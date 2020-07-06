@@ -30,11 +30,14 @@ class StudyViewSet(ModelViewSet):
     def __monitor_study(self, study, user_ip, event_type, user, dataset=None):
         ElasticsearchService.write_monitoring_event(
             user_ip=user_ip,
+            study_name=study.name,
             study_id=study.id,
             event_type=event_type,
             user_name=user.display_name,
-            organization_name=study.organization.name,
+            environment_name=study.organization.name,
+            user_organization=user.organization.name,
             dataset_id=dataset.id if dataset else "",
+            dataset_name=dataset.name if dataset else "",
         )
 
         dataset_log = f"and dataset {dataset.name}:{dataset.id}" if dataset else ""
