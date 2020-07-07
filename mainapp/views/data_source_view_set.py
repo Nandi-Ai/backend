@@ -48,7 +48,7 @@ class DataSourceViewSet(ModelViewSet):
         ".sav": ["application/octet-stream"],
         ".zsav": [],
         ".zip": ["application/zip"],
-        ".xml": ["text/html"],
+        ".xml": ["text/html", "text/xml"],
     }
 
     def __monitor_datasource(self, event_type, user_ip, datasource, user):
