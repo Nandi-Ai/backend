@@ -13,18 +13,31 @@ git clone -b {{fs_branch}} --single-branch {{fs_repo}} /home/fs_client
 pip3 install -r /home/fs_client/requirements.txt
 mkdir /home/ec2-user/data
 mkdir /home/ec2-user/workspace
+mkdir /home/docker_config
+find /home/docker_config -exec chown ec2-user {} ;\
 chown ec2-user /home/ec2-user/*
 export PRIVATE_IP=$(hostname | sed 's/ip-\|\..*//g' | sed 's/-/\./g')
 aws route53 change-resource-record-sets --hosted-zone-id {{hosted_zone}} --change-batch "{ \"Comment\": \"Creating Record Set for {{execution_token}}\", \"Changes\": [ { \"Action\": \"CREATE\", \"ResourceRecordSet\": { \"Name\": \"{{execution_token}}.{{domain}}\", \"Type\": \"A\", \"TTL\": 300, \"ResourceRecords\": [ { \"Value\": \"$PRIVATE_IP\" } ] } } ] }"
 unset $PRIVATE_IP
 hostnamectl set-hostname ec2-{{execution_token}}
 
+echo "sudo rm -rf /home/docker_config/*" >> /home/startup.sh
 echo "sudo service docker start" >> /home/startup.sh
 echo "sudo chmod 666 /var/run/docker.sock" >> /home/startup.sh
 echo "sudo s3fs -o iam_role="ecs-fs-server" -o url="https://s3.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace" >> /home/startup.sh
 echo "sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &" >> /home/startup.sh
 echo "$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)" >> /home/startup.sh
-echo "docker run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}" >> /home/startup.sh
+echo "sudo mv ~/.docker/config.json /home/docker_config/config.json" >> /home/startup.sh
+echo 'sudo chown ec2-user /home/docker_config/config.json' >> /home/startup.sh
+echo 'python3 - << "EOF"' >> /home/startup.sh
+echo 'import json' >> /home/startup.sh
+echo 'with open("/home/docker_config/config.json", "r") as config_file:' >> /home/startup.sh
+echo '    config = json.loads(config_file.read())' >> /home/startup.sh
+echo 'config["proxies"] = {"default": {"httpProxy": "http://127.0.0.1", "httpsProxy": "http://127.0.0.1", "noProxy": ".amazonaws.com,.lynx.md"}}' >> /home/startup.sh
+echo 'with open("/home/docker_config/config.json", "w") as config_file:' >> /home/startup.sh
+echo '    config_file.write(json.dumps(config))' >> /home/startup.sh
+echo 'EOF' >> /home/startup.sh
+echo "docker --config /home/docker_config/ run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}" >> /home/startup.sh
 
 chmod +x /home/startup.sh
 echo "/home/startup.sh" >> /etc/rc.local
