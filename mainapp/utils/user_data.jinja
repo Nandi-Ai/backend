@@ -1,6 +1,6 @@
 #!/bin/bash -x
 exec > /tmp/part-001.log 2>&1
-amazon-linux-extras install epel
+amazon-linux-extras install epel -y
 yum install -y python3 fuse* afuse git docker s3fs-fuse
 usermod -a -G docker ec2-user
 sed -i '/^#.*user_allow_other/s/^#//' /etc/fuse.conf
@@ -26,7 +26,7 @@ echo "sudo service docker start" >> /home/startup.sh
 echo "sudo chmod 666 /var/run/docker.sock" >> /home/startup.sh
 echo "sudo s3fs -o iam_role="ecs-fs-server" -o url="https://s3.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace" >> /home/startup.sh
 echo "sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &" >> /home/startup.sh
-echo "$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)" >> /home/startup.sh
+echo "\$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)" >> /home/startup.sh
 echo "sudo mv ~/.docker/config.json /home/docker_config/config.json" >> /home/startup.sh
 echo 'sudo chown ec2-user /home/docker_config/config.json' >> /home/startup.sh
 echo 'python3 - << "EOF"' >> /home/startup.sh
