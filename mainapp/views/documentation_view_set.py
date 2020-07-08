@@ -2,7 +2,6 @@ import os
 import logging
 
 from botocore.config import Config
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 

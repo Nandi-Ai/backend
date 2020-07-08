@@ -3,7 +3,6 @@ import uuid
 
 from mainapp import settings
 from elasticsearch import Elasticsearch
-import elasticsearch
 from datetime import datetime
 from enum import Enum
 
