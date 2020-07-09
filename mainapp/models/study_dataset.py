@@ -1,11 +1,18 @@
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
 class StudyDataset(models.Model):
     FULL_ACCESS = "full_access"
+    LIMITED_ACCESS = "limited"
+    DEIDENTIFIED = "deid"
+    SYNTHETIC = "synthetic"
     AGGREGATED_ACCESS = "aggregated_access"
     possible_dataset_permission_for_study = (
         (FULL_ACCESS, "full_access"),
+        (LIMITED_ACCESS, "limited"),
+        (DEIDENTIFIED, "deid"),
+        (SYNTHETIC, "synthetic"),
         (AGGREGATED_ACCESS, "aggregated_access"),
     )
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
@@ -16,6 +23,7 @@ class StudyDataset(models.Model):
         null=False,
         blank=False,
     )
+    permission_attributes = JSONField(null=True, default=None)
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
