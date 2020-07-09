@@ -127,7 +127,7 @@ class UserTest(TestCase):
         self.assertTrue(hidden_dataset in admin_user.datasets)
         self.assertFalse(hidden_dataset in random_user.datasets)
 
-    def test_unauthorized_user(self):
+    def test_health_check_accessibility(self):
         """Accessible health call for un authenticated user"""
         api_request = APIRequestFactory().get("")
         health_view = AWSHealthCheck.as_view()
