@@ -14,7 +14,7 @@ pip3 install -r /home/fs_client/requirements.txt
 mkdir /home/ec2-user/data
 mkdir /home/ec2-user/workspace
 mkdir /home/docker_config
-find /home/docker_config -exec chown ec2-user {} ;\
+find /home/docker_config -exec chown ec2-user {} \;
 chown ec2-user /home/ec2-user/*
 export PRIVATE_IP=$(hostname | sed 's/ip-\|\..*//g' | sed 's/-/\./g')
 aws route53 change-resource-record-sets --hosted-zone-id {{hosted_zone}} --change-batch "{ \"Comment\": \"Creating Record Set for {{execution_token}}\", \"Changes\": [ { \"Action\": \"CREATE\", \"ResourceRecordSet\": { \"Name\": \"{{execution_token}}.{{domain}}\", \"Type\": \"A\", \"TTL\": 300, \"ResourceRecords\": [ { \"Value\": \"$PRIVATE_IP\" } ] } } ] }"
