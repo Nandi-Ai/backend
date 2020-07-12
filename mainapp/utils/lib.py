@@ -229,8 +229,6 @@ def setup_study_workspace(boto3_client, org_name, execution_token, workspace_buc
             lynx_region=lynx_org_value["AWS_REGION"],
             backend=settings.BACKEND_URL,
             notebook_image=settings.NOTEBOOK_IMAGE,
-            fs_branch=settings.FS_BRANCH,
-            fs_repo=settings.FS_REPO,
         )
 
     boto3_client.run_instances(
