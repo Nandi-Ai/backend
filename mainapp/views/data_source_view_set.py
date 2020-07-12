@@ -23,6 +23,7 @@ from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import statistics, lib, aws_service
+from mainapp.utils.aws_utils import s3_storage
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
     ErrorResponse,
@@ -232,10 +233,11 @@ class DataSourceViewSet(ModelViewSet):
                     workdir = f"/tmp/{data_source.id}"
                     os.makedirs(workdir)
                     try:
-                        s3_client.download_file(
-                            data_source.dataset.bucket,
-                            s3_obj,
-                            workdir + "/" + file_name,
+                        s3_storage.download_file(
+                            s3_client=s3_client,
+                            bucket_name=data_source.dataset.bucket,
+                            s3_object=s3_obj,
+                            file_path=os.path.join(workdir, file_name),
                         )
                     except Exception as e:
                         return ErrorResponse(
@@ -247,10 +249,11 @@ class DataSourceViewSet(ModelViewSet):
                     csv_path_and_file = workdir + "/" + file_name_no_ext + ".csv"
                     df.to_csv(csv_path_and_file)
                     try:
-                        s3_client.upload_file(
-                            csv_path_and_file,
-                            data_source.dataset.bucket,
-                            path + "/" + file_name_no_ext + ".csv",
+                        s3_storage.upload_file(
+                            s3_client=s3_client,
+                            csv_path_and_file=csv_path_and_file,
+                            bucket_name=data_source.dataset.bucket,
+                            file_path=os.path.join(path, f"{file_name_no_ext}.csv"),
                         )
                     except Exception as e:
                         return ErrorResponse(
@@ -266,8 +269,22 @@ class DataSourceViewSet(ModelViewSet):
                     )
                     shutil.rmtree(workdir)
 
+                try:
+                    if request.data["is_column_present"]:
+                        lib.check_csv_for_empty_columns(
+                            org_name=dataset.organization.name, data_source=data_source
+                        )
+                except Exception as e:
+                    dataset.save()
+                    return BadRequestErrorResponse(
+                        f"There was an error to when tried to check column name in data_source {data_source.name} "
+                        f"and data_source_id {data_source.id}",
+                        error=e,
+                    )
+
                 data_source.state = "pending"
                 data_source.save()
+
                 create_catalog_thread = threading.Thread(
                     target=lib.create_catalog,
                     kwargs={
