@@ -1,46 +1,52 @@
 #!/bin/bash -x
-exec > /tmp/part-001.log 2>&1
-amazon-linux-extras install epel -y
-yum install -y python3 fuse* afuse git docker s3fs-fuse
-usermod -a -G docker ec2-user
-sed -i '/^#.*user_allow_other/s/^#//' /etc/fuse.conf
-mkdir /home/fs_client
-mkdir ~/.aws
-echo -e "[profile git]\nrole_arn = arn:aws:iam::{{lynx_account}}:role/GitLynxFS\ncredential_source = Ec2InstanceMetadata\noutput = json\nregion = {{lynx_region}}" > ~/.aws/config
-git config --system credential.helper '!aws codecommit --profile git credential-helper $@'
-git config --system credential.UseHttpPath true
-git clone -b {{fs_branch}} --single-branch {{fs_repo}} /home/fs_client
-pip3 install -r /home/fs_client/requirements.txt
-mkdir /home/ec2-user/data
-mkdir /home/ec2-user/workspace
-mkdir /home/docker_config
-find /home/docker_config -exec chown ec2-user {} \;
-chown ec2-user /home/ec2-user/*
-export PRIVATE_IP=$(hostname | sed 's/ip-\|\..*//g' | sed 's/-/\./g')
-aws route53 change-resource-record-sets --hosted-zone-id {{hosted_zone}} --change-batch "{ \"Comment\": \"Creating Record Set for {{execution_token}}\", \"Changes\": [ { \"Action\": \"CREATE\", \"ResourceRecordSet\": { \"Name\": \"{{execution_token}}.{{domain}}\", \"Type\": \"A\", \"TTL\": 300, \"ResourceRecords\": [ { \"Value\": \"$PRIVATE_IP\" } ] } } ] }"
-unset $PRIVATE_IP
+exec > /tmp/create.log 2<&1
 hostnamectl set-hostname ec2-{{execution_token}}
+export PRIVATE_IP=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | awk -F'"' '/\"privateIp\"/ { print $4 }')
+aws route53 change-resource-record-sets --hosted-zone-id {{hosted_zone}} --change-batch "{ \"Comment\": \"Creating Record Set for {{execution_token}}\", \"Changes\": [ { \"Action\": \"CREATE\", \"ResourceRecordSet\": { \"Name\": \"{{execution_token}}.{{domain}}\", \"Type\": \"A\", \"TTL\": 300, \"ResourceRecords\": [ { \"Value\": \"$PRIVATE_IP\"} ] } } ] }"
+unset PRIVATE_IP
+# Bootscript creation
+mkdir /home/life_hooks
+chown ec2-user /home/life_hooks
+cat << EOF > /home/life_hooks/docker_config.py
+import json
+with open("/home/docker_config/config.json", "r") as config_file:
+    config = json.loads(config_file.read())
+config["proxies"] = {"default": {"httpProxy": "http://127.0.0.1", "httpsProxy": "http://127.0.0.1", "noProxy": ".amazonaws.com,.lynx.md"}}
+with open("/home/docker_config/config.json", "w") as config_file:
+    config_file.write(json.dumps(config))
+EOF
+chown ec2-user /home/life_hooks/docker_config.py
+chmod +x /home/life_hooks/docker_config.py
+cat << EOF > /home/life_hooks/startup.sh
+#!/bin/bash -x
+exec > /tmp/startup.log 2>&1
+sudo rm -rf /home/docker_config/*
+sudo service docker start
+sudo chmod 666 /var/run/docker.sock
+# TODO Change to open
+\$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)
+docker pull {{notebook_image}}
+sudo mv ~/.docker/config.json /home/docker_config/config.json
+sudo chown ec2-user /home/docker_config/config.json
+python3 /home/life_hooks/docker_config.py
+sudo s3fs -o iam_role="ecs-fs-server" -o url="https://s3.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace
+sudo git -C /home/fs_client pull
+sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &
+# TODO - Change to closed
+docker --config /home/docker_config/ run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}
+python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "active"}))'
+EOF
 
-echo "sudo rm -rf /home/docker_config/*" >> /home/startup.sh
-echo "sudo service docker start" >> /home/startup.sh
-echo "sudo chmod 666 /var/run/docker.sock" >> /home/startup.sh
-echo "sudo s3fs -o iam_role="ecs-fs-server" -o url="https://s3.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace" >> /home/startup.sh
-echo "sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &" >> /home/startup.sh
-echo "\$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)" >> /home/startup.sh
-echo "sudo mv ~/.docker/config.json /home/docker_config/config.json" >> /home/startup.sh
-echo 'sudo chown ec2-user /home/docker_config/config.json' >> /home/startup.sh
-echo 'python3 - << "EOF"' >> /home/startup.sh
-echo 'import json' >> /home/startup.sh
-echo 'with open("/home/docker_config/config.json", "r") as config_file:' >> /home/startup.sh
-echo '    config = json.loads(config_file.read())' >> /home/startup.sh
-echo 'config["proxies"] = {"default": {"httpProxy": "http://127.0.0.1", "httpsProxy": "http://127.0.0.1", "noProxy": ".amazonaws.com,.lynx.md"}}' >> /home/startup.sh
-echo 'with open("/home/docker_config/config.json", "w") as config_file:' >> /home/startup.sh
-echo '    config_file.write(json.dumps(config))' >> /home/startup.sh
-echo 'EOF' >> /home/startup.sh
-echo "docker --config /home/docker_config/ run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}" >> /home/startup.sh
-
-chmod +x /home/startup.sh
-echo "/home/startup.sh" >> /etc/rc.local
+chmod +x /home/life_hooks/startup.sh
+echo "/home/life_hooks/startup.sh" >> /etc/rc.local
 chmod +x /etc/rc.d/rc.local
 
-/home/startup.sh
+# Shutdown creation
+cat << EOF > /home/life_hooks/shutdown.sh
+#!/bin/bash
+python3 -c 'import requests, json; requests.post("https://{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "stopped"}})'
+EOF
+chmod +x /home/life_hooks/shutdown.sh
+# TODO - execution
+
+/home/life_hooks/startup.sh
