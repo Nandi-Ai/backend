@@ -1,9 +1,11 @@
 import json
 import os
 import shutil
+import csv
 import subprocess
 import zipfile
 from datetime import datetime as dt, timedelta as td
+from enum import Enum
 from time import sleep
 from jinja2 import Template
 
@@ -24,8 +26,12 @@ from mainapp.exceptions import (
     UnableToGetGlueColumns,
     RoleNotFound,
     PolicyNotFound,
+    UnsupportedColumnTypeError,
+    MaxExecutionReactedError,
+    InvalidExecutionId,
+    QueryExecutionError,
 )
-from mainapp.utils import aws_service
+from mainapp.utils import aws_service, statistics, devexpress_filtering
 from mainapp.utils.decorators import (
     organization_dependent,
     with_glue_client,
@@ -34,11 +40,23 @@ from mainapp.utils.decorators import (
     with_iam_resource,
     with_ec2_client,
 )
-from mainapp.utils.response_handler import ForbiddenErrorResponse
+from mainapp.utils.response_handler import (
+    ForbiddenErrorResponse,
+    ErrorResponse,
+    UnimplementedErrorResponse,
+)
 
 USER_DATA_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "user_data.jinja")
 
 logger = logging.getLogger(__name__)
+
+
+class PrivilagePath(Enum):
+    FULL = "full"
+    AGG_STATS = "stats"
+
+
+LYNX_STORAGE_DIR = "lynx-storage"
 
 
 def break_s3_object(obj):
@@ -299,6 +317,195 @@ def create_catalog(boto3_client, org_name, data_source):
         boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
         data_source.state = "ready"
         data_source.save()
+
+        update_folder_hierarchy(data_source=data_source, org_name=org_name)
+        create_agg_stats(data_source=data_source, org_name=org_name)
+        update_glue_table(data_source=data_source, org_name=org_name)
+
+
+@with_glue_client
+def update_glue_table(boto3_client, data_source, org_name):
+    s3_object_key = data_source.s3_objects[0]["key"]
+    _, _, datasource_name, _ = break_s3_object(s3_object_key)
+
+    # get data from current table
+    try:
+        response = boto3_client.get_table(
+            DatabaseName=data_source.dataset.glue_database, Name=data_source.glue_table
+        )
+    except Exception as e:
+        return ErrorResponse("Error fetching current glue table", e)
+
+    new_table_name = f"{datasource_name}_full"
+    table_input = response["Table"]
+    table_input["Name"] = new_table_name
+
+    table_input.pop("CreatedBy")
+    table_input.pop("CreateTime")
+    table_input.pop("UpdateTime")
+    table_input.pop("IsRegisteredWithLakeFormation")
+    table_input.pop("DatabaseName")
+    table_input["StorageDescriptor"][
+        "Location"
+    ] = f"s3://lynx-dataset-{data_source.dataset.id}/{datasource_name}/{LYNX_STORAGE_DIR}/{PrivilagePath.FULL.value}/"
+
+    try:
+        boto3_client.create_table(
+            DatabaseName=data_source.dataset.glue_database, TableInput=table_input
+        )
+
+        boto3_client.delete_table(
+            DatabaseName=data_source.dataset.glue_database, Name=data_source.glue_table
+        )
+
+    except Exception as e:
+        return ErrorResponse("Error migrating glue table", e)
+
+    data_source.glue_table = new_table_name
+    data_source.save()
+
+
+@with_s3_resource
+def update_folder_hierarchy(boto3_client, data_source, org_name):
+    s3_bucket = data_source.bucket
+    s3_object_key = data_source.s3_objects[0]["key"]
+    _, _, datasource_name, _ = break_s3_object(s3_object_key)
+
+    s3_client = boto3_client.meta.client
+
+    # create folders
+    s3_client.put_object(
+        Bucket=s3_bucket,
+        Key=os.path.join(
+            datasource_name, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, ""
+        ),
+        ACL="private",
+    )
+    s3_client.put_object(
+        Bucket=s3_bucket,
+        Key=os.path.join(
+            datasource_name, LYNX_STORAGE_DIR, PrivilagePath.AGG_STATS.value, ""
+        ),
+        ACL="private",
+    )
+
+    new_key = os.path.join(
+        datasource_name, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, data_source.name
+    )
+
+    boto3_client.Object(s3_bucket, new_key).copy_from(
+        CopySource=os.path.join(s3_bucket, s3_object_key)
+    )
+    data_source.s3_objects[0]["key"] = new_key
+    data_source.save()
+    boto3_client.Object(s3_bucket, s3_object_key).delete()
+
+    logger.info(
+        f"Updated folder hierarchy for datasource {data_source} in org {org_name}"
+    )
+
+
+@with_s3_client
+def create_agg_stats(boto3_client, data_source, org_name):
+    # get statistics
+    stats, _ = calculate_statistics(data_source)
+
+    s3_object_key = data_source.s3_objects[0]["key"]
+    _, _, datasource_name, _ = break_s3_object(s3_object_key)
+
+    # create CSV
+    columns = stats["result"][0].keys()
+    temp_dir = os.path.join("/tmp", str(data_source.id))
+    os.mkdir(temp_dir)
+    temp_file_name = os.path.join("/tmp", str(data_source.id), data_source.name)
+    with open(temp_file_name, "w") as stats_file:
+        dict_writer = csv.DictWriter(stats_file, columns)
+        dict_writer.writeheader()
+        dict_writer.writerows(stats["result"])
+
+    # upload to S3
+    try:
+        boto3_client.upload_file(
+            Bucket=data_source.bucket,
+            Key=os.path.join(
+                datasource_name,
+                LYNX_STORAGE_DIR,
+                PrivilagePath.AGG_STATS.value,
+                data_source.name,
+            ),
+            Filename=temp_file_name,
+        )
+    except BucketNotFound as e:
+        raise BucketNotFound(
+            f"The bucket for uploading agg stat datasource does not exist. Bucket: {data_source.bucket}, in org {org_name}",
+            e,
+        )
+    except botocore.exceptions.ClientError as e:
+        raise ForbiddenErrorResponse(
+            f"Missing permissions to upload file to bucket: {data_source.bucket}, in org {org_name}",
+            e,
+        )
+    except Exception as e:
+        return ErrorResponse(
+            f"There was an error uploading the agg stat file for datasource {data_source.name}",
+            error=e,
+        )
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    logger.info(f"Created AggStats for datasource {data_source} in org {org_name}")
+
+
+def calculate_statistics(data_source, query_from_front=None):
+    dataset = data_source.dataset
+    org_name = dataset.organization.name
+    glue_database = dataset.glue_database
+    glue_table = data_source.glue_table
+    bucket_name = data_source.bucket
+
+    try:
+        columns_types = get_columns_types(
+            org_name=org_name, glue_database=glue_database, glue_table=glue_table
+        )
+        default_athena_col_names = statistics.create_default_column_names(columns_types)
+    except UnableToGetGlueColumns as e:
+        return ErrorResponse(f"Glue error", error=e)
+    try:
+        filter_query = (
+            None
+            if not query_from_front
+            else devexpress_filtering.generate_where_sql_query(query_from_front)
+        )
+        query = statistics.sql_builder_by_columns_types(
+            glue_table, columns_types, default_athena_col_names, filter_query
+        )
+    except UnsupportedColumnTypeError as e:
+        return UnimplementedErrorResponse("There was some error in execution", error=e)
+    except Exception as e:
+        return ErrorResponse("There was some error in execution", error=e)
+
+    try:
+        response = statistics.count_all_values_query(
+            query, glue_database, bucket_name, org_name
+        )
+        data_per_column = statistics.sql_response_processing(
+            response, default_athena_col_names
+        )
+        final_result = {"result": data_per_column, "columns_types": columns_types}
+    except QueryExecutionError as e:
+        return ErrorResponse(
+            "There was some error in execution", error=e, status_code=502
+        )
+    except (InvalidExecutionId, MaxExecutionReactedError) as e:
+        return ErrorResponse("There was some error in execution", error=e)
+    except KeyError as e:
+        return ErrorResponse(
+            "Unexpected error: invalid or missing query result set", error=e
+        )
+    except Exception as e:
+        return ErrorResponse("There was some error in execution", error=e)
+
+    return final_result, response
 
 
 @organization_dependent

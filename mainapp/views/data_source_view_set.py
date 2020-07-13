@@ -12,16 +12,8 @@ from rest_framework.viewsets import ModelViewSet
 # noinspection PyPackageRequirements
 from slugify import slugify
 
-from mainapp.exceptions import (
-    UnableToGetGlueColumns,
-    UnsupportedColumnTypeError,
-    QueryExecutionError,
-    InvalidExecutionId,
-    MaxExecutionReactedError,
-)
 from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer
-from mainapp.utils import devexpress_filtering
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
@@ -29,7 +21,6 @@ from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     NotFoundErrorResponse,
     BadRequestErrorResponse,
-    UnimplementedErrorResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,60 +71,13 @@ class DataSourceViewSet(ModelViewSet):
                 status_code=503,
             )
 
-        glue_database = data_source.dataset.glue_database
-        bucket_name = f"lynx-{glue_database}"
-        glue_table = data_source.glue_table
         query_from_front = request.query_params.get("grid_filter")
         if query_from_front:
             query_from_front = json.loads(query_from_front)
 
-        org_name = data_source.dataset.organization.name
-        try:
-            columns_types = lib.get_columns_types(
-                org_name=org_name, glue_database=glue_database, glue_table=glue_table
-            )
-            default_athena_col_names = statistics.create_default_column_names(
-                columns_types
-            )
-        except UnableToGetGlueColumns as e:
-            return ErrorResponse(f"Glue error", error=e)
-
-        try:
-            filter_query = (
-                None
-                if not query_from_front
-                else devexpress_filtering.generate_where_sql_query(query_from_front)
-            )
-            query = statistics.sql_builder_by_columns_types(
-                glue_table, columns_types, default_athena_col_names, filter_query
-            )
-        except UnsupportedColumnTypeError as e:
-            return UnimplementedErrorResponse(
-                "There was some error in execution", error=e
-            )
-        except Exception as e:
-            return ErrorResponse("There was some error in execution", error=e)
-
-        try:
-            response = statistics.count_all_values_query(
-                query, glue_database, bucket_name, org_name
-            )
-            data_per_column = statistics.sql_response_processing(
-                response, default_athena_col_names
-            )
-            final_result = {"result": data_per_column, "columns_types": columns_types}
-        except QueryExecutionError as e:
-            return ErrorResponse(
-                "There was some error in execution", error=e, status_code=502
-            )
-        except (InvalidExecutionId, MaxExecutionReactedError) as e:
-            return ErrorResponse("There was some error in execution", error=e)
-        except KeyError as e:
-            return ErrorResponse(
-                "Unexpected error: invalid or missing query result set", error=e
-            )
-        except Exception as e:
-            return ErrorResponse("There was some error in execution", error=e)
+        final_result, response = lib.calculate_statistics(
+            data_source, query_from_front=query_from_front
+        )
 
         if request.user in data_source.dataset.aggregated_users.all():
             max_rows_after_filter = statistics.max_count(response)
@@ -192,9 +136,11 @@ class DataSourceViewSet(ModelViewSet):
                     return BadRequestErrorResponse(
                         "File type is not supported as a structured data source"
                     )
-
             data_source = data_source_serialized.save()
             data_source.state = "error"
+            data_source.glue_table = data_source.dir.translate(
+                {ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "}
+            ).lower()
             s3_obj = data_source.s3_objects[0]["key"]
             _, file_name, _, _ = lib.break_s3_object(s3_obj)
             workdir = f"/tmp/{data_source.id}"
@@ -247,9 +193,9 @@ class DataSourceViewSet(ModelViewSet):
                     df.to_csv(csv_path_and_file)
                     try:
                         s3_client.upload_file(
-                            csv_path_and_file,
-                            data_source.dataset.bucket,
-                            path + "/" + file_name_no_ext + ".csv",
+                            Filename=csv_path_and_file,
+                            Bucket=data_source.dataset.bucket,
+                            Key=os.path.join(path, file_name_no_ext + ".csv"),
                         )
                     except Exception as e:
                         return ErrorResponse(
@@ -287,6 +233,11 @@ class DataSourceViewSet(ModelViewSet):
 
             else:
                 data_source.state = "ready"
+                # not structured
+                lib.update_folder_hierarchy(
+                    data_source=data_source,
+                    org_name=data_source.dataset.organization.name,
+                )
 
             data_source.save()
             self.__monitor_datasource(
