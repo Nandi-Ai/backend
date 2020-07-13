@@ -43,6 +43,7 @@ chmod +x /etc/rc.d/rc.local
 
 # Shutdown creation
 cat << EOF > /home/life_hooks/shutdown.sh
+#!/bin/bash
 python3 -c 'import requests, json; requests.post("https://{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "stopped"}})'
 EOF
 chmod +x /home/life_hooks/shutdown.sh
