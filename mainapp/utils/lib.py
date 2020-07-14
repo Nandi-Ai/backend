@@ -3,6 +3,9 @@ import os
 import shutil
 import subprocess
 import zipfile
+import tempfile
+import csv
+from mainapp.utils.aws_utils import s3_storage
 from datetime import datetime as dt, timedelta as td
 from time import sleep
 
@@ -60,6 +63,77 @@ def validate_file_type(s3_client, bucket, workdir, object_key, local_path, file_
         raise
     finally:
         shutil.rmtree(workdir)
+
+
+@with_s3_resource
+def check_csv_for_empty_columns(boto3_client, org_name, data_source):
+    s3_obj = data_source.s3_objects[0]["key"]
+    s3_file = boto3_client.Object(data_source.dataset.bucket, s3_obj)
+
+    column_line = str(list(s3_file.get(Range="bytes=1e+6")["Body"].iter_lines())[0])
+
+    download_and_upload_fixed_file(
+        org_name=org_name,
+        column_line=column_line,
+        data_source=data_source,
+        s3_obj=s3_obj,
+    )
+
+
+@with_s3_client
+def download_and_upload_fixed_file(
+    boto3_client, org_name, column_line, data_source, s3_obj
+):
+    delimiter = csv.Sniffer().sniff(column_line).delimiter
+    bucket_name = data_source.dataset.bucket
+    path, file_name, _, _ = break_s3_object(s3_obj)
+
+    if f"{delimiter}{delimiter}" in column_line:
+        temp_dir = tempfile.TemporaryDirectory(str(data_source.id))
+        file_path = os.path.join(temp_dir.name, file_name)
+        temp_file_path = f"{file_path}.temp"
+
+        try:
+            s3_storage.download_file(
+                s3_client=boto3_client,
+                bucket_name=bucket_name,
+                s3_object=s3_obj,
+                file_path=temp_file_path,
+            )
+
+            replace_empty_col_name_on_downloaded_file(
+                temp_file_path, file_path, delimiter
+            )
+
+            s3_storage.upload_file(
+                s3_client=boto3_client,
+                csv_path_and_file=file_path,
+                bucket_name=bucket_name,
+                file_path=os.path.join(path, file_name),
+            )
+
+        except boto3_client.exceptions as e:
+            logger.error(e)
+            logger.exception(
+                f"Failed to download/upload file {file_name} from s3 bucket {bucket_name} in org {org_name}"
+            )
+            raise
+        finally:
+            temp_dir.cleanup()
+
+
+def replace_empty_col_name_on_downloaded_file(
+    read_file_path, write_file_path, delimiter
+):
+    with open(read_file_path, "r") as read_file, open(
+        write_file_path, "w"
+    ) as write_file:
+        split_line = read_file.readline().split(delimiter)
+        for index, item in enumerate(split_line):
+            if not item:
+                split_line[index] = f"Col{index}"
+        write_file.write(",".join(split_line))
+        write_file.write(read_file.read())
 
 
 @organization_dependent
