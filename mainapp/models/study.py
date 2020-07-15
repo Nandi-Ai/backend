@@ -2,12 +2,7 @@ import logging
 import uuid
 
 from django.db import models
-from django.db.models import signals
-from django.dispatch import receiver
-
-from mainapp.exceptions import BucketNotFound, RoleNotFound, PolicyNotFound
 from mainapp.utils import lib
-from mainapp.utils.elasticsearch_service import ElasticsearchService, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
@@ -76,36 +71,3 @@ class Study(models.Model):
 
     def __str__(self):
         return f"<Study id={self.id} name={self.name}>"
-
-
-@receiver(signals.pre_delete, sender=Study)
-def delete_study(sender, instance, **kwargs):
-    study = instance
-    org_name = study.organization.name
-
-    try:
-        study.delete_bucket(org_name=org_name)
-    except BucketNotFound as e:
-        logger.warning(
-            f"Bucket {e.bucket_name} was not found for study {study.name}:{study.id} at delete bucket operation"
-        )
-    except PolicyNotFound as e:
-        logger.warning(
-            f"Policy {e.policy} was not found for study {study.name}:{study.id} at delete bucket operation"
-        )
-    except RoleNotFound as e:
-        logger.warning(
-            f"Role {e.role} was not found for study {study.name}:{study.id} at delete bucket operation"
-        )
-
-    ElasticsearchService.write_monitoring_event(
-        event_type=MonitorEvents.EVENT_STUDY_DELETED,
-        study_id=study.id,
-        study_name=study.name,
-        environment_name=study.organization.name,
-    )
-    logger.info(
-        f"Study Event: {MonitorEvents.EVENT_STUDY_DELETED.value} "
-        f"on study {study.name}:{study.id} "
-        f"in org {study.organization}"
-    )

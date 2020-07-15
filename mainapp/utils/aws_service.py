@@ -60,6 +60,14 @@ def create_ec2_client(*args, **kwargs):
     return create_client(service_name="ec2", *args, **kwargs)
 
 
+def create_route53_client(*args, **kwargs):
+    return create_client(service_name="route53", *args, **kwargs)
+
+
+def create_ec2_resource(*args, **kwargs):
+    return create_resource(service_name="ec2", *args, **kwargs)
+
+
 def create_s3_resource(*args, **kwargs):
     return create_resource(service_name="s3", *args, **kwargs)
 

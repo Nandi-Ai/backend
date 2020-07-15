@@ -24,6 +24,7 @@ class StudySerializer(ModelSerializer):
             "description",
             "user_created",
             "cover",
+            "status",
         )
         extra_kwargs = {
             "users": {"allow_empty": True},  # required = False?

@@ -50,6 +50,10 @@ def with_ec2_client(func):
     return with_client(client=aws_service.create_ec2_client)(func)
 
 
+def with_ec2_resource(func):
+    return with_client(client=aws_service.create_ec2_resource)(func)
+
+
 def with_s3_client(func):
     return with_client(client=aws_service.create_s3_client)(func)
 
@@ -60,3 +64,7 @@ def with_s3_resource(func):
 
 def with_iam_resource(func):
     return with_client(client=aws_service.create_iam_resource)(func)
+
+
+def with_route53_client(func):
+    return with_client(client=aws_service.create_route53_client)(func)

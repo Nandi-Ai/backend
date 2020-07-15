@@ -97,4 +97,10 @@ urlpatterns = [
         name="respond_request",
     ),
     url(r"^monitoring/?$", views.Monitoring.as_view(), name="monitoring"),
+    url(r"^study_status/?$", views.UpdateStudyStatus.as_view(), name="study_status"),
+    url(
+        r"^study/(?P<study_id>[^/]+)/instance?$",
+        views.ToggleStudyInstance.as_view(),
+        name="study_instance",
+    ),
 ]

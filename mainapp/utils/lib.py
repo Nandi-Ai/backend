@@ -30,6 +30,12 @@ from mainapp.exceptions import (
     MaxExecutionReactedError,
     InvalidExecutionId,
     QueryExecutionError,
+    DnsRecordNotFound,
+    InvalidChangeBatchError,
+    NoSuchHostedZoneError,
+    InvalidInputError,
+    PriorRequestNotCompleteError,
+    Route53Error,
 )
 from mainapp.utils import aws_service, statistics, devexpress_filtering
 from mainapp.utils.decorators import (
@@ -39,7 +45,9 @@ from mainapp.utils.decorators import (
     with_s3_resource,
     with_iam_resource,
     with_ec2_client,
+    with_route53_client,
 )
+
 from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     ErrorResponse,
@@ -832,3 +840,47 @@ def get_client_ip(request):
         if client_address
         else request.META.get("REMOTE_ADDR")
     )
+
+
+@with_route53_client
+def delete_route53(boto3_client, org_name, execution):
+    organization_value = settings.ORG_VALUES[org_name]
+    org_hosted_zone = organization_value["HOSTED_ZONE_ID"]
+    org_domain = organization_value["DOMAIN"]
+    record_name = f'{execution.split("@")[0]}.{org_domain}'
+    logger.info(f"Deleting DNS record {record_name} in organization {org_name}")
+
+    try:
+        response = boto3_client.list_resource_record_sets(
+            HostedZoneId=org_hosted_zone,
+            StartRecordType="A",
+            StartRecordName=record_name,
+        )
+        if not response["ResourceRecordSets"]:
+            raise DnsRecordNotFound(record_name, org_name)
+        boto3_client.change_resource_record_sets(
+            HostedZoneId=org_hosted_zone,
+            ChangeBatch={
+                "Changes": [
+                    {
+                        "Action": "DELETE",
+                        "ResourceRecordSet": response["ResourceRecordSets"][0],
+                    }
+                ]
+            },
+        )
+    except botocore.exceptions.ClientError as error:
+        logger.error(
+            f"Error: '{str(error)}' "
+            f"on record {record_name} in organization {org_name}"
+        )
+        boto_error = error.response.get("Error", {}).get("Code", "NoResponseCode")
+        if boto_error == "NoSuchHostedZone":
+            raise NoSuchHostedZoneError(org_hosted_zone)
+        if boto_error == "InvalidChangeBatch":
+            raise InvalidChangeBatchError(record_name)
+        if boto_error == "InvalidInput":
+            raise InvalidInputError(record_name)
+        if boto_error == "PriorRequestNotComplete":
+            raise PriorRequestNotCompleteError()
+        raise Route53Error(f"Error {boto_error}: Failed record deletion")

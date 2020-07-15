@@ -18,6 +18,8 @@ from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     UnimplementedErrorResponse,
 )
+from mainapp.utils.lib import setup_study_workspace
+from mainapp.utils.study_vm_service import delete_study
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,7 @@ class StudyViewSet(ModelViewSet):
             else Execution.objects.get(execution_user=self.request.user).real_user
         )
 
-        return user.related_studies.all()
+        return user.related_studies.exclude(status__exact=Study.STUDY_DELETED)
 
     def __create_execution(self, study, user):
         """
@@ -123,6 +125,7 @@ class StudyViewSet(ModelViewSet):
                 name=study_name,
                 organization=first_dataset_organization,
                 cover=study_serialized.validated_data.get("cover"),
+                status=Study.VM_CREATING,
             )
 
             study.description = study_serialized.validated_data["description"]
@@ -272,7 +275,7 @@ class StudyViewSet(ModelViewSet):
                 )
 
             self.__create_execution(study, request.user)
-            lib.setup_study_workspace(
+            setup_study_workspace(
                 org_name=org_name,
                 execution_token=study.execution.token,
                 workspace_bucket=study.bucket,
@@ -386,3 +389,8 @@ class StudyViewSet(ModelViewSet):
                 )
 
         return super(self.__class__, self).update(request=self.request)
+
+    def destroy(self, request, *args, **kwargs):
+        study = self.get_object()
+        delete_study(study)
+        return Response(status=204)
