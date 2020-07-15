@@ -293,7 +293,7 @@ def create_catalog(boto3_client, org_name, data_source):
         f"was created and started successfully"
     )
     crawler_ready = False
-    retries = 50
+    retries = 500
 
     while not crawler_ready and retries >= 0:
         res = boto3_client.get_crawler(Name=f"data_source-{data_source.id}")
