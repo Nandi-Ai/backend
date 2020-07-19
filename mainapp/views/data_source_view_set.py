@@ -139,9 +139,6 @@ class DataSourceViewSet(ModelViewSet):
                     )
             data_source = data_source_serialized.save()
             data_source.state = "error"
-            data_source.glue_table = data_source.dir.translate(
-                {ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "}
-            ).lower()
             s3_obj = data_source.s3_objects[0]["key"]
             _, file_name, _, _ = lib.break_s3_object(s3_obj)
             workdir = f"/tmp/{data_source.id}"
@@ -168,6 +165,10 @@ class DataSourceViewSet(ModelViewSet):
             data_source.save()
 
             if data_source.type == "structured":
+                # set initial glue table value
+                data_source.glue_table = data_source.dir.translate(
+                    {ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "}
+                ).lower()
                 s3_obj = data_source.s3_objects[0]["key"]
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
