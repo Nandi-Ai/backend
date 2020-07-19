@@ -67,7 +67,5 @@ class Study(models.Model):
         lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
         lib.delete_role_and_policy(bucket_name=self.bucket, org_name=org_name)
 
-    # TODO: add delete_instance(self, org_name)
-
     def __str__(self):
         return f"<Study id={self.id} name={self.name}>"

@@ -35,7 +35,8 @@ class MonitorEvents(Enum):
 
     EVENT_STUDY_CREATED = "study_created"
     EVENT_STUDY_DELETED = "study_deleted"
-    EVENT_STUDY_ASSIGN_DATASET = "study_assign_dataset"
+    EVENT_STUDY_ADD_DATASET = "study_add_dataset"
+    EVENT_STUDY_REMOVE_DATASET = "study_remove_dataset"
 
 
 class ElasticsearchService(object):

@@ -18,7 +18,7 @@ class UserViewSet(
 ):
 
     serializer_class = UserSerializer
-    queryset = User.objects.filter(is_execution=False)
+    queryset = User.objects.filter(is_execution=False, is_active=True)
     http_method_names = ["get", "put", "head"]
 
     def list(self, request):
@@ -26,9 +26,10 @@ class UserViewSet(
             query_param = request.query_params["query_param"]
             if len(query_param) < 3:
                 return Response([])
+            queryset = self.get_queryset()
             users = list(
-                User.objects.filter(is_execution=False, name__contains=query_param)
-                | User.objects.filter(is_execution=False, email__contains=query_param)
+                queryset.filter(name__icontains=query_param)
+                | queryset.filter(email__icontains=query_param)
             )
 
             return Response(

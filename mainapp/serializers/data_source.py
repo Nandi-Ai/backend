@@ -1,9 +1,14 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, BooleanField
 
 from mainapp.models import DataSource
 
 
 class DataSourceSerializer(ModelSerializer):
+    is_column_present = BooleanField(write_only=True)
+
+    def is_column_present(self, obj):
+        return obj.get("is_column_present")
+
     class Meta:
         model = DataSource
         fields = (

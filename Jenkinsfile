@@ -13,7 +13,7 @@ pipeline {
   gitParameter branchFilter: 'origin/(.*)', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH'
  }
  stages {
-  
+
   stage('Clone repository') {
    steps {
     echo "Branch name: ${params.BRANCH}"
@@ -32,7 +32,7 @@ pipeline {
     ])
    }
   }
-  
+
   stage('Building image') {
    steps {
     script {
@@ -42,7 +42,7 @@ pipeline {
         else {
             dockerImage = docker.build("${env.registry}:${env.DATE}")
         }
-     
+
     }
    }
   }
@@ -52,7 +52,7 @@ pipeline {
      if ("${migration}" == "true") {
       docker.image("${env.registry}:${env.DATE}").withRun('python manage.py /home/lynx/lynx-be/migrate')
      }
-    }  
+    }
   }
   }
   stage('Push image') {
