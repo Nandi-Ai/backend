@@ -394,18 +394,26 @@ def create_catalog(boto3_client, org_name, data_source):
         data_source.save()
 
     else:
-        logger.debug(
-            f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
-            f"was finished succesfully. "
-            f"Updating data_source state accordingly."
-        )
-        boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
-        data_source.state = "ready"
-        data_source.save()
+        try:
+            logger.debug(
+                f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
+                f"was finished succesfully. "
+                f"Updating data_source state accordingly."
+            )
+            boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
 
-        update_folder_hierarchy(data_source=data_source, org_name=org_name)
-        create_agg_stats(data_source=data_source, org_name=org_name)
-        update_glue_table(data_source=data_source, org_name=org_name)
+            update_folder_hierarchy(data_source=data_source, org_name=org_name)
+            create_agg_stats(data_source=data_source, org_name=org_name)
+            update_glue_table(data_source=data_source, org_name=org_name)
+
+            data_source.state = "ready"
+        except botocore.exceptions.ClientError as e:
+            logger.exception(
+                f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
+            )
+            data_source.state = "error"
+
+        data_source.save()
 
 
 @with_glue_client
@@ -500,9 +508,8 @@ def create_agg_stats(boto3_client, data_source, org_name):
 
     # create CSV
     columns = stats["result"][0].keys()
-    temp_dir = os.path.join("/tmp", str(data_source.id))
-    os.mkdir(temp_dir)
-    temp_file_name = os.path.join("/tmp", str(data_source.id), data_source.name)
+    temp_dir = tempfile.TemporaryDirectory(str(data_source.id))
+    temp_file_name = os.path.join(temp_dir.name, data_source.name)
     with open(temp_file_name, "w") as stats_file:
         dict_writer = csv.DictWriter(stats_file, columns)
         dict_writer.writeheader()
@@ -536,7 +543,7 @@ def create_agg_stats(boto3_client, data_source, org_name):
             error=e,
         )
     finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        temp_dir.cleanup()
 
     logger.info(f"Created AggStats for datasource {data_source} in org {org_name}")
 
