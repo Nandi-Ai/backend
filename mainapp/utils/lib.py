@@ -70,7 +70,9 @@ def check_csv_for_empty_columns(boto3_client, org_name, data_source):
     s3_obj = data_source.s3_objects[0]["key"]
     s3_file = boto3_client.Object(data_source.dataset.bucket, s3_obj)
 
-    column_line = str(list(s3_file.get(Range="bytes=1e+6")["Body"].iter_lines())[0])
+    column_line = list(s3_file.get(Range="bytes=1e+6")["Body"].iter_lines())[0].decode(
+        "utf-8"
+    )
 
     download_and_upload_fixed_file(
         org_name=org_name,
@@ -88,7 +90,11 @@ def download_and_upload_fixed_file(
     bucket_name = data_source.dataset.bucket
     path, file_name, _, _ = break_s3_object(s3_obj)
 
-    if f"{delimiter}{delimiter}" in column_line:
+    if (
+        column_line[0] == delimiter
+        or column_line[-1] == delimiter
+        or f"{delimiter}{delimiter}" in column_line
+    ):
         temp_dir = tempfile.TemporaryDirectory(str(data_source.id))
         file_path = os.path.join(temp_dir.name, file_name)
         temp_file_path = f"{file_path}.temp"
