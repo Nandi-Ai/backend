@@ -3,7 +3,6 @@ import uuid
 
 from mainapp import settings
 from elasticsearch import Elasticsearch
-import elasticsearch
 from datetime import datetime
 from enum import Enum
 
@@ -20,6 +19,11 @@ class MonitorEvents(Enum):
     EVENT_REQUEST_NOTEBOOK = "request_notebook"
     EVENT_NOTEBOOK_READY = "notebook_ready"
     EVENT_NOTEBOOK_LOAD_FAIL = "notebook_load_fail"
+
+    EVENT_STUDY_VM_STARTING = "study_vm_starting"
+    EVENT_STUDY_VM_STARTED = "study_vm_started"
+    EVENT_STUDY_VM_STOPPING = "study_vm_stopping"
+    EVENT_STUDY_VM_STOPPED = "study_vm_stopped"
 
     EVENT_DATASET_CREATED = "dataset_created"
     EVENT_DATASET_ADD_USER = "dataset_add_user"
@@ -106,7 +110,7 @@ class ElasticsearchService(object):
             )
             if response["_shards"]["successful"] == 1:
                 logger.info(
-                    f"Successfully logged event to Elasticsearch index {cls.__INDEX_NAME}"
+                    f"Successfully logged {event_type} event to Elasticsearch index {cls.__INDEX_NAME}"
                 )
         except Exception as e:
             logger.exception("Error while writing to Elasticsearch index", e)

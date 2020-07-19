@@ -9,17 +9,20 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from mainapp import resources, settings
+from mainapp.exceptions import InvalidEc2Status
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.lib import setup_study_workspace
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
     UnimplementedErrorResponse,
+    BadRequestErrorResponse,
 )
-from mainapp.utils.lib import setup_study_workspace
-from mainapp.utils.study_vm_service import delete_study
+from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
+from mainapp.utils.study_vm_service import delete_study, STATUS_ARGS, toggle_study_vm
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,15 @@ class StudyViewSet(ModelViewSet):
     filter_fields = ("user_created",)
 
     serializer_class = StudySerializer
+
+    def get_queryset(self, **kwargs):
+        user = (
+            self.request.user
+            if not self.request.user.is_execution
+            else Execution.objects.get(execution_user=self.request.user).real_user
+        )
+
+        return user.related_studies.exclude(status__exact=Study.STUDY_DELETED)
 
     def __monitor_study(self, study, user_ip, event_type, user, dataset=None):
         ElasticsearchService.write_monitoring_event(
@@ -62,15 +74,6 @@ class StudyViewSet(ModelViewSet):
             )
         organization_name = dataset.organization.name
         return Response({"study_organization": organization_name})
-
-    def get_queryset(self, **kwargs):
-        user = (
-            self.request.user
-            if not self.request.user.is_execution
-            else Execution.objects.get(execution_user=self.request.user).real_user
-        )
-
-        return user.related_studies.exclude(status__exact=Study.STUDY_DELETED)
 
     def __create_execution(self, study, user):
         """
@@ -394,3 +397,40 @@ class StudyViewSet(ModelViewSet):
         study = self.get_object()
         delete_study(study)
         return Response(status=204)
+
+    @action(detail=True, methods=["post"], url_path="instance/(?P<status>[^/.]+)")
+    def instance(self, request, status, pk=None):
+        study = self.get_object()
+        try:
+            if status not in STATUS_ARGS:
+                raise InvalidEc2Status(status)
+
+            logger.info(
+                f"Changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} state to {status}"
+            )
+
+            status_args = STATUS_ARGS[status]
+
+            monitor_event = status_monitoring_event_map.get(
+                status_args["toggle_status"], None
+            )
+            if monitor_event:
+                ElasticsearchService.write_monitoring_event(
+                    event_type=monitor_event,
+                    execution_token=study.execution.token,
+                    study_id=study.id,
+                    study_name=study.name,
+                    user_organization=request.user.organization.name,
+                    user_ip=lib.get_client_ip(request),
+                    user_name=request.user.display_name,
+                    environment_name=study.organization.name,
+                )
+
+            toggle_study_vm(
+                org_name=study.organization.name, study=study, **status_args
+            )
+            return Response(StudySerializer(study).data, status=201)
+        except InvalidEc2Status as ex:
+            return BadRequestErrorResponse(message=str(ex))
+        except Exception as ex:
+            return ErrorResponse(message=str(ex))

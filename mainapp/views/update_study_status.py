@@ -4,16 +4,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from mainapp.exceptions import InvalidEc2Status
-from mainapp.models import Execution, Study
-from mainapp.utils.response_handler import (
-    BadRequestErrorResponse,
-    ForbiddenErrorResponse,
-)
-from mainapp.utils.study_vm_service import (
-    toggle_study_vm,
-    update_study_state,
-    STATUS_ARGS,
-)
+from mainapp.models import Study, Execution, User
+from mainapp.utils.elasticsearch_service import ElasticsearchService
+from mainapp.utils.response_handler import BadRequestErrorResponse
+from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
+from mainapp.utils.study_vm_service import update_study_state
 
 logger = logging.getLogger(__name__)
 
@@ -23,37 +18,25 @@ class UpdateStudyStatus(APIView):
 
     def post(self, request):
         try:
-            update_study_state(request.user.email, request.data.get("status"))
-            return Response(status=201)
-        except InvalidEc2Status as ex:
-            return BadRequestErrorResponse(message=str(ex))
+            study = Study.objects.get(
+                execution=Execution.objects.get(
+                    execution_user=User.objects.get(email=request.user.email)
+                )
+            )
 
+            status = request.data.get("status")
 
-class ToggleStudyInstance(APIView):
-    def get(self, request, study_id):
-        try:
-            study = Study.objects.get(id=study_id)
-            if request.user not in study.users.all():
-                return ForbiddenErrorResponse(
-                    f"Only the study creator can edit a study"
+            monitor_event = status_monitoring_event_map.get(status, None)
+            if monitor_event:
+                ElasticsearchService.write_monitoring_event(
+                    event_type=monitor_event,
+                    execution_token=study.execution.token,
+                    study_id=study.id,
+                    study_name=study.name,
+                    environment_name=study.organization.name,
                 )
 
-            status = request.query_params.get("action")
-
-            if status not in STATUS_ARGS:
-                raise InvalidEc2Status(status)
-            execution_user = Execution.objects.get(real_user=request.user)
-            logger.info(
-                f"Changing study {study_id} ({study.name}) instance {execution_user.email} state to {status}"
-            )
-
-            toggle_study_vm(
-                execution=execution_user.email,
-                org_name=study.organization.name,
-                **STATUS_ARGS[status],
-            )
+            update_study_state(study, status)
             return Response(status=201)
         except InvalidEc2Status as ex:
-            return BadRequestErrorResponse(message=str(ex))
-        except:
             return BadRequestErrorResponse(message=str(ex))
