@@ -28,7 +28,7 @@ class DataSource(models.Model):
         "self", on_delete=models.SET_NULL, related_name="children", null=True
     )
     cohort = JSONField(null=True, blank=True, default=None)
-    glue_table = models.CharField(null=True, blank=True, max_length=32)
+    glue_table = models.CharField(null=True, blank=True, max_length=255)
 
     class Meta:
         db_table = "data_sources"
