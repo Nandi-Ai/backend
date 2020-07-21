@@ -83,7 +83,7 @@ class StudyViewSet(ModelViewSet):
         execution.real_user = user
         execution_user = User.objects.create_user(email=execution.token + "@lynx.md")
         execution_user.set_password(execution.token)
-        execution_user.organization = study.datasets.first().organization
+        execution_user.organization = study.organization
         execution_user.is_execution = True
         execution_user.save()
         logger.info(

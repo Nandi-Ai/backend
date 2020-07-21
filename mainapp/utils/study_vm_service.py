@@ -108,8 +108,16 @@ def toggle_study_vm(
     if not state_name:
         raise InvalidEc2Status(state_name)
     if state_name in killer_statuses:
+        logger.info(
+            f"Aborting changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} "
+            f"state to {toggle_status} as of killer_statuses"
+        )
         return
     if state_name in blocker_statuses:
+        logger.info(
+            f"Sleeping before changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} "
+            f"state to {toggle_status} as of blocker_statuses"
+        )
         sleep(30)
     getattr(instance, instance_method)()
     update_study_state(study, toggle_status)
