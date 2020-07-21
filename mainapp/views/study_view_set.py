@@ -414,7 +414,8 @@ class StudyViewSet(ModelViewSet):
                 raise InvalidEc2Status(status)
 
             logger.info(
-                f"Changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} state to {status}"
+                f"Changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} "
+                f"state to {status}"
             )
 
             status_args = STATUS_ARGS[status]

@@ -92,6 +92,22 @@ def wait_until_stopped(instance, study):
         update_study_state(study, Study.ST_ERROR)
 
 
+def get_and_update_study_instance(boto3_client, study):
+    """
+    get the study instance, and update the database accordingly to the VM status
+    :param boto3_client: boto3 client with access to the study instance
+    :param study: Study Django model
+    :return: aws ec2 instance object
+    """
+    execution_token = study.execution.execution_user.email.split("@")[0]
+    instance = get_instance(boto3_client, execution_token)
+    state_name = instance.state.get("Name")
+    if not state_name:
+        raise InvalidEc2Status(state_name)
+    update_study_state(study, state_name)
+    return instance
+
+
 @with_ec2_resource
 def toggle_study_vm(
     boto3_client,
@@ -102,11 +118,8 @@ def toggle_study_vm(
     killer_statuses,
     toggle_status,
 ):
-    execution_token = study.execution.execution_user.email.split("@")[0]
-    instance = get_instance(boto3_client, execution_token)
+    instance = get_and_update_study_instance(boto3_client, study)
     state_name = instance.state.get("Name")
-    if not state_name:
-        raise InvalidEc2Status(state_name)
     if state_name in killer_statuses:
         logger.info(
             f"Aborting changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} "
