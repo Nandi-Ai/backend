@@ -51,6 +51,15 @@ STATUS_ARGS = {
     },
 }
 
+STUDY_STATUS_BASED_ON_INSTANCE_NAME = {
+    AWS_EC2_RUNNING: Study.VM_ACTIVE,
+    AWS_EC2_STARTING: Study.VM_STARTING,
+    AWS_EC2_STOPPING: Study.VM_STOPPING,
+    AWS_EC2_STOPPED: Study.VM_STOPPED,
+    AWS_EC2_SHUTTING_DOWN: Study.VM_STOPPING,
+    AWS_EC2_TERMINATED: Study.STUDY_DELETED,
+}
+
 
 def update_study_state(study, status):
     logger.info(f"Updating study {study.name} instance status to be {status}")
@@ -104,7 +113,7 @@ def get_and_update_study_instance(boto3_client, study):
     state_name = instance.state.get("Name")
     if not state_name:
         raise InvalidEc2Status(state_name)
-    update_study_state(study, state_name)
+    update_study_state(study, STUDY_STATUS_BASED_ON_INSTANCE_NAME[state_name])
     return instance
 
 
