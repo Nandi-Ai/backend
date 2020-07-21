@@ -62,8 +62,8 @@ logger = logging.getLogger(__name__)
 
 
 class PrivilagePath(Enum):
-    FULL = "full"
-    AGG_STATS = "stats"
+    FULL = "full_access"
+    AGG_STATS = "aggregated_access"
 
 
 LYNX_STORAGE_DIR = "lynx-storage"
