@@ -28,20 +28,11 @@ class DataSource(models.Model):
         "self", on_delete=models.SET_NULL, related_name="children", null=True
     )
     cohort = JSONField(null=True, blank=True, default=None)
+    glue_table = models.CharField(null=True, blank=True, max_length=255)
 
     class Meta:
         db_table = "data_sources"
         unique_together = (("name", "dataset"),)
-
-    @property
-    def glue_table(self):
-        if not self.type == "structured":
-            return None
-        name = self.dir.translate(
-            {ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "}
-        )
-        name = name.lower()
-        return name
 
     @property
     def bucket(self):
