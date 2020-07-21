@@ -491,7 +491,11 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
     )
     data_source.s3_objects[0]["key"] = new_key
     data_source.save()
-    boto3_client.Object(s3_bucket, s3_object_key).delete()
+
+    try:
+        boto3_client.Object(s3_bucket, s3_object_key).delete()
+    except botocore.exceptions.ClientError as e:
+        logger.warning(f"Unable to delete file with key {s3_object_key}!")
 
     logger.info(
         f"Updated folder hierarchy for datasource {data_source} in org {org_name}"
@@ -957,8 +961,7 @@ def delete_route53(boto3_client, org_name, execution):
         )
     except botocore.exceptions.ClientError as error:
         logger.error(
-            f"Error: '{str(error)}' "
-            f"on record {record_name} in organization {org_name}"
+            f"Error: '{error}' " f"on record {record_name} in organization {org_name}"
         )
         boto_error = error.response.get("Error", {}).get("Code", "NoResponseCode")
         if boto_error == "NoSuchHostedZone":

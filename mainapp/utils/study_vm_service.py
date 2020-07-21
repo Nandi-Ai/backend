@@ -1,7 +1,6 @@
 import logging
 import multiprocessing
 from concurrent.futures.thread import ThreadPoolExecutor
-from time import sleep
 
 from mainapp.exceptions import (
     TooManyInstancesError,
@@ -50,6 +49,8 @@ STATUS_ARGS = {
         "toggle_status": Study.STUDY_DELETED,
     },
 }
+
+INSTANCE_WAIT_MAPPING = {"start": "wait_until_stopped", "stop": "wait_until_running"}
 
 STUDY_STATUS_BASED_ON_INSTANCE_NAME = {
     AWS_EC2_RUNNING: Study.VM_ACTIVE,
@@ -140,7 +141,7 @@ def toggle_study_vm(
             f"Sleeping before changing study {study.id} ({study.name}) instance {study.execution.execution_user.email} "
             f"state to {toggle_status} as of blocker_statuses"
         )
-        sleep(30)
+        getattr(instance, INSTANCE_WAIT_MAPPING.get(instance_method))()
     getattr(instance, instance_method)()
     update_study_state(study, toggle_status)
 
