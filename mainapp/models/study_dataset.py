@@ -4,15 +4,15 @@ from django.db import models
 
 class StudyDataset(models.Model):
     FULL_ACCESS = "full_access"
-    LIMITED_ACCESS = "limited"
-    DEIDENTIFIED = "deid"
-    SYNTHETIC = "synthetic"
+    LIMITED_ACCESS = "limited_access"
+    DEIDENTIFIED = "deid_access"
+    SYNTHETIC = "synthetic_access"
     AGGREGATED_ACCESS = "aggregated_access"
     possible_dataset_permission_for_study = (
         (FULL_ACCESS, "full_access"),
-        (LIMITED_ACCESS, "limited"),
-        (DEIDENTIFIED, "deid"),
-        (SYNTHETIC, "synthetic"),
+        (LIMITED_ACCESS, "limited_access"),
+        (DEIDENTIFIED, "deid_access"),
+        (SYNTHETIC, "synthetic_access"),
         (AGGREGATED_ACCESS, "aggregated_access"),
     )
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
