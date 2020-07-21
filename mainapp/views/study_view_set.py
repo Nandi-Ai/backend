@@ -52,12 +52,7 @@ class StudyViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def get_study_per_organization(self, request, pk=None):
         study = self.get_object()
-        dataset = study.datasets.first()
-        if not dataset:
-            return UnimplementedErrorResponse(
-                f"Bad Request: Study {study} does not have datasets"
-            )
-        organization_name = dataset.organization.name
+        organization_name = study.organization.name
         return Response({"study_organization": organization_name})
 
     def get_queryset(self, **kwargs):
@@ -335,19 +330,33 @@ class StudyViewSet(ModelViewSet):
 
             client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
+            monitor_kwargs = {
+                "user_ip": lib.get_client_ip(request),
+                "study": study,
+                "user": user,
+            }
+
+            activity_kwargs = {"study": study, "user": request.user}
+
             updated_datasets = set(map(lambda x: x["dataset"], datasets))
             existing_datasets = set(study.datasets.all())
             diff_datasets = updated_datasets ^ existing_datasets
-            for d in diff_datasets & updated_datasets:
-                self.__monitor_study(
-                    event_type=MonitorEvents.EVENT_STUDY_ASSIGN_DATASET,
-                    user_ip=lib.get_client_ip(request),
-                    study=study,
-                    user=request.user,
-                    dataset=d,
-                )
-                Activity.objects.create(
-                    type="dataset assignment", study=study, dataset=d, user=user
-                )
+            for dataset in diff_datasets:
+
+                monitor_kwargs["dataset"] = dataset
+                activity_kwargs["dataset"] = dataset
+
+                if dataset in existing_datasets:
+                    monitor_kwargs[
+                        "event_type"
+                    ] = MonitorEvents.EVENT_STUDY_REMOVE_DATASET
+                    activity_kwargs["type"] = "dataset remove assignment"
+
+                else:
+                    monitor_kwargs["event_type"] = MonitorEvents.EVENT_STUDY_ADD_DATASET
+                    activity_kwargs["type"] = "dataset assignment"
+
+                self.__monitor_study(**monitor_kwargs)
+                Activity.objects.create(**activity_kwargs)
 
         return super(self.__class__, self).update(request=self.request)
