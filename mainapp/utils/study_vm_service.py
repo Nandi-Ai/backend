@@ -177,7 +177,9 @@ def delete_study(study):
         logger.warning(str(e))
 
     try:
-        toggle_study_vm(org_name=study.organization.name, study=study)
+        toggle_study_vm(
+            org_name=study.organization.name, study=study, **STATUS_ARGS["terminate"]
+        )
     except Ec2Error as e:
         logger.warning(str(e))
 
