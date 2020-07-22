@@ -38,5 +38,6 @@ class RegisterStudy(APIView):
 
             return Response(status=201)
         except Exception as ex:
-            logger.error(str(ex))
-            return ErrorResponse(str(ex))
+            return ErrorResponse(
+                "An Error occurred when trying to register the DNS", ex
+            )
