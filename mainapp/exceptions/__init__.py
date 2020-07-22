@@ -28,4 +28,5 @@ from .route53_error import (
     InvalidInputError,
     PriorRequestNotCompleteError,
     Route53Error,
+    DnsRecordExists,
 )

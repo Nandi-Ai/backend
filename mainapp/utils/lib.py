@@ -9,7 +9,7 @@ from mainapp.utils.aws_utils import s3_storage
 from datetime import datetime as dt, timedelta as td
 from enum import Enum
 from time import sleep
-from jinja2 import Template
+
 
 import logging
 
@@ -32,12 +32,6 @@ from mainapp.exceptions import (
     MaxExecutionReactedError,
     InvalidExecutionId,
     QueryExecutionError,
-    DnsRecordNotFound,
-    InvalidChangeBatchError,
-    NoSuchHostedZoneError,
-    InvalidInputError,
-    PriorRequestNotCompleteError,
-    Route53Error,
 )
 from mainapp.utils import aws_service, statistics, devexpress_filtering
 from mainapp.utils.decorators import (
@@ -46,8 +40,6 @@ from mainapp.utils.decorators import (
     with_s3_client,
     with_s3_resource,
     with_iam_resource,
-    with_ec2_client,
-    with_route53_client,
 )
 
 from mainapp.utils.response_handler import (
@@ -55,8 +47,6 @@ from mainapp.utils.response_handler import (
     ErrorResponse,
     UnimplementedErrorResponse,
 )
-
-USER_DATA_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "user_data.jinja")
 
 logger = logging.getLogger(__name__)
 
@@ -310,44 +300,6 @@ class MyTokenAuthentication(TokenAuthentication):
         # token.save()
 
         return token.user, token
-
-
-@with_ec2_client
-def setup_study_workspace(boto3_client, org_name, execution_token, workspace_bucket):
-    organization_value = settings.ORG_VALUES[org_name]
-    org_hosted_zone = organization_value["HOSTED_ZONE_ID"]
-    org_region = organization_value["AWS_REGION"]
-    org_fs_server = organization_value["FS_SERVER"]
-    org_domain = organization_value["DOMAIN"]
-    lynx_org_value = settings.ORG_VALUES[settings.LYNX_ORGANIZATION]
-
-    with open(USER_DATA_TEMPLATE_PATH) as user_data_template_file:
-        user_data_template = Template(user_data_template_file.read())
-        user_data = user_data_template.render(
-            execution_token=execution_token,
-            bucket=workspace_bucket,
-            hosted_zone=org_hosted_zone,
-            org_region=org_region,
-            fs_server=org_fs_server,
-            domain=org_domain,
-            lynx_account=lynx_org_value["ACCOUNT_NUMBER"],
-            lynx_region=lynx_org_value["AWS_REGION"],
-            backend=settings.BACKEND_URL,
-            notebook_image=settings.NOTEBOOK_IMAGE,
-        )
-
-    boto3_client.run_instances(
-        LaunchTemplate={"LaunchTemplateName": "Jupyter-Notebook"},
-        TagSpecifications=[
-            {
-                "ResourceType": "instance",
-                "Tags": [{"Key": "Name", "Value": f"jupyter-{execution_token}"}],
-            }
-        ],
-        UserData=user_data,
-        MinCount=1,
-        MaxCount=1,
-    )
 
 
 @with_glue_client
@@ -930,46 +882,3 @@ def get_client_ip(request):
         if client_address
         else request.META.get("REMOTE_ADDR")
     )
-
-
-@with_route53_client
-def delete_route53(boto3_client, org_name, execution):
-    organization_value = settings.ORG_VALUES[org_name]
-    org_hosted_zone = organization_value["HOSTED_ZONE_ID"]
-    org_domain = organization_value["DOMAIN"]
-    record_name = f'{execution.split("@")[0]}.{org_domain}'
-    logger.info(f"Deleting DNS record {record_name} in organization {org_name}")
-
-    try:
-        response = boto3_client.list_resource_record_sets(
-            HostedZoneId=org_hosted_zone,
-            StartRecordType="A",
-            StartRecordName=record_name,
-        )
-        if not response["ResourceRecordSets"]:
-            raise DnsRecordNotFound(record_name, org_name)
-        boto3_client.change_resource_record_sets(
-            HostedZoneId=org_hosted_zone,
-            ChangeBatch={
-                "Changes": [
-                    {
-                        "Action": "DELETE",
-                        "ResourceRecordSet": response["ResourceRecordSets"][0],
-                    }
-                ]
-            },
-        )
-    except botocore.exceptions.ClientError as error:
-        logger.error(
-            f"Error: '{error}' " f"on record {record_name} in organization {org_name}"
-        )
-        boto_error = error.response.get("Error", {}).get("Code", "NoResponseCode")
-        if boto_error == "NoSuchHostedZone":
-            raise NoSuchHostedZoneError(org_hosted_zone)
-        if boto_error == "InvalidChangeBatch":
-            raise InvalidChangeBatchError(record_name)
-        if boto_error == "InvalidInput":
-            raise InvalidInputError(record_name)
-        if boto_error == "PriorRequestNotComplete":
-            raise PriorRequestNotCompleteError()
-        raise Route53Error(f"Error {boto_error}: Failed record deletion")

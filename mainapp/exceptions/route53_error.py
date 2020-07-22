@@ -10,6 +10,13 @@ class DnsRecordNotFound(Route53Error):
         )
 
 
+class DnsRecordExists(Route53Error):
+    def __init__(self, record_name, org_name):
+        super().__init__(
+            f"Route53 record '{record_name}' already exists in organization {org_name}"
+        )
+
+
 class NoSuchHostedZoneError(Route53Error):
     def __init__(self, hosted_zone):
         super().__init__(

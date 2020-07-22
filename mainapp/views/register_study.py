@@ -1,0 +1,42 @@
+import logging
+
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from mainapp.models import Study, Execution, User
+from mainapp.utils.response_handler import ErrorResponse
+from mainapp.utils.study_vm_service import change_resource_record_sets
+from mainapp.utils.aws_utils.route_53 import Route53Actions
+from mainapp.exceptions import Route53Error
+
+
+logger = logging.getLogger(__name__)
+
+
+class RegisterStudy(APIView):
+    """View to register the new study's DNS record"""
+
+    def post(self, request):
+        try:
+            study = Study.objects.get(
+                execution=Execution.objects.get(
+                    execution_user=User.objects.get(email=request.user.email)
+                )
+            )
+
+            try:
+                change_resource_record_sets(
+                    execution=study.execution.execution_user.email,
+                    org_name=study.organization.name,
+                    action=Route53Actions.CREATE,
+                )
+
+            except Route53Error as ex:
+                logger.warning(
+                    f"unable to register study  {study.id} due to Error: '{ex}'"
+                )
+
+            return Response(status=201)
+        except Exception as ex:
+            logger.error(str(ex))
+            return ErrorResponse(str(ex))

@@ -14,14 +14,18 @@ from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
-from mainapp.utils.lib import setup_study_workspace
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
 )
 from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
-from mainapp.utils.study_vm_service import delete_study, STATUS_ARGS, toggle_study_vm
+from mainapp.utils.study_vm_service import (
+    delete_study,
+    STATUS_ARGS,
+    toggle_study_vm,
+    setup_study_workspace,
+)
 
 logger = logging.getLogger(__name__)
 

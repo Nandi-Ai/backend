@@ -1,9 +1,7 @@
 #!/bin/bash -x
 exec > /tmp/create.log 2<&1
 hostnamectl set-hostname ec2-{{execution_token}}
-export PRIVATE_IP=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | awk -F'"' '/\"privateIp\"/ { print $4 }')
-aws route53 change-resource-record-sets --hosted-zone-id {{hosted_zone}} --change-batch "{ \"Comment\": \"Creating Record Set for {{execution_token}}\", \"Changes\": [ { \"Action\": \"CREATE\", \"ResourceRecordSet\": { \"Name\": \"{{execution_token}}.{{domain}}\", \"Type\": \"A\", \"TTL\": 300, \"ResourceRecords\": [ { \"Value\": \"$PRIVATE_IP\"} ] } } ] }"
-unset PRIVATE_IP
+python3 -c 'import requests, json; requests.post("{{backend}}/register_study", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"))'
 # Bootscript creation
 mkdir /home/life_hooks
 chown ec2-user /home/life_hooks
@@ -23,7 +21,6 @@ exec > /tmp/startup.log 2>&1
 sudo rm -rf /home/docker_config/*
 sudo service docker start
 sudo chmod 666 /var/run/docker.sock
-# TODO Change to open
 \$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)
 docker pull {{notebook_image}}
 sudo mv ~/.docker/config.json /home/docker_config/config.json
@@ -32,7 +29,6 @@ python3 /home/life_hooks/docker_config.py
 sudo s3fs -o iam_role="ecs-fs-server" -o url="https://s3.{{lynx_region}}.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace
 sudo git -C /home/fs_client pull
 sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &
-# TODO - Change to closed
 docker --config /home/docker_config/ run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}
 python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "active"}), headers={"content-type": "application/json"})'
 EOF

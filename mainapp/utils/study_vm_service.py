@@ -1,33 +1,53 @@
+import os
 import logging
+import botocore
 import multiprocessing
+from jinja2 import Template
 from concurrent.futures.thread import ThreadPoolExecutor
 
+from mainapp import settings
 from mainapp.exceptions import (
-    TooManyInstancesError,
-    InstanceNotFound,
-    InstanceTerminated,
     InvalidEc2Status,
     BucketNotFound,
     PolicyNotFound,
     RoleNotFound,
     Route53Error,
     Ec2Error,
+    InvalidChangeBatchError,
+    NoSuchHostedZoneError,
+    InvalidInputError,
+    PriorRequestNotCompleteError,
 )
 from mainapp.models import Study
-from mainapp.utils.decorators import with_ec2_resource
+from mainapp.utils.decorators import (
+    with_ec2_resource,
+    with_ec2_client,
+    with_route53_client,
+)
 from mainapp.utils.elasticsearch_service import ElasticsearchService, MonitorEvents
-from mainapp.utils.lib import delete_route53
+from mainapp.utils.aws_utils import (
+    Route53Actions,
+    AWS_EC2_STARTING,
+    AWS_EC2_RUNNING,
+    AWS_EC2_STOPPING,
+    AWS_EC2_STOPPED,
+    AWS_EC2_SHUTTING_DOWN,
+    AWS_EC2_TERMINATED,
+    get_instance,
+    delete_route53,
+    create_route53,
+)
 
 logger = logging.getLogger(__name__)
-
 executor = ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() * 2 - 1)
 
-AWS_EC2_STARTING = "pending"
-AWS_EC2_RUNNING = "running"
-AWS_EC2_STOPPING = "stopping"
-AWS_EC2_SHUTTING_DOWN = "shutting-down"
-AWS_EC2_STOPPED = "stopped"
-AWS_EC2_TERMINATED = "terminated"
+ROUTE53_ACTION_MAPPING = {
+    Route53Actions.DELETE: {"log_message": "Deleting", "method": delete_route53},
+    Route53Actions.CREATE: {"log_message": "Creating", "method": create_route53},
+}
+
+
+USER_DATA_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "user_data.jinja")
 ALLOWED_STATUSES = [enum[1] for enum in Study.possible_statuses_for_study]
 STATUS_ARGS = {
     "start": {
@@ -68,23 +88,6 @@ def update_study_state(study, status):
         raise InvalidEc2Status(status)
     study.status = status
     study.save()
-
-
-def get_instance(boto_resource, execution_token):
-    inst_name = f"jupyter-{execution_token}"
-    instances = list(
-        boto_resource.instances.filter(
-            Filters=[{"Name": "tag:Name", "Values": [inst_name]}]
-        )
-    )
-    if not instances:
-        raise InstanceNotFound(inst_name)
-    elif len(instances) > 1:
-        raise TooManyInstancesError(inst_name)
-    elif instances[0].state["Name"] == AWS_EC2_TERMINATED:
-        raise InstanceTerminated(inst_name)
-
-    return instances[0]
 
 
 def wait_until_stopped(instance, study):
@@ -169,9 +172,10 @@ def delete_study(study):
         )
 
     try:
-        delete_route53(
+        change_resource_record_sets(
             execution=study.execution.execution_user.email,
             org_name=study.organization.name,
+            action=Route53Actions.DELETE,
         )
     except Route53Error as e:
         logger.warning(str(e))
@@ -194,3 +198,75 @@ def delete_study(study):
         f"on study {study.name}:{study.id} "
         f"in org {study.organization}"
     )
+
+
+@with_ec2_client
+def setup_study_workspace(boto3_client, org_name, execution_token, workspace_bucket):
+    organization_value = settings.ORG_VALUES[org_name]
+    org_region = organization_value["AWS_REGION"]
+    org_fs_server = organization_value["FS_SERVER"]
+    lynx_org_value = settings.ORG_VALUES[settings.LYNX_ORGANIZATION]
+
+    with open(USER_DATA_TEMPLATE_PATH) as user_data_template_file:
+        user_data_template = Template(user_data_template_file.read())
+        user_data = user_data_template.render(
+            execution_token=execution_token,
+            bucket=workspace_bucket,
+            org_region=org_region,
+            fs_server=org_fs_server,
+            lynx_account=lynx_org_value["ACCOUNT_NUMBER"],
+            lynx_region=lynx_org_value["AWS_REGION"],
+            backend=settings.BACKEND_URL,
+            notebook_image=settings.NOTEBOOK_IMAGE,
+        )
+
+    boto3_client.run_instances(
+        LaunchTemplate={"LaunchTemplateName": "Jupyter-Notebook"},
+        TagSpecifications=[
+            {
+                "ResourceType": "instance",
+                "Tags": [{"Key": "Name", "Value": f"jupyter-{execution_token}"}],
+            }
+        ],
+        UserData=user_data,
+        MinCount=1,
+        MaxCount=1,
+    )
+
+
+@with_route53_client
+def change_resource_record_sets(boto3_client, org_name, execution, action):
+    organization_value = settings.ORG_VALUES[org_name]
+    org_hosted_zone = organization_value["HOSTED_ZONE_ID"]
+    record_name = f'{execution.split("@")[0]}.{organization_value["DOMAIN"]}'
+    logger.info(
+        f"￿￿￿￿{ROUTE53_ACTION_MAPPING[action]['log_message']} DNS record {record_name} in organization {org_name}"
+    )
+
+    try:
+        response = boto3_client.list_resource_record_sets(
+            HostedZoneId=org_hosted_zone,
+            StartRecordType="A",
+            StartRecordName=record_name,
+        )
+        ROUTE53_ACTION_MAPPING[action]["method"](
+            boto3_client=boto3_client,
+            existing_records=response["ResourceRecordSets"],
+            record_name=record_name,
+            org_name=org_name,
+            hosted_zone=org_hosted_zone,
+        )
+    except botocore.exceptions.ClientError as error:
+        logger.error(
+            f"Error: '{error}' " f"on record {record_name} in organization {org_name}"
+        )
+        boto_error = error.response.get("Error", {}).get("Code", "NoResponseCode")
+        if boto_error == "NoSuchHostedZone":
+            raise NoSuchHostedZoneError(org_hosted_zone)
+        if boto_error == "InvalidChangeBatch":
+            raise InvalidChangeBatchError(record_name)
+        if boto_error == "InvalidInput":
+            raise InvalidInputError(record_name)
+        if boto_error == "PriorRequestNotComplete":
+            raise PriorRequestNotCompleteError()
+        raise Route53Error(f"Error {boto_error}: Failed record deletion")
