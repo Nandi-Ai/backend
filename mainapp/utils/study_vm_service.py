@@ -240,7 +240,7 @@ def change_resource_record_sets(boto3_client, org_name, execution, action):
     org_hosted_zone = organization_value["HOSTED_ZONE_ID"]
     record_name = f'{execution.split("@")[0]}.{organization_value["DOMAIN"]}'
     logger.info(
-        f"￿￿￿￿{ROUTE53_ACTION_MAPPING[action]['log_message']} DNS record {record_name} in organization {org_name}"
+        f"{ROUTE53_ACTION_MAPPING[action]['log_message']} DNS record {record_name} in organization {org_name}"
     )
 
     try:
