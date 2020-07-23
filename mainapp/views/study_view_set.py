@@ -276,11 +276,15 @@ class StudyViewSet(ModelViewSet):
                 )
 
             self.__create_execution(study, request.user)
-            setup_study_workspace(
-                org_name=org_name,
-                execution_token=study.execution.token,
-                workspace_bucket=study.bucket,
-            )
+            try:
+                setup_study_workspace(
+                    org_name=org_name,
+                    execution_token=study.execution.token,
+                    workspace_bucket=study.bucket,
+                )
+            except botocore.exceptions.ClientError as ce:
+                logger.error(f"Failed to create study vm for study: {study.id}")
+                return ErrorResponse(f"Study workspace failed to create", ce)
 
             return Response(
                 self.serializer_class(study, allow_null=True).data, status=201
