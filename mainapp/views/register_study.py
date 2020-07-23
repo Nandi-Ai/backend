@@ -23,6 +23,8 @@ class RegisterStudy(APIView):
                     execution_user=User.objects.get(email=request.user.email)
                 )
             )
+            if study.status == Study.STUDY_DELETED:
+                return NotFoundErrorResponse(f"Study has been deleted")
 
             try:
                 change_resource_record_sets(
