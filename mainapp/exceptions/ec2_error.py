@@ -23,3 +23,10 @@ class InstanceTerminated(Exception):
 class InvalidEc2Status(Exception):
     def __init__(self, status):
         super().__init__(f"{status} is an invalid EC2 instance status")
+
+
+class LaunchTemplateFailedError(Exception):
+    def __init__(self, template_name):
+        super().__init__(
+            self, f"Failed to create instance from template {template_name}"
+        )

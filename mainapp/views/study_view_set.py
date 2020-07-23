@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from mainapp import resources, settings
-from mainapp.exceptions import InvalidEc2Status
+from mainapp.exceptions import InvalidEc2Status, LaunchTemplateFailedError
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
 from mainapp.utils import lib, aws_service
@@ -282,8 +282,7 @@ class StudyViewSet(ModelViewSet):
                     execution_token=study.execution.token,
                     workspace_bucket=study.bucket,
                 )
-            except botocore.exceptions.ClientError as ce:
-                logger.error(f"Failed to create study vm for study: {study.id}")
+            except LaunchTemplateFailedError as ce:
                 return ErrorResponse(f"Study workspace failed to create", ce)
 
             return Response(

@@ -17,6 +17,7 @@ from mainapp.exceptions import (
     NoSuchHostedZoneError,
     InvalidInputError,
     PriorRequestNotCompleteError,
+    LaunchTemplateFailedError,
 )
 from mainapp.models import Study
 from mainapp.utils.decorators import (
@@ -220,18 +221,22 @@ def setup_study_workspace(boto3_client, org_name, execution_token, workspace_buc
             notebook_image=settings.NOTEBOOK_IMAGE,
         )
 
-    boto3_client.run_instances(
-        LaunchTemplate={"LaunchTemplateName": "Jupyter-Notebook"},
-        TagSpecifications=[
-            {
-                "ResourceType": "instance",
-                "Tags": [{"Key": "Name", "Value": f"jupyter-{execution_token}"}],
-            }
-        ],
-        UserData=user_data,
-        MinCount=1,
-        MaxCount=1,
-    )
+    try:
+        boto3_client.run_instances(
+            LaunchTemplate={"LaunchTemplateName": "Jupyter-Notebook"},
+            TagSpecifications=[
+                {
+                    "ResourceType": "instance",
+                    "Tags": [{"Key": "Name", "Value": f"jupyter-{execution_token}"}],
+                }
+            ],
+            UserData=user_data,
+            MinCount=1,
+            MaxCount=1,
+        )
+    except botocore.exceptions.ClientError as ce:
+        logger.error(f"Failed to launch instance from template due to error: {ce}")
+        raise LaunchTemplateFailedError("Jupyter-Notebook")
 
 
 @with_route53_client

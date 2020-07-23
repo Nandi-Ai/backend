@@ -19,6 +19,7 @@ from .ec2_error import (
     InstanceTerminated,
     InvalidEc2Status,
     Ec2Error,
+    LaunchTemplateFailedError,
 )
 
 from .route53_error import (
