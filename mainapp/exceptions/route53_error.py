@@ -3,14 +3,14 @@ class Route53Error(Exception):
         super().__init__(msg)
 
 
-class DnsRecordNotFound(Route53Error):
+class DnsRecordNotFoundError(Route53Error):
     def __init__(self, record_name, org_name):
         super().__init__(
             f"Route53 DNS record '{record_name}' not found in organization {org_name}"
         )
 
 
-class DnsRecordExists(Route53Error):
+class DnsRecordExistsError(Route53Error):
     def __init__(self, record_name, org_name):
         super().__init__(
             f"Route53 record '{record_name}' already exists in organization {org_name}"

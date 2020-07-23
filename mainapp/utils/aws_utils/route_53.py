@@ -1,8 +1,8 @@
 from enum import Enum
 
 from mainapp.exceptions import (
-    DnsRecordExists,
-    DnsRecordNotFound,
+    DnsRecordExistsError,
+    DnsRecordNotFoundError,
     Ec2Error,
     Route53Error,
 )
@@ -17,7 +17,7 @@ class Route53Actions(Enum):
 
 def delete_route53(boto3_client, existing_records, record_name, org_name, hosted_zone):
     if not existing_records or record_name != existing_records[0]["Name"][:-1]:
-        raise DnsRecordNotFound(record_name, org_name)
+        raise DnsRecordNotFoundError(record_name, org_name)
 
     boto3_client.change_resource_record_sets(
         HostedZoneId=hosted_zone,
@@ -34,7 +34,7 @@ def delete_route53(boto3_client, existing_records, record_name, org_name, hosted
 
 def create_route53(boto3_client, existing_records, record_name, org_name, hosted_zone):
     if existing_records and record_name == existing_records[0]["Name"][:-1]:
-        raise DnsRecordExists(record_name, org_name)
+        raise DnsRecordExistsError(record_name, org_name)
 
     try:
         instance_ip = get_instance(

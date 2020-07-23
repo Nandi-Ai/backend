@@ -22,11 +22,11 @@ from .ec2_error import (
 )
 
 from .route53_error import (
-    DnsRecordNotFound,
+    DnsRecordNotFoundError,
     InvalidChangeBatchError,
     NoSuchHostedZoneError,
     InvalidInputError,
     PriorRequestNotCompleteError,
     Route53Error,
-    DnsRecordExists,
+    DnsRecordExistsError,
 )
