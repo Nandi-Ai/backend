@@ -98,4 +98,5 @@ urlpatterns = [
     ),
     url(r"^monitoring/?$", views.Monitoring.as_view(), name="monitoring"),
     url(r"^study_status/?$", views.UpdateStudyStatus.as_view(), name="study_status"),
+    url(r"^register_study/?$", views.RegisterStudy.as_view(), name="register_study"),
 ]

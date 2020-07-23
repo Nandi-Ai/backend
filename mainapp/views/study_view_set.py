@@ -9,19 +9,23 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from mainapp import resources, settings
-from mainapp.exceptions import InvalidEc2Status
+from mainapp.exceptions import InvalidEc2Status, LaunchTemplateFailedError
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
-from mainapp.utils.lib import setup_study_workspace
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
 )
 from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
-from mainapp.utils.study_vm_service import delete_study, STATUS_ARGS, toggle_study_vm
+from mainapp.utils.study_vm_service import (
+    delete_study,
+    STATUS_ARGS,
+    toggle_study_vm,
+    setup_study_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -272,11 +276,14 @@ class StudyViewSet(ModelViewSet):
                 )
 
             self.__create_execution(study, request.user)
-            setup_study_workspace(
-                org_name=org_name,
-                execution_token=study.execution.token,
-                workspace_bucket=study.bucket,
-            )
+            try:
+                setup_study_workspace(
+                    org_name=org_name,
+                    execution_token=study.execution.token,
+                    workspace_bucket=study.bucket,
+                )
+            except LaunchTemplateFailedError as ce:
+                return ErrorResponse(f"Study workspace failed to create", ce)
 
             return Response(
                 self.serializer_class(study, allow_null=True).data, status=201
