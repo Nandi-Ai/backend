@@ -18,7 +18,6 @@ cat << EOF > /home/life_hooks/shutdown.sh
 export CONTAINERS=\$(docker ps | grep 8888 | wc -l)
 if [ "\$CONTAINERS" -ne 1 ]; then
     python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "stopped"}), headers={"content-type": "application/json"})'
-    crontab -r
     /usr/sbin/shutdown -h now
 fi
 EOF
@@ -40,6 +39,7 @@ chmod +x /home/life_hooks/docker_config.py
 cat << EOF > /home/life_hooks/startup.sh
 #!/bin/bash -x
 exec > /tmp/startup.log 2>&1
+sudo crontab -r
 sudo rm -rf /home/docker_config/*
 sudo service docker start
 sudo chmod 666 /var/run/docker.sock
