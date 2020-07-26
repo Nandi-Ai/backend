@@ -12,3 +12,22 @@ from .settings_error import (
     MissingOrganizationSettingKey,
 )
 from .iam_error import RoleNotFound, PolicyNotFound
+
+from .ec2_error import (
+    InstanceNotFound,
+    TooManyInstancesError,
+    InstanceTerminated,
+    InvalidEc2Status,
+    Ec2Error,
+    LaunchTemplateFailedError,
+)
+
+from .route53_error import (
+    DnsRecordNotFoundError,
+    InvalidChangeBatchError,
+    NoSuchHostedZoneError,
+    InvalidInputError,
+    PriorRequestNotCompleteError,
+    Route53Error,
+    DnsRecordExistsError,
+)

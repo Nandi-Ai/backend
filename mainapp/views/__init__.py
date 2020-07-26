@@ -30,3 +30,5 @@ from .tag_view_set import TagViewSet
 from .user_view_set import UserViewSet
 from .version import Version
 from .monitoring import Monitoring
+from .update_study_status import UpdateStudyStatus
+from .register_study import RegisterStudy

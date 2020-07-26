@@ -24,6 +24,7 @@ class StudySerializer(ModelSerializer):
             "description",
             "user_created",
             "cover",
+            "status",
         )
         extra_kwargs = {
             "users": {"allow_empty": True},  # required = False?
@@ -45,12 +46,14 @@ class StudySerializer(ModelSerializer):
         for dataset in self.initial_data.get("datasets"):
             dataset_id = dataset.get("dataset")
             permission = dataset.get("permission")
+            permission_attributes = dataset.get("permission_attributes")
             try:
                 study_dataset = StudyDataset.objects.get(
                     dataset=dataset_id, study=instance
                 )
                 prev_datasets.pop(dataset_id)
                 study_dataset.permission = permission
+                study_dataset.permission_attributes = permission_attributes
                 study_dataset.save()
             except StudyDataset.DoesNotExist:
                 try:

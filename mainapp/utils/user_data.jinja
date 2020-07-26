@@ -1,0 +1,65 @@
+#!/bin/bash -x
+exec > /tmp/create.log 2<&1
+# Change hostname for FUSE client
+hostnamectl set-hostname ec2-{{execution_token}}
+
+# Register DNS
+python3 -c 'import requests, json; requests.post("{{backend}}/register_study", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"))'
+
+# Create life hooks
+mkdir /home/life_hooks
+chown ec2-user /home/life_hooks
+
+# Cron for checking when to shutdown
+echo -e "* * * * * /home/life_hooks/shutdown.sh\n" >> /home/life_hooks/crontab.txt
+
+# Shutdown script
+cat << EOF > /home/life_hooks/shutdown.sh
+export CONTAINERS=\$(docker ps | grep 8888 | wc -l)
+if [ "\$CONTAINERS" -ne 1 ]; then
+    python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "stopped"}), headers={"content-type": "application/json"})'
+    /usr/sbin/shutdown -h now
+fi
+EOF
+chmod +x /home/life_hooks/shutdown.sh
+
+# Docker configuration script
+cat << EOF > /home/life_hooks/docker_config.py
+import json
+with open("/home/docker_config/config.json", "r") as config_file:
+    config = json.loads(config_file.read())
+config["proxies"] = {"default": {"httpProxy": "http://127.0.0.1", "httpsProxy": "http://127.0.0.1", "noProxy": ".amazonaws.com,.lynx.md"}}
+with open("/home/docker_config/config.json", "w") as config_file:
+    config_file.write(json.dumps(config))
+EOF
+chown ec2-user /home/life_hooks/docker_config.py
+chmod +x /home/life_hooks/docker_config.py
+
+# Startup Script
+cat << EOF > /home/life_hooks/startup.sh
+#!/bin/bash -x
+exec > /tmp/startup.log 2>&1
+sudo crontab -r
+sudo rm -rf /home/docker_config/*
+sudo service docker start
+sudo chmod 666 /var/run/docker.sock
+\$(aws ecr get-login --region {{lynx_region}} --registry-id {{lynx_account}} --no-include-email)
+docker pull {{notebook_image}}
+sudo mv ~/.docker/config.json /home/docker_config/config.json
+sudo chown ec2-user /home/docker_config/config.json
+python3 /home/life_hooks/docker_config.py
+sudo s3fs -o iam_role="PrivacyFirewallClient" -o url="https://s3.{{lynx_region}}.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace
+sudo git -C /home/fs_client pull
+sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &
+docker --config /home/docker_config/ run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}
+python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "active"}), headers={"content-type": "application/json"})'
+sudo crontab /home/life_hooks/crontab.txt
+EOF
+
+# Mark Startup script to run on boot
+chmod +x /home/life_hooks/startup.sh
+echo "/home/life_hooks/startup.sh" >> /etc/rc.local
+chmod +x /etc/rc.d/rc.local
+
+# Run Startup script
+/home/life_hooks/startup.sh
