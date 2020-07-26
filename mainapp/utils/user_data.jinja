@@ -16,7 +16,7 @@ echo -e "* * * * * /home/life_hooks/shutdown.sh\n" >> /home/life_hooks/crontab.t
 # Shutdown script
 cat << EOF > /home/life_hooks/shutdown.sh
 export CONTAINERS=\$(docker ps | grep 8888 | wc -l)
-if [ "\CONTAINERS" -ne 1 ]; then
+if [ "\$CONTAINERS" -ne 1 ]; then
     python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "stopped"}), headers={"content-type": "application/json"})'
     crontab -r
     /usr/sbin/shutdown -h now
