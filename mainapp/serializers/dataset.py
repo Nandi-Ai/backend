@@ -28,6 +28,7 @@ class DatasetSerializer(ModelSerializer):
             "children",
             "ancestor",
             "studies",
+            "starred_users",
         )
 
         extra_kwargs = {
@@ -42,6 +43,7 @@ class DatasetSerializer(ModelSerializer):
             "updated_at": {"read_only": True},
             "created_at": {"read_only": True},
             "studies": {"read_only": True},
+            "starred_users": {"allow_empty": True, "read_only": True},
         }
 
         def get_request_user(self):
