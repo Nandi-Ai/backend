@@ -32,9 +32,7 @@ class Dataset(models.Model):
     user_created = models.ForeignKey(
         "User", on_delete=models.SET_NULL, related_name="datasets_created", null=True
     )
-    starred_users = models.ManyToManyField(
-        "User", related_name="starred_datasets", null=True
-    )
+    starred_users = models.ManyToManyField("User", related_name="starred_datasets")
     tags = models.ManyToManyField("Tag", related_name="dataset_tags")
     state = models.CharField(choices=states, max_length=32)
     is_discoverable = models.BooleanField(blank=False, null=False)

@@ -4,6 +4,7 @@ import time
 import uuid
 
 import botocore.exceptions
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -76,6 +77,22 @@ class DatasetViewSet(ModelViewSet):
                 return BadRequestErrorResponse(
                     "default_user_permission must be none or aggregated"
                 )
+
+    @action(detail=True, methods=["put"])
+    def starred(self, request, *args, **kwargs):
+        dataset = self.get_object()
+        dataset.starred_users.add(request.user)
+        dataset.save()
+
+        return Response(DatasetSerializer(dataset).data, status=200)
+
+    @action(detail=True, methods=["put"])
+    def unstarred(self, request, *args, **kwargs):
+        dataset = self.get_object()
+        dataset.starred_users.remove(request.user)
+        dataset.save()
+
+        return Response(DatasetSerializer(dataset).data, status=200)
 
     def get_queryset(self):
         return self.request.user.datasets
