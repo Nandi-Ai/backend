@@ -95,7 +95,7 @@ class DatasetViewSet(ModelViewSet):
         return Response(DatasetSerializer(dataset).data, status=200)
 
     def get_queryset(self):
-        return self.request.user.datasets.exclude(is_deleted=False)
+        return self.request.user.datasets.exclude(is_deleted=True)
 
     def create(self, request, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
