@@ -14,6 +14,7 @@ from time import sleep
 import logging
 
 import botocore
+import botocore.exceptions
 import magic
 import pytz
 import requests
@@ -359,6 +360,7 @@ def create_catalog(boto3_client, org_name, data_source):
             update_glue_table(data_source=data_source, org_name=org_name)
 
             data_source.state = "ready"
+
         except botocore.exceptions.ClientError as e:
             logger.exception(
                 f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
@@ -413,44 +415,74 @@ def update_glue_table(boto3_client, data_source, org_name):
 @with_s3_resource
 def update_folder_hierarchy(boto3_client, data_source, org_name):
     s3_bucket = data_source.bucket
-    s3_object_key = data_source.s3_objects[0]["key"]
-    _, _, datasource_name, _ = break_s3_object(s3_object_key)
-
     s3_client = boto3_client.meta.client
 
+    # create folders
+    data_source_dir = data_source.dir
     # create folders
     s3_client.put_object(
         Bucket=s3_bucket,
         Key=os.path.join(
-            datasource_name, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, ""
+            data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, ""
         ),
         ACL="private",
     )
     s3_client.put_object(
         Bucket=s3_bucket,
         Key=os.path.join(
-            datasource_name, LYNX_STORAGE_DIR, PrivilagePath.AGG_STATS.value, ""
+            data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.AGG_STATS.value, ""
         ),
         ACL="private",
     )
 
-    new_key = os.path.join(
-        datasource_name, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, data_source.name
-    )
+    if data_source.type == "structured":
+        s3_object_key = data_source.s3_objects[0]["key"]
 
-    boto3_client.Object(s3_bucket, new_key).copy_from(
-        CopySource=os.path.join(s3_bucket, s3_object_key)
-    )
-    data_source.s3_objects[0]["key"] = new_key
-    data_source.save()
+        new_key = os.path.join(
+            data_source_dir,
+            LYNX_STORAGE_DIR,
+            PrivilagePath.FULL.value,
+            data_source.name,
+        )
 
-    try:
-        boto3_client.Object(s3_bucket, s3_object_key).delete()
-    except botocore.exceptions.ClientError as e:
-        logger.warning(f"Unable to delete file with key {s3_object_key}!")
+        try:
+            boto3_client.Object(s3_bucket, new_key).copy_from(
+                CopySource=os.path.join(s3_bucket, s3_object_key)
+            )
+        except botocore.exceptions.ClientError as e:
+            return ErrorResponse(f"Unable to Move file with key {s3_object_key}!")
+
+        data_source.s3_objects[0]["key"] = new_key
+        data_source.save()
+        try:
+            boto3_client.Object(s3_bucket, s3_object_key).delete()
+        except botocore.exceptions.ClientError as e:
+            logger.warning(f"Unable to delete file with key {s3_object_key}!")
+
+    elif data_source.type == "images":
+        s3_objects_all = data_source.s3_objects
+
+        for index, s3_object in enumerate(s3_objects_all):
+            s3_object_key = s3_object["key"]
+            file_name = s3_object_key.split("/")[-1]
+            new_key = os.path.join(
+                data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, file_name
+            )
+            try:
+                boto3_client.Object(s3_bucket, new_key).copy_from(
+                    CopySource=os.path.join(s3_bucket, s3_object_key)
+                )
+            except botocore.exceptions.ClientError as e:
+                return ErrorResponse(f"Unable to Move file with key {s3_object_key}!")
+            data_source.s3_objects[index]["key"] = new_key
+            data_source.save()
+            try:
+                boto3_client.Object(s3_bucket, s3_object_key).delete()
+            except botocore.exceptions.ClientError as e:
+                logger.warning(f"Unable to delete file with key {s3_object_key}!")
 
     logger.info(
-        f"Updated folder hierarchy for datasource {data_source} in org {org_name}"
+        f"Updated folder hierarchy for datasource {data_source.name}:{data_source.id} in org {org_name}"
     )
 
 
