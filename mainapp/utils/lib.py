@@ -435,51 +435,26 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
         ACL="private",
     )
 
-    if data_source.type == "structured":
-        s3_object_key = data_source.s3_objects[0]["key"]
+    s3_objects_all = data_source.s3_objects
 
+    for index, s3_object in enumerate(s3_objects_all):
+        s3_object_key = s3_object["key"]
+        file_name = s3_object_key.split("/")[-1]
         new_key = os.path.join(
-            data_source_dir,
-            LYNX_STORAGE_DIR,
-            PrivilagePath.FULL.value,
-            data_source.name,
+            data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, file_name
         )
-
         try:
             boto3_client.Object(s3_bucket, new_key).copy_from(
                 CopySource=os.path.join(s3_bucket, s3_object_key)
             )
         except botocore.exceptions.ClientError as e:
             return ErrorResponse(f"Unable to Move file with key {s3_object_key}!")
-
-        data_source.s3_objects[0]["key"] = new_key
+        data_source.s3_objects[index]["key"] = new_key
         data_source.save()
         try:
             boto3_client.Object(s3_bucket, s3_object_key).delete()
         except botocore.exceptions.ClientError as e:
             logger.warning(f"Unable to delete file with key {s3_object_key}!")
-
-    elif data_source.type == "images":
-        s3_objects_all = data_source.s3_objects
-
-        for index, s3_object in enumerate(s3_objects_all):
-            s3_object_key = s3_object["key"]
-            file_name = s3_object_key.split("/")[-1]
-            new_key = os.path.join(
-                data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, file_name
-            )
-            try:
-                boto3_client.Object(s3_bucket, new_key).copy_from(
-                    CopySource=os.path.join(s3_bucket, s3_object_key)
-                )
-            except botocore.exceptions.ClientError as e:
-                return ErrorResponse(f"Unable to Move file with key {s3_object_key}!")
-            data_source.s3_objects[index]["key"] = new_key
-            data_source.save()
-            try:
-                boto3_client.Object(s3_bucket, s3_object_key).delete()
-            except botocore.exceptions.ClientError as e:
-                logger.warning(f"Unable to delete file with key {s3_object_key}!")
 
     logger.info(
         f"Updated folder hierarchy for datasource {data_source.name}:{data_source.id} in org {org_name}"
