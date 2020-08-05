@@ -2,10 +2,6 @@ import logging
 import uuid
 
 from django.db import models
-from django.db.models import signals
-from django.dispatch import receiver
-
-from mainapp.exceptions import BucketNotFound, PolicyNotFound, RoleNotFound
 from mainapp.utils import lib, aws_service
 
 logger = logging.getLogger(__name__)
@@ -53,6 +49,7 @@ class Dataset(models.Model):
     ancestor = models.ForeignKey(
         "self", on_delete=models.SET_NULL, related_name="children", null=True
     )
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = "datasets"
@@ -75,10 +72,9 @@ class Dataset(models.Model):
             return self.bucket_override
         return "lynx-dataset-" + str(self.id)
 
-    def delete_bucket(self, org_name):
-        logger.info(f"Deleting bucket {self.bucket} for dataset {self.name}:{self.id}")
-        lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
-        lib.delete_role_and_policy(bucket_name=self.bucket, org_name=org_name)
+    def delete(self, using=None, keep_parents=False):
+        self.is_deleted = True
+        self.save()
 
     def query(self, query):
         client = aws_service.create_athena_client(org_name=self.organization.name)
@@ -112,22 +108,3 @@ class Dataset(models.Model):
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"
-
-
-@receiver(signals.pre_delete, sender=Dataset)
-def delete_dataset(sender, instance, **kwargs):
-    dataset = instance
-    try:
-        dataset.delete_bucket(org_name=dataset.organization.name)
-    except BucketNotFound as e:
-        logger.warning(
-            f"Bucket {e.bucket_name} was not found for dataset {dataset.name}:{dataset.id} at delete bucket operation"
-        )
-    except PolicyNotFound as e:
-        logger.warning(
-            f"Policy {e.policy} was not found for dataset {dataset.name}{dataset.id} at delete bucket operation"
-        )
-    except RoleNotFound as e:
-        logger.warning(
-            f"Role {e.role} was not found for dataset {dataset.name}:{dataset.id} at delete bucket operation"
-        )
