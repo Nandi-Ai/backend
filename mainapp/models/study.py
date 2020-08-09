@@ -53,6 +53,7 @@ class Study(models.Model):
     )
     tags = models.ManyToManyField("Tag", related_name="study_tags")
     updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     cover = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
