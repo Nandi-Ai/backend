@@ -33,7 +33,7 @@ class UserViewSet(
             )
 
             return Response(
-                [{"id": user.id, "name": user.name or user.email} for user in users]
+                [{"id": user.id, "display_name": user.display_name} for user in users]
             )
         return Response([])
 
