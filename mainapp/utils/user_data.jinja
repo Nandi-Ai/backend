@@ -35,6 +35,10 @@ EOF
 chown ec2-user /home/life_hooks/docker_config.py
 chmod +x /home/life_hooks/docker_config.py
 
+# Docker Daemon configuration script
+date=$(date +%F--%H-%M)
+sudo echo '{"log-driver":"awslogs", "log-opts": {"awslogs-region": "{{org_region}}", "awslogs-group": "jupyter-notebook-docker", "awslogs-create-group": "true", "awslogs-stream": "jupyter-{{execution_token}}--'${date}'"}}' > /etc/docker/daemon.json
+
 # Startup Script
 cat << EOF > /home/life_hooks/startup.sh
 #!/bin/bash -x
