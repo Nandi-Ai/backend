@@ -281,6 +281,7 @@ class StudyViewSet(ModelViewSet):
                     org_name=org_name,
                     execution_token=study.execution.token,
                     workspace_bucket=study.bucket,
+                    study_id=study.id,
                 )
             except LaunchTemplateFailedError as ce:
                 return ErrorResponse(f"Study workspace failed to create", ce)

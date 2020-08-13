@@ -202,7 +202,9 @@ def delete_study(study):
 
 
 @with_ec2_client
-def setup_study_workspace(boto3_client, org_name, execution_token, workspace_bucket):
+def setup_study_workspace(
+    boto3_client, org_name, execution_token, workspace_bucket, study_id
+):
     organization_value = settings.ORG_VALUES[org_name]
     org_region = organization_value["AWS_REGION"]
     org_fs_server = organization_value["FS_SERVER"]
@@ -219,6 +221,7 @@ def setup_study_workspace(boto3_client, org_name, execution_token, workspace_buc
             lynx_region=lynx_org_value["AWS_REGION"],
             backend=settings.BACKEND_URL,
             notebook_image=settings.NOTEBOOK_IMAGE,
+            study_id=study_id,
         )
 
     try:
