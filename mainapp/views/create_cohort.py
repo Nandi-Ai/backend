@@ -1,5 +1,6 @@
 import json
 import logging
+from time import sleep
 
 from django.db.utils import IntegrityError
 from rest_framework.generics import GenericAPIView
@@ -10,6 +11,7 @@ from mainapp.serializers import CohortSerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.lib import process_structured_data_source_in_background
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -102,17 +104,19 @@ class CreateCohort(GenericAPIView):
                 limit=limit,
             )
 
+            org_name = dataset.organization.name
+
             if not destination_dataset.glue_database:
                 try:
                     lib.create_glue_database(
-                        org_name=dataset.organization.name, dataset=destination_dataset
+                        org_name=org_name, dataset=destination_dataset
                     )
                 except Exception as e:
                     error = Exception(
                         f"There was an error creating glue database: {dataset.glue_database}"
                     ).with_traceback(e.__traceback__)
                     return ErrorResponse(
-                        f"Coud not create database for {dataset.glue_database}",
+                        f"Could not create database for {dataset.glue_database}",
                         error=error,
                     )
 
@@ -125,7 +129,7 @@ class CreateCohort(GenericAPIView):
                 + " WITH (format = 'TEXTFILE', external_location = 's3://"
                 + destination_dataset.bucket
                 + "/"
-                + data_source.glue_table
+                + data_source.dir
                 + "/') AS "
                 + query
                 + ";"
@@ -133,9 +137,7 @@ class CreateCohort(GenericAPIView):
 
             logger.debug(f"Query result of CREATE TABLE AS SELECT {ctas_query}")
 
-            client = aws_service.create_athena_client(
-                org_name=dataset.organization.name
-            )
+            client = aws_service.create_athena_client(org_name=org_name)
             try:
                 response = client.start_query_execution(
                     QueryString=ctas_query,
@@ -159,30 +161,41 @@ class CreateCohort(GenericAPIView):
 
             logger.debug(f"Response of created query {response}")
 
+            sleep(3)
+            s3_object = lib.determine_data_source_s3_object_from_execution_id(
+                query_execution_id=response["QueryExecutionId"],
+                org_name=org_name,
+                dataset=destination_dataset,
+            )
+
             new_data_source = data_source
             new_data_source.id = None
-            new_data_source.s3_objects = None
+            new_data_source.s3_objects = [s3_object]
             new_data_source.dataset = destination_dataset
             cohort = {"filter": data_filter, "columns": columns, "limit": limit}
             new_data_source.cohort = cohort
 
             try:
                 new_data_source.save()
-                self.__monitor_cohort(
-                    event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
-                    user_ip=lib.get_client_ip(request),
-                    datasource=new_data_source,
-                    user=request.user,
-                )
-
             except IntegrityError as e:
                 return ErrorResponse(
                     f"Dataset {dataset.id} already has datasource with same name {new_data_source}",
                     error=e,
                 )
 
+            self.__monitor_cohort(
+                event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                user_ip=lib.get_client_ip(request),
+                datasource=new_data_source,
+                user=request.user,
+            )
+
             new_data_source.ancestor = data_source
             new_data_source.save()
+
+            process_structured_data_source_in_background(
+                org_name=org_name, data_source=data_source
+            )
 
             req_res = {"query": query, "ctas_query": ctas_query}
             return Response(req_res, status=201)

@@ -55,6 +55,13 @@ class Query(GenericAPIView):
                     error=e,
                 )
 
+            if access == "limited access":
+                glue_table = data_source.get_limited_glue_table_name(
+                    data_source.limited_value
+                )
+            else:
+                glue_table = data_source.glue_table
+
             if query_serialized.validated_data["query"]:
 
                 query = query_serialized.validated_data["query"]
@@ -79,7 +86,7 @@ class Query(GenericAPIView):
                 )
 
                 query, query_no_limit = devexpress_filtering.dev_express_to_sql(
-                    table=data_source.glue_table,
+                    table=glue_table,
                     data_filter=data_filter,
                     columns=columns,
                     limit=limit,
@@ -186,9 +193,7 @@ class Query(GenericAPIView):
                 True if request.GET.get("return_columns_types") == "true" else False
             )
             if return_columns_types or (return_result and result_format == "json"):
-                columns_types = dataset.get_columns_types(
-                    glue_table=data_source.glue_table
-                )
+                columns_types = dataset.get_columns_types(glue_table=glue_table)
                 if return_columns_types:
                     req_res["columns_types"] = columns_types
 

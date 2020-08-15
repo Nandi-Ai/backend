@@ -15,6 +15,7 @@ class DatasetSerializer(ModelSerializer):
             "full_access_users",
             "is_discoverable",
             "default_user_permission",
+            "permission_attributes",
             "user_created",
             "updated_at",
             "created_at",

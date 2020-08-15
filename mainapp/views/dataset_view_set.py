@@ -12,10 +12,12 @@ from rest_framework.viewsets import ModelViewSet
 from slugify import slugify
 
 from mainapp import resources
+from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity
 from mainapp.serializers import DatasetSerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.lib import process_structured_data_sources_in_background
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -101,7 +103,7 @@ class DatasetViewSet(ModelViewSet):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
 
         if dataset_serialized.is_valid():
-            # create the dataset insance:
+            # create the dataset instance:
             # TODO maybe use super() as in update instead of completing the all process.
 
             dataset_data = dataset_serialized.validated_data
@@ -137,6 +139,8 @@ class DatasetViewSet(ModelViewSet):
                 lib.create_s3_bucket(
                     org_name=org_name, name=dataset.bucket, s3_client=s3
                 )
+            except TooManyBucketsException as e:
+                return ErrorResponse(error=e)
             except botocore.exceptions.ClientError as e:
                 error = Exception(
                     f"Could not create s3 bucket {dataset.bucket} with following error"
@@ -290,6 +294,9 @@ class DatasetViewSet(ModelViewSet):
             )
             dataset.state = dataset_data["state"]
             dataset.default_user_permission = dataset_data["default_user_permission"]
+            dataset.permission_attributes = dataset_data.get(
+                "permission_attributes", None
+            )
             req_tags = dataset_data["tags"]
             dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
             dataset.user_created = request.user
@@ -545,9 +552,16 @@ class DatasetViewSet(ModelViewSet):
                         },
                     )
 
-        return super(self.__class__, self).update(
+        result = super(self.__class__, self).update(
             request=self.request
         )  # will handle the case where serializer is not valid
+
+        updated_dataset = self.get_object()
+        process_structured_data_sources_in_background(
+            org_name=updated_dataset.organization.name, dataset=updated_dataset
+        )
+
+        return result
 
     def destroy(self, request, *args, **kwargs):
         dataset = self.get_object()

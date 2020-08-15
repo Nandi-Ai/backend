@@ -6,7 +6,11 @@ from django.db import models
 from django.db.models import signals
 from django.dispatch import receiver
 
-from mainapp.utils import aws_service
+from mainapp.exceptions.limited_key_invalid_exception import LimitedKeyInvalidException
+from mainapp.utils.data_source import (
+    delete_data_source_glue_tables,
+    delete_data_source_files_from_bucket,
+)
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 
 logger = logging.getLogger(__name__)
@@ -38,6 +42,19 @@ class DataSource(models.Model):
     def bucket(self):
         return self.dataset.bucket
 
+    @property
+    def limited_value(self):
+        dataset = self.dataset
+        if dataset.default_user_permission == "limited_access":
+            limited = dataset.permission_attributes.get("key")
+            try:
+                return int(limited)
+            except ValueError:
+                raise LimitedKeyInvalidException(self)
+
+    def get_limited_glue_table_name(self, limited):
+        return f"{self.dir}_limited_{limited}"
+
 
 @receiver(signals.pre_delete, sender=DataSource)
 def delete_data_source(sender, instance, **kwargs):
@@ -48,48 +65,8 @@ def delete_data_source(sender, instance, **kwargs):
         f"for following dataset {data_source.dataset.name}:{data_source.dataset.id}"
         f"in org {data_source.dataset.organization.name}"
     )
-    if data_source.glue_table:
-        glue_client = aws_service.create_glue_client(org_name=org_name)
-        try:
-            glue_client.delete_table(
-                DatabaseName=data_source.dataset.glue_database,
-                Name=data_source.glue_table,
-            )
-            logger.info(
-                f"Removed glue table: {data_source.glue_table} "
-                f"for datasource {data_source.name}:{data_source.id} successfully "
-                f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
-                f"in org {data_source.dataset.organization.name}"
-            )
-        except glue_client.exceptions.EntityNotFoundException as e:
-            logger.warning(
-                f"Unexpected error when deleting glue table "
-                f"for datasource {data_source.name}:{data_source.id}",
-                error=e,
-            )
-
-    if data_source.dir:
-        if data_source.dir == "":
-            logger.warning(
-                f"Warning: data source {data_source.name}:{data_source.id} "
-                f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
-                f"in org {data_source.dataset.organization.name}'dir' field is an empty string ('')"
-            )
-        else:  # delete dir in bucket
-            s3_resource = aws_service.create_s3_resource(org_name=org_name)
-            try:
-                bucket = s3_resource.Bucket(data_source.bucket)
-                bucket.objects.filter(Prefix=data_source.dir + "/").delete()
-            except s3_resource.exceptions.NoSuchKey:
-                logger.warning(
-                    f"Warning no such key {data_source.dir} in {data_source.bucket}. "
-                    f"Ignoring deleting dir while deleting data_source {data_source.name}:{data_source.id} "
-                    f"in org {data_source.dataset.organization.name}"
-                )
-            except s3_resource.exceptions.NoSuchBucket:
-                logger.warning(
-                    f"Warning no such bucket {data_source.bucket} while trying to delete dir {dir}"
-                )
+    delete_data_source_glue_tables(data_source=data_source, org_name=org_name)
+    delete_data_source_files_from_bucket(data_source=data_source, org_name=org_name)
 
     ElasticsearchService.write_monitoring_event(
         event_type=MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE,

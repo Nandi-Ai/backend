@@ -5,14 +5,17 @@ logger = logging.getLogger(__name__)
 
 
 class ErrorResponse(Response):
-    def __init__(self, message, error=None, status_code=500):
+    def __init__(self, message=None, error=None, status_code=500):
         super().__init__()
         if error:
             logger.exception(error)
         else:
             logger.error(message)
         self.status_code = status_code
-        self.data = {"error": str(message)}
+        if message:
+            self.data = {"error": str(message)}
+        elif error:
+            self.data = {"error": str(error)}
 
 
 class UnimplementedErrorResponse(ErrorResponse):

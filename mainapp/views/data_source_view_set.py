@@ -16,6 +16,7 @@ from mainapp.serializers import DataSourceSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.lib import process_structured_data_source_in_background
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -114,7 +115,7 @@ class DataSourceViewSet(ModelViewSet):
 
             if data_source_data["type"] not in ds_types:
                 return BadRequestErrorResponse(
-                    f"Data source type must be one of: {ds_types}"
+                    f"Data s3_dir type must be one of: {ds_types}"
                 )
 
             if "s3_objects" in data_source_data:
@@ -127,7 +128,7 @@ class DataSourceViewSet(ModelViewSet):
 
                 if len(data_source_data["s3_objects"]) != 1:
                     return BadRequestErrorResponse(
-                        f"Data source of type {data_source_data['type']} "
+                        f"Data s3_dir of type {data_source_data['type']} "
                         f"structured and zip must include exactly one item in s3_objects json array"
                     )
 
@@ -135,7 +136,7 @@ class DataSourceViewSet(ModelViewSet):
                 path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
                 if ext not in ["sav", "zsav", "csv", "xml"]:
                     return BadRequestErrorResponse(
-                        "File type is not supported as a structured data source"
+                        "File type is not supported as a structured data s3_dir"
                     )
             data_source = data_source_serialized.save()
             data_source.state = "error"
@@ -228,17 +229,9 @@ class DataSourceViewSet(ModelViewSet):
                         error=e,
                     )
 
-                data_source.state = "pending"
-                data_source.save()
-
-                create_catalog_thread = threading.Thread(
-                    target=lib.create_catalog,
-                    kwargs={
-                        "org_name": dataset.organization.name,
-                        "data_source": data_source,
-                    },
-                )  # also setting the data_source state to ready when it's done
-                create_catalog_thread.start()
+                process_structured_data_source_in_background(
+                    org_name=dataset.organization.name, data_source=data_source
+                )
 
             elif data_source.type == "zip":
                 data_source.state = "pending"
