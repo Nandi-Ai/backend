@@ -400,7 +400,6 @@ def process_structured_data_sources_in_background(org_name, dataset):
         limited_value = dataset.get_limited_value()
 
         def thread(ds):
-            print(ds)
             try:
                 return create_limited_athena_table(
                     data_source=ds, org_name=org_name, limited=limited_value
