@@ -21,6 +21,7 @@ class StudySerializer(ModelSerializer):
             "users",
             "tags",
             "updated_at",
+            "created_at",
             "description",
             "user_created",
             "cover",
