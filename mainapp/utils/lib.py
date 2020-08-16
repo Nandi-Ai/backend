@@ -511,24 +511,14 @@ def create_limited_athena_table(boto3_client, data_source, org_name, limited):
     )
 
     dataset = data_source.dataset
+    glue_database = dataset.glue_database
     bucket = dataset.bucket
-    destination = (
-        bucket
-        + "/"
-        + data_source.dir
-        + f"/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
-    )
+    destination = f"{bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
     # noinspection SqlNoDataSourceInspection
     ctas_query = (
-        'CREATE TABLE "'
-        + dataset.glue_database
-        + '"."'
-        + f"{data_source.dir}_limited_{limited}"
-        + '"'
-        + " WITH (format = 'TEXTFILE', external_location = 's3://"
-        + destination
-        + "') AS "
-        + f'SELECT * FROM "{dataset.glue_database}"."{data_source.glue_table}" '
+        f'CREATE TABLE "{glue_database}"."{data_source.dir}_limited_{limited}" '
+        f"WITH (format = 'TEXTFILE', external_location = 's3://{destination}') "
+        f'AS SELECT * FROM "{glue_database}"."{data_source.glue_table}" '
         f"ORDER BY RANDOM() limit {limited};"
     )
 
@@ -537,9 +527,7 @@ def create_limited_athena_table(boto3_client, data_source, org_name, limited):
     try:
         query_results = boto3_client.start_query_execution(
             QueryString=ctas_query,
-            QueryExecutionContext={
-                "Database": dataset.glue_database  # the name of the database in glue/athena
-            },
+            QueryExecutionContext={"Database": glue_database},
             ResultConfiguration={
                 "OutputLocation": f"s3://{bucket}/temp_execution_results"
             },
