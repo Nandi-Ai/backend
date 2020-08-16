@@ -361,17 +361,13 @@ def create_glue_table(boto3_client, org_name, data_source):
             )
             boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
 
-            logger.debug(f"Updating folder hierarchy for data_source {data_source.id}")
             update_folder_hierarchy(data_source=data_source, org_name=org_name)
-            logger.debug(f"Creating agg_stats for data_source {data_source.id}")
             create_agg_stats(data_source=data_source, org_name=org_name)
             limited = data_source.limited_value
             if limited:
-                logger.debug(f"Creating limited for data_source {data_source.id}")
                 create_limited_athena_table(
                     data_source=data_source, org_name=org_name, limited=limited
                 )
-            logger.debug(f"Updating glue table for data_source {data_source.id}")
             update_glue_table(data_source=data_source, org_name=org_name)
 
             data_source.state = "ready"
