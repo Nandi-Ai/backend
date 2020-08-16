@@ -35,6 +35,10 @@ EOF
 chown ec2-user /home/life_hooks/docker_config.py
 chmod +x /home/life_hooks/docker_config.py
 
+# Docker Daemon configuration script
+date=$(date +%F--%H-%M)
+sudo echo '{"log-driver":"awslogs", "log-opts": {"awslogs-region": "{{org_region}}", "awslogs-group": "jupyter-notebook-docker", "awslogs-create-group": "true", "awslogs-stream": "jupyter-{{execution_token}}--'${date}'"}}' > /etc/docker/daemon.json
+
 # Startup Script
 cat << EOF > /home/life_hooks/startup.sh
 #!/bin/bash -x
@@ -51,7 +55,7 @@ python3 /home/life_hooks/docker_config.py
 sudo s3fs -o iam_role="PrivacyFirewallClient" -o url="https://s3.{{org_region}}.amazonaws.com" -o endpoint={{org_region}} -o dbglevel=info -o curldbg -o allow_other -o use_cache=/tmp -o umask=0000 {{bucket}} /home/ec2-user/workspace
 sudo git -C /home/fs_client pull
 sudo python3 /home/fs_client/main.py -m /home/ec2-user/data -s {{fs_server}} &
-docker --config /home/docker_config/ run --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}
+docker --config /home/docker_config/ run --env STUDY={{study_id}} --env TOKEN={{execution_token}} --env LYNX_API_URL={{backend}} -d -h jupyter-{{execution_token}} -v /home/ec2-user/workspace:/home/jovyan -v /home/ec2-user/data:/home/jovyan/data -p 8888:8888 {{notebook_image}}
 python3 -c 'import requests, json; requests.post("{{backend}}/study_status", auth=("{{execution_token}}@lynx.md", "{{execution_token}}"), data=json.dumps({"status": "active"}), headers={"content-type": "application/json"})'
 sudo crontab /home/life_hooks/crontab.txt
 EOF
