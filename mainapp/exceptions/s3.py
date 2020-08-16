@@ -7,5 +7,5 @@ class BucketNotFound(Exception):
 class TooManyBucketsException(Exception):
     def __init__(self):
         super().__init__(
-            f"Dataset creation limit has reached. please contact the administrator"
+            f"Dataset creation limit has reached. Please contact the administrator"
         )
