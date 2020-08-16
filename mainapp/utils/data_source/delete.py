@@ -38,8 +38,8 @@ def __delete_glue_tables_chunk(data_source, glue_client, database_name, max_resu
     for table in tables_list:
         table_name = table["Name"]
         if (
-            table_name == data_source.dir + "_full"
-            or data_source.dir + "_limited" in table_name
+            table_name == f"{data_source.dir}_full"
+            or f"{data_source.dir}_limited" in table_name
         ):
             glue_client.delete_table(DatabaseName=database_name, Name=table_name)
 
