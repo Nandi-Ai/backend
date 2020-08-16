@@ -120,19 +120,11 @@ class CreateCohort(GenericAPIView):
                         error=error,
                     )
 
+            # noinspection SqlNoDataSourceInspection
             ctas_query = (
-                'CREATE TABLE "'
-                + destination_dataset.glue_database
-                + '"."'
-                + data_source.glue_table
-                + '"'
-                + " WITH (format = 'TEXTFILE', external_location = 's3://"
-                + destination_dataset.bucket
-                + "/"
-                + data_source.dir
-                + "/') AS "
-                + query
-                + ";"
+                f'CREATE TABLE "{destination_dataset.glue_database}"."{data_source.glue_table}" '
+                f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dataset.bucket}/{data_source.dir}"
+                f"/') AS {query};"
             )
 
             logger.debug(f"Query result of CREATE TABLE AS SELECT {ctas_query}")
