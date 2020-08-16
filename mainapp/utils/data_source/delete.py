@@ -17,7 +17,7 @@ def delete_data_source_files_from_bucket(data_source, org_name):
             s3_resource = aws_service.create_s3_resource(org_name=org_name)
             try:
                 bucket = s3_resource.Bucket(data_source.bucket)
-                bucket.objects.filter(Prefix=data_source.dir + "/").delete()
+                bucket.objects.filter(Prefix=f"{data_source.dir}/").delete()
             except s3_resource.meta.client.exceptions.NoSuchKey:
                 logger.warning(
                     f"Warning no such key {data_source.dir} in {data_source.bucket}. "
