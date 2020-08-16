@@ -49,6 +49,7 @@ def delete_data_source_glue_tables(data_source, org_name):
         glue_client = aws_service.create_glue_client(org_name=org_name)
 
         try:
+            # todo add endless loop on chunks until empty in case there are more than 100 glue tables for a data_source
             __delete_glue_tables_chunk(
                 data_source=data_source,
                 database_name=data_source.dataset.glue_database,
