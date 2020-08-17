@@ -1,4 +1,5 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, ValidationError
+
 from mainapp.models import Dataset
 from mainapp.serializers.user import UserSerializer
 
@@ -45,6 +46,12 @@ class DatasetSerializer(ModelSerializer):
             "studies": {"read_only": True},
             "starred_users": {"allow_empty": True, "read_only": True},
         }
+
+        def validate(self, data):
+            for user in data["aggregated_data"]:
+                if user.id in data["full_access"]:
+                    raise ValidationError("user already exist")
+            return data
 
         def get_request_user(self):
             request = self.context.get("request")
