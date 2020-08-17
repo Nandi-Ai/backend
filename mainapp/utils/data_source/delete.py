@@ -30,7 +30,7 @@ def delete_data_source_files_from_bucket(data_source, org_name):
                 )
 
 
-def __delete_glue_tables_chunk(data_source, glue_client, database_name, max_results):
+def delete_glue_tables_chunk(data_source, glue_client, database_name, max_results):
     response = glue_client.get_tables(
         DatabaseName=database_name, MaxResults=max_results
     )
@@ -50,7 +50,7 @@ def delete_data_source_glue_tables(data_source, org_name):
 
         try:
             # todo add endless loop on chunks until empty in case there are more than 100 glue tables for a data_source
-            __delete_glue_tables_chunk(
+            delete_glue_tables_chunk(
                 data_source=data_source,
                 database_name=data_source.dataset.glue_database,
                 glue_client=glue_client,
