@@ -120,7 +120,7 @@ class Dataset(models.Model):
         )
 
     def get_limited_value(self):
-        return self.permission_attributes.get("key", None)
+        return self.permission_attributes.get("key")
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"
