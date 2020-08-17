@@ -1,5 +1,6 @@
 import logging
 
+from mainapp.exceptions import InvalidBotoResponse
 from mainapp.utils import aws_service
 
 logger = logging.getLogger(__name__)
@@ -34,14 +35,20 @@ def delete_glue_tables_chunk(data_source, glue_client, database_name, max_result
     response = glue_client.get_tables(
         DatabaseName=database_name, MaxResults=max_results
     )
-    tables_list = response["TableList"]
-    for table in tables_list:
-        table_name = table["Name"]
-        if (
-            table_name == f"{data_source.dir}_full"
-            or f"{data_source.dir}_limited" in table_name
-        ):
-            glue_client.delete_table(DatabaseName=database_name, Name=table_name)
+    try:
+        tables_list = response["TableList"]
+        for table in tables_list:
+            table_name = table["Name"]
+            if (
+                table_name == f"{data_source.dir}_full"
+                or f"{data_source.dir}_limited" in table_name
+            ):
+                glue_client.delete_table(DatabaseName=database_name, Name=table_name)
+    except KeyError as e:
+        logger.warning(
+            "Invalid response from glue_client.get_tables. TableList field is missing"
+        )
+        raise InvalidBotoResponse(response) from e
 
 
 def delete_data_source_glue_tables(data_source, org_name):
@@ -63,6 +70,10 @@ def delete_data_source_glue_tables(data_source, org_name):
                 f"in org {data_source.dataset.organization.name}"
             )
 
+        except InvalidBotoResponse:
+            logger.warning(
+                f"Invalid response from boto when trying to delete all glue tables for data_source "
+            )
         except glue_client.exceptions.EntityNotFoundException as e:
             logger.exception(
                 f"Unexpected error when deleting glue table "
