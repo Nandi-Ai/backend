@@ -14,8 +14,6 @@ from time import sleep
 import botocore
 import botocore.exceptions
 import magic
-import pytz
-import requests
 import sqlparse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -712,57 +710,6 @@ def calc_access_to_database(user, dataset):
         return "full access"
 
     return "no permission"  # safe. includes archived dataset
-
-
-# todo are we using this? can we remove it?
-def close_all_jh_running_servers(idle_for_hours=0):
-    import dateparser
-
-    aws_response = requests.get(
-        "http://169.254.169.254/latest/dynamic/instance-identity/document"
-    )
-    aws_response_json = aws_response.json()["accountId"]
-    for account_key, account_value in settings.ORG_VALUES.items():
-        if account_value["ACCOUNT_NUMBER"] == aws_response_json:
-            org_name = account_key
-        else:
-            logger.exception("No such account")
-    headers = {
-        "Authorization": "Bearer "
-        + settings.ORG_VALUES[org_name]["JH"]["JH_API_ADMIN_TOKEN"],
-        "ALBTOKEN": settings.ORG_VALUES[org_name]["JH"]["JH_ALB_TOKEN"],
-    }
-    res = requests.get(
-        settings.ORG_VALUES[org_name]["JH"]["JH_URL"] + "hub/api/users",
-        headers=headers,
-        verify=False,
-    )
-    assert res.status_code == 200, "error getting users: " + res.text
-    users = json.loads(res.text)
-    for user in users:
-        # if user['admin']:
-        #     continue
-        if user["server"]:
-            last_activity = user["last_activity"] or user["created"]
-            idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
-            if idle_time > td(hours=idle_for_hours):
-                res = requests.delete(
-                    settings.ORG_VALUES[org_name]["JH"]["JH_URL"]
-                    + "hub/api/users/"
-                    + user["name"]
-                    + "/server",
-                    headers=headers,
-                    verify=False,
-                )
-                logger.debug(
-                    f"User: {user['name']} "
-                    f"idle time: {idle_time}, {str(res.status_code)}, {res.text}"
-                )
-            else:
-                logger.debug(
-                    f"User: {user['name']} "
-                    f"idle time: {idle_time} < {td(hours=idle_for_hours)}"
-                )
 
 
 def load_tags(delete_removed_tags=True):
