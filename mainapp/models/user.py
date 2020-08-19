@@ -125,7 +125,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def related_studies(self):
         studies_ids = []
+        # get all studies which the collaborator in
         studies_ids = studies_ids + [s.id for s in self.studies.all()]
+        # for activity purposes, we need to return also the studies which uses dataset which the user admins.
         for dataset in self.admin_datasets.all():
             studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
         studies = Study.objects.filter(
