@@ -53,18 +53,26 @@ ALLOWED_STATUSES = [enum[1] for enum in Study.possible_statuses_for_study]
 STATUS_ARGS = {
     "start": {
         "instance_method": "start",
+        "expected_statuses": [AWS_EC2_STOPPED],
         "blocker_statuses": [AWS_EC2_SHUTTING_DOWN, AWS_EC2_STOPPING],
         "killer_statuses": [AWS_EC2_STARTING, AWS_EC2_RUNNING],
         "toggle_status": Study.VM_STARTING,
     },
     "stop": {
         "instance_method": "stop",
+        "expected_statuses": [AWS_EC2_RUNNING],
         "blocker_statuses": [AWS_EC2_STARTING],
         "killer_statuses": [AWS_EC2_SHUTTING_DOWN, AWS_EC2_STOPPING, AWS_EC2_STOPPED],
         "toggle_status": Study.VM_STOPPING,
     },
     "terminate": {
         "instance_method": "terminate",
+        "expected_statuses": [
+            AWS_EC2_RUNNING,
+            AWS_EC2_STARTING,
+            AWS_EC2_STOPPED,
+            AWS_EC2_STOPPED,
+        ],
         "blocker_statuses": [],
         "killer_statuses": [],
         "toggle_status": Study.STUDY_DELETED,
@@ -106,15 +114,16 @@ def wait_until_stopped(instance, study):
         update_study_state(study, Study.ST_ERROR)
 
 
-def get_and_update_study_instance(boto3_client, study):
+def get_and_update_study_instance(boto3_client, study, status_filter):
     """
     get the study instance, and update the database accordingly to the VM status
     :param boto3_client: boto3 client with access to the study instance
     :param study: Study Django model
+    :param status_filter: A list of ec2 instance statuses to filter by
     :return: aws ec2 instance object
     """
     execution_token = study.execution.execution_user.email.split("@")[0]
-    instance = get_instance(boto3_client, execution_token)
+    instance = get_instance(boto3_client, execution_token, status_filter)
     state_name = instance.state.get("Name")
     if not state_name:
         raise InvalidEc2Status(state_name)
@@ -128,11 +137,13 @@ def toggle_study_vm(
     org_name,
     study,
     instance_method,
+    expected_statuses,
     blocker_statuses,
     killer_statuses,
     toggle_status,
 ):
-    instance = get_and_update_study_instance(boto3_client, study)
+    statuses_to_filter = expected_statuses + blocker_statuses + killer_statuses
+    instance = get_and_update_study_instance(boto3_client, study, statuses_to_filter)
     state_name = instance.state.get("Name")
     if state_name in killer_statuses:
         logger.info(
