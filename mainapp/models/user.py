@@ -203,4 +203,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             return "full_access"
         if self in dataset.aggregated_users.all():
             return "aggregated_access"
+        if self in dataset.users.all():
+            return "limited_access"
         # this function can also return None.....

@@ -389,6 +389,24 @@ def process_structured_data_source_in_background(org_name, data_source):
     create_glue_table_thread.start()
 
 
+def process_dataset_user(dataset_user):
+    dataset = dataset_user.dataset
+    organization = dataset.organization
+    organization_name = organization.name
+    if dataset_user.permission == "limited_access":
+        limited_value = dataset_user.get_limited_value()
+
+        def thread(ds):
+            try:
+                return create_limited_athena_table(
+                    data_source=ds, org_name=organization_name, limited=limited_value
+                )
+            except Exception as e:
+                logger.exception(e)
+
+        executor.map(thread, dataset.data_sources.all())
+
+
 def process_structured_data_sources_in_background(org_name, dataset):
     if dataset.default_user_permission == "limited_access":
         limited_value = dataset.get_limited_value()

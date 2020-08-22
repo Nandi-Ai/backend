@@ -30,6 +30,9 @@ class Dataset(models.Model):
     full_access_users = models.ManyToManyField(
         "User", related_name="full_access_datasets"
     )
+    users = models.ManyToManyField(
+        "User", related_name="permitted_datasets", through="DatasetUser"
+    )
     user_created = models.ForeignKey(
         "User", on_delete=models.SET_NULL, related_name="datasets_created", null=True
     )

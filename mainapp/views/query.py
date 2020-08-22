@@ -5,7 +5,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
 from mainapp.exceptions import BucketNotFound
-from mainapp.models import Dataset, DataSource
+from mainapp.models import Dataset, DataSource, DatasetUser
 from mainapp.serializers import QuerySerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import lib
@@ -55,7 +55,15 @@ class Query(GenericAPIView):
                     error=e,
                 )
 
-            if access == "limited access":
+            users = dataset.users.all()
+            if request.user in users:
+                dataset_user = DatasetUser.objects.filter(
+                    user=request.user, dataset=dataset
+                )[0]
+                glue_table = data_source.get_limited_glue_table_name(
+                    dataset_user.get_limited_value()
+                )
+            elif access == "limited access":
                 glue_table = data_source.get_limited_glue_table_name(
                     data_source.limited_value
                 )

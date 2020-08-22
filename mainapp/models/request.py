@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
@@ -21,6 +22,7 @@ class Request(models.Model):
     type = models.CharField(choices=types, max_length=32)
     note = models.CharField(null=True, blank=True, max_length=2048)
     permission = models.CharField(null=True, blank=True, max_length=32)
+    permission_attributes = JSONField(null=True, default=None)
     state = models.CharField(null=True, blank=True, default="pending", max_length=32)
 
     class Meta:

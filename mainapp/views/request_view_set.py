@@ -1,4 +1,5 @@
 import logging
+import math
 
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -6,7 +7,6 @@ from rest_framework.viewsets import ModelViewSet
 from mainapp.models import Request
 from mainapp.serializers import RequestSerializer
 from mainapp.utils.response_handler import (
-    NotFoundErrorResponse,
     ConflictErrorResponse,
     BadRequestErrorResponse,
 )
@@ -36,36 +36,60 @@ class RequestViewSet(ModelViewSet):
             request_data = request_serialized.validated_data
 
             if request_data["type"] == "dataset_access":
-                permission_request_types = ["aggregated_access", "full_access"]
+                permission_request_types = [
+                    "aggregated_access",
+                    "full_access",
+                    "limited_access",
+                ]
 
                 if "dataset" not in request_data:
-                    return NotFoundErrorResponse(
+                    return BadRequestErrorResponse(
                         "Please mention dataset if type is dataset_access"
                     )
 
                 if request_data["dataset"] not in request.user.datasets.filter(
                     state="private"
                 ):
-                    return NotFoundErrorResponse(
+                    return BadRequestErrorResponse(
                         f"Can not request access for a dataset that is not private"
                     )
 
                 dataset = request_data["dataset"]
 
                 if "permission" not in request_data:
-                    return NotFoundErrorResponse(
+                    return BadRequestErrorResponse(
                         "Please mention a permission for that kind of request"
                     )
 
-                if request_data["permission"] not in permission_request_types:
-                    return NotFoundErrorResponse(
+                requested_permission = request_data["permission"]
+
+                if requested_permission not in permission_request_types:
+                    return BadRequestErrorResponse(
                         f"Permission must be one of: {permission_request_types}"
                     )
 
+                if requested_permission == "limited_access":
+                    if "permission_attributes" not in request_data:
+                        return BadRequestErrorResponse(
+                            f"permission_attributes field is required for Limited access request"
+                        )
+                    permission_attributes = request_data["permission_attributes"]
+                    if "key" not in permission_attributes:
+                        return BadRequestErrorResponse(
+                            f"key field is missing in permission_attributes"
+                        )
+                    key = permission_attributes["key"]
+                    if not math.isnan(key) and not key > 0:
+                        return BadRequestErrorResponse(
+                            f"Limited value must be valid positive whole number: {permission_request_types}"
+                        )
+
                 # the logic validations:
+                current_user_permission = request.user.permission(dataset)
+
                 if (
-                    request.user.permission(dataset) == "full_access"
-                    and request_data["permission"] == "full_access"
+                    current_user_permission == "full_access"
+                    and requested_permission == "full_access"
                 ):
                     return ConflictErrorResponse(
                         f"You already have {request_data['permission']} access for this dataset {dataset.name}"
@@ -73,19 +97,28 @@ class RequestViewSet(ModelViewSet):
                     )
 
                 if (
-                    request.user.permission(dataset) == "full_access"
-                    and request_data["permission"] == "aggregated_access"
+                    current_user_permission == "full_access"
+                    and requested_permission == "aggregated_access"
                 ):
                     return ConflictErrorResponse(
                         f"You already have aggregated access for this dataset {dataset.name}"
                         f"with following dataset id{dataset.id}"
                     )
 
-                if request.user.permission(dataset) is "admin":
+                if (
+                    current_user_permission == "full_access"
+                    and requested_permission == "limited_access"
+                ):
+                    return ConflictErrorResponse(
+                        f"You already have full access for this dataset {dataset.name}"
+                        f"with following dataset id{dataset.id}"
+                    )
+
+                if current_user_permission is "admin":
                     return ConflictErrorResponse(
                         f"You are already an admin of this dataset {dataset.name} "
                         f"with the following dataset id {dataset.id}. "
-                        f"Your are granted with full permission"
+                        f"You are granted with full permission"
                     )
 
                 existing_requests = Request.objects.filter(
@@ -96,12 +129,12 @@ class RequestViewSet(ModelViewSet):
                 )
 
                 if existing_requests.filter(permission="aggregated_access"):
-                    if request_data["permission"] == "aggregated_access":
+                    if requested_permission == "aggregated_access":
                         return ConflictErrorResponse(
                             f"You already requested aggregated access for this dataset {dataset.name}"
                             f"with following dataset id {dataset.id}"
                         )
-                    if request_data["permission"] == "full_access":
+                    if requested_permission == "full_access":
                         return ConflictErrorResponse(
                             f"You have already requested aggregated access for this dataset {dataset.name} "
                             f"with the following dataset id {dataset.id}."
@@ -114,22 +147,41 @@ class RequestViewSet(ModelViewSet):
                         f"You have already requested full access for that dataset {dataset.name}"
                     )
 
-                request_data["user_requested"] = request.user
-                request = request_serialized.save()
+                if existing_requests.filter(permission="limited_access"):
+                    if requested_permission == "limited_access":
+                        return ConflictErrorResponse(
+                            f"You already requested limited access for this dataset {dataset.name}"
+                            f"with following dataset id {dataset.id}"
+                        )
+                    if requested_permission == "full_access":
+                        return ConflictErrorResponse(
+                            f"You have already requested limited access for this dataset {dataset.name} "
+                            f"with the following dataset id {dataset.id}."
+                            "You have to wait for an admin to response your current request "
+                            "before requesting full access"
+                        )
 
-                if request.dataset:
+                request_data["user_requested"] = request.user
+                created_request = request_serialized.save()
+
+                if created_request.dataset:
                     logger.info(
-                        f"Request created {request.id} by user: {request.user.display_name} for {request.permission} "
-                        f"on dataset {request.dataset.name}:{request.dataset.id} in org {request.dataset.organization.name}"
+                        f"Request created {created_request.id} by user: {created_request.user_requested.display_name} "
+                        f"for {created_request.permission} "
+                        f"on dataset {created_request.dataset.name}:{created_request.dataset.id} "
+                        f"in org {created_request.dataset.organization.name}"
                     )
-                if request.study:
+                if created_request.study:
                     logger.info(
-                        f"Request created {request.id} by user: {request.user.display_name} for {request.permission} "
-                        f"on study {request.study.name}:{request.study.id} in org {request.study.organization.name}"
+                        f"Request created {created_request.id} by user: {created_request.user_requested.display_name} "
+                        f"for {created_request.permission} "
+                        f"on study {created_request.study.name}:{created_request.study.id} "
+                        f"in org {created_request.study.organization.name}"
                     )
 
                 return Response(
-                    self.serializer_class(request, allow_null=True).data, status=201
+                    self.serializer_class(created_request, allow_null=True).data,
+                    status=201,
                 )
         else:
             return BadRequestErrorResponse(

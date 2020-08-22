@@ -13,7 +13,7 @@ from slugify import slugify
 
 from mainapp import resources
 from mainapp.exceptions.s3 import TooManyBucketsException
-from mainapp.models import User, Dataset, Tag, Execution, Activity
+from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
 from mainapp.serializers import DatasetSerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
@@ -292,6 +292,7 @@ class DatasetViewSet(ModelViewSet):
             dataset.full_access_users.set(
                 list(User.objects.filter(id__in=[x.id for x in req_full_access_users]))
             )
+
             dataset.state = dataset_data["state"]
             dataset.default_user_permission = dataset_data["default_user_permission"]
             dataset.permission_attributes = dataset_data.get(
@@ -313,6 +314,13 @@ class DatasetViewSet(ModelViewSet):
                 # for private dataset case with aggregated_access permission
                 if dataset.default_user_permission == "aggregated_access":
                     dataset.aggregated_users.add(request.user.id)
+                if dataset.default_user_permission == "limited_access":
+                    DatasetUser.objects.create(
+                        dataset=dataset,
+                        user=request.user,
+                        permission="limited_access",
+                        permission_attributes=dataset.permission_attributes,
+                    )
             dataset.organization = (
                 dataset.ancestor.organization
                 if dataset.ancestor
