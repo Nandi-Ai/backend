@@ -363,7 +363,7 @@ def create_glue_table(boto3_client, org_name, data_source):
             create_agg_stats(data_source=data_source, org_name=org_name)
             limited = data_source.limited_value
             if limited:
-                create_limited_athena_table(
+                create_limited_glue_table(
                     data_source=data_source, org_name=org_name, limited=limited
                 )
             update_glue_table(data_source=data_source, org_name=org_name)
@@ -398,7 +398,7 @@ def process_dataset_user(dataset_user):
 
         def thread(ds):
             try:
-                return create_limited_athena_table(
+                return create_limited_glue_table(
                     data_source=ds, org_name=organization_name, limited=limited_value
                 )
             except Exception as e:
@@ -413,7 +413,7 @@ def process_structured_data_sources_in_background(org_name, dataset):
 
         def thread(ds):
             try:
-                return create_limited_athena_table(
+                return create_limited_glue_table(
                     data_source=ds, org_name=org_name, limited=limited_value
                 )
             except Exception as e:
@@ -517,7 +517,7 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
 
 
 @with_athena_client
-def create_limited_athena_table(boto3_client, data_source, org_name, limited):
+def create_limited_glue_table(boto3_client, data_source, org_name, limited):
     logger.info(
         f"creating limited table for data_source {data_source.id} limited={limited}"
     )
