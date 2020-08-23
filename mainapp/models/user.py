@@ -142,6 +142,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             | self.full_access_datasets.filter(is_discoverable=False)
             | self.aggregated_datasets.filter(is_discoverable=False)
             | self.admin_datasets.filter(is_discoverable=False)
+            | self.permitted_datasets.filter(is_discoverable=False)
         ).distinct()
         not_archived_datasets = (
             Dataset.objects.exclude(state="archived")

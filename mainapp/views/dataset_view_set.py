@@ -276,6 +276,12 @@ class DatasetViewSet(ModelViewSet):
                     error=error,
                 )
 
+            dataset.organization = (
+                dataset.ancestor.organization
+                if dataset.ancestor
+                else request.user.organization
+            )
+
             dataset.save()
 
             dataset.description = dataset_data["description"]
@@ -292,6 +298,10 @@ class DatasetViewSet(ModelViewSet):
             dataset.full_access_users.set(
                 list(User.objects.filter(id__in=[x.id for x in req_full_access_users]))
             )
+
+            req_users = dataset_data["datasetuser_set"]
+            for dataset_user in req_users:
+                DatasetUser.objects.create(dataset=dataset, **dataset_user)
 
             dataset.state = dataset_data["state"]
             dataset.default_user_permission = dataset_data["default_user_permission"]
@@ -321,11 +331,7 @@ class DatasetViewSet(ModelViewSet):
                         permission="limited_access",
                         permission_attributes=dataset.permission_attributes,
                     )
-            dataset.organization = (
-                dataset.ancestor.organization
-                if dataset.ancestor
-                else request.user.organization
-            )
+
             # dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = (
                 slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]

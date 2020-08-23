@@ -3,8 +3,8 @@ from rest_framework.serializers import ModelSerializer, ValidationError
 
 from mainapp.models import Dataset, DatasetUser, User
 from mainapp.serializers.user import UserSerializer
-from serializers.dataset_user import DatasetUserSerializer
-from utils.lib import process_dataset_user
+from mainapp.serializers.dataset_user import DatasetUserSerializer
+from mainapp.utils.lib import process_dataset_user
 
 
 class DatasetSerializer(ModelSerializer):

@@ -6,7 +6,7 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.models import Activity
-from utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 
 logger = logging.getLogger(__name__)
 

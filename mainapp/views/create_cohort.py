@@ -75,7 +75,7 @@ class CreateCohort(GenericAPIView):
                 )
             except DataSource.DoesNotExist as e:
                 return ForbiddenErrorResponse(
-                    f"Dataset not found or does not have permissions", error=e
+                    f"Datasource not found or does not have permissions", error=e
                 )
 
             access = lib.calc_access_to_database(user, dataset)
@@ -186,7 +186,7 @@ class CreateCohort(GenericAPIView):
             new_data_source.save()
 
             process_structured_data_source_in_background(
-                org_name=org_name, data_source=data_source
+                org_name=org_name, data_source=new_data_source
             )
 
             req_res = {"query": query, "ctas_query": ctas_query}
