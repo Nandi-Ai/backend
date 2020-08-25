@@ -1,9 +1,9 @@
 from django.db import transaction
-from mainapp.serializers.study_dataset import StudyDatasetSerializer
-from mainapp.serializers.user import UserSerializer
 from rest_framework.serializers import ModelSerializer
 
 from mainapp.models import Study, StudyDataset, Dataset
+from mainapp.serializers.study_dataset import StudyDatasetSerializer
+from mainapp.serializers.user import UserSerializer
 
 
 class StudySerializer(ModelSerializer):
@@ -67,7 +67,10 @@ class StudySerializer(ModelSerializer):
                     )
 
                 StudyDataset.objects.create(
-                    study=instance, dataset=dataset_instance, permission=permission
+                    study=instance,
+                    dataset=dataset_instance,
+                    permission=permission,
+                    permission_attributes=permission_attributes,
                 )
 
         if len(prev_datasets) > 0:
