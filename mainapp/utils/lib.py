@@ -318,10 +318,33 @@ def create_glue_database(boto3_client, org_name, dataset):
 
 
 @with_glue_client
+def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source):
+    try:
+        update_folder_hierarchy(data_source=data_source, org_name=org_name)
+        create_agg_stats(data_source=data_source, org_name=org_name)
+        limited = data_source.limited_value
+        if limited:
+            create_limited_glue_table(
+                data_source=data_source, org_name=org_name, limited=limited
+            )
+        update_glue_table(data_source=data_source, org_name=org_name)
+        data_source.state = "ready"
+    except Exception as e:
+        logger.exception(
+            f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
+        )
+        data_source.state = "error"
+
+    data_source.save()
+
+
+@with_glue_client
 def create_glue_table(boto3_client, org_name, data_source):
     create_glue_crawler(data_source=data_source, org_name=org_name)
 
-    boto3_client.start_crawler(Name=f"data_source-{data_source.id}")
+    crawler_name = f"data_source-{data_source.id}"
+
+    boto3_client.start_crawler(Name=crawler_name)
     logger.info(
         f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
         f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
@@ -332,7 +355,7 @@ def create_glue_table(boto3_client, org_name, data_source):
     retries = max_retries
 
     while not crawler_ready and retries >= 0:
-        res = boto3_client.get_crawler(Name=f"data_source-{data_source.id}")
+        res = boto3_client.get_crawler(Name=crawler_name)
         crawler_ready = True if res["Crawler"]["State"] == "READY" else False
         sleep(5)
         retries -= 1
@@ -342,6 +365,7 @@ def create_glue_table(boto3_client, org_name, data_source):
         f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
         f"for org_name {org_name} has finished: {crawler_ready}"
     )
+    boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
     if not crawler_ready:
         logger.warning(
             f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
@@ -351,31 +375,15 @@ def create_glue_table(boto3_client, org_name, data_source):
         data_source.save()
 
     else:
-        try:
-            logger.debug(
-                f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
-                f"was finished successfully. "
-                f"Updating data_source state accordingly."
-            )
-            boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
+        logger.debug(
+            f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
+            f"was finished successfully. "
+            f"Updating data_source state accordingly."
+        )
 
-            update_folder_hierarchy(data_source=data_source, org_name=org_name)
-            create_agg_stats(data_source=data_source, org_name=org_name)
-            limited = data_source.limited_value
-            if limited:
-                create_limited_glue_table(
-                    data_source=data_source, org_name=org_name, limited=limited
-                )
-            update_glue_table(data_source=data_source, org_name=org_name)
-
-            data_source.state = "ready"
-        except Exception as e:
-            logger.exception(
-                f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
-            )
-            data_source.state = "error"
-
-        data_source.save()
+        process_datasource_glue_and_bucket_data(
+            org_name=org_name, data_source=data_source
+        )
 
 
 def process_structured_data_source_in_background(org_name, data_source):
@@ -384,6 +392,17 @@ def process_structured_data_source_in_background(org_name, data_source):
 
     create_glue_table_thread = threading.Thread(
         target=create_glue_table,
+        kwargs={"org_name": org_name, "data_source": data_source},
+    )  # also setting the data_source state to ready when it's done
+    create_glue_table_thread.start()
+
+
+def process_structured_cohort_in_background(org_name, data_source):
+    data_source.state = "pending"
+    data_source.save()
+
+    create_glue_table_thread = threading.Thread(
+        target=process_datasource_glue_and_bucket_data,
         kwargs={"org_name": org_name, "data_source": data_source},
     )  # also setting the data_source state to ready when it's done
     create_glue_table_thread.start()

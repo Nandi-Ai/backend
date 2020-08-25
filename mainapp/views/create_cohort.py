@@ -11,7 +11,7 @@ from mainapp.serializers import CohortSerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
-from mainapp.utils.lib import process_structured_data_source_in_background
+from mainapp.utils.lib import process_structured_cohort_in_background
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -122,7 +122,7 @@ class CreateCohort(GenericAPIView):
 
             # noinspection SqlNoDataSourceInspection
             ctas_query = (
-                f'CREATE TABLE "{destination_dataset.glue_database}"."{data_source.glue_table}" '
+                f'CREATE TABLE "{destination_dataset.glue_database}"."{data_source.dir}" '
                 f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dataset.bucket}/{data_source.dir}"
                 f"/') AS {query};"
             )
@@ -161,6 +161,7 @@ class CreateCohort(GenericAPIView):
             )
 
             new_data_source = data_source
+            new_data_source.glue_table = data_source.dir
             new_data_source.id = None
             new_data_source.s3_objects = [s3_object]
             new_data_source.dataset = destination_dataset
@@ -185,7 +186,7 @@ class CreateCohort(GenericAPIView):
             new_data_source.ancestor = data_source
             new_data_source.save()
 
-            process_structured_data_source_in_background(
+            process_structured_cohort_in_background(
                 org_name=org_name, data_source=new_data_source
             )
 
