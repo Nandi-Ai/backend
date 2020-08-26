@@ -87,12 +87,13 @@ class Dataset(models.Model):
         # the dataset object in the database will be deleted
         # and there will be no more way to find the resources by `id`, `glue_database`, etc...
         delete_aws_resources_for_dataset(dataset=self, org_name=self.organization.name)
+        # we need to set is_deleted even if DELETE_DATASETS_FROM_DATABASE as
+        # the dataset_user post delete receiver verify if deleted to ignore adding Activity events
+        self.is_deleted = True
+        self.save()
         if DELETE_DATASETS_FROM_DATABASE:
             # This will trigger data_source `delete_data_source` @receiver also as there is a CASCADE set onDelete.
             super(Dataset, self).delete()
-        else:
-            self.is_deleted = True
-            self.save()
 
     def query(self, query):
         client = aws_service.create_athena_client(org_name=self.organization.name)

@@ -324,13 +324,6 @@ class DatasetViewSet(ModelViewSet):
                 # for private dataset case with aggregated_access permission
                 if dataset.default_user_permission == "aggregated_access":
                     dataset.aggregated_users.add(request.user.id)
-                if dataset.default_user_permission == "limited_access":
-                    DatasetUser.objects.create(
-                        dataset=dataset,
-                        user=request.user,
-                        permission="limited_access",
-                        permission_attributes=dataset.permission_attributes,
-                    )
 
             # dataset.bucket = 'lynx-dataset-' + str(dataset.id)
             dataset.programmatic_name = (

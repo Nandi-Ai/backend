@@ -31,7 +31,10 @@ class DatasetUser(models.Model):
         unique_together = ("dataset", "user")
 
     def __str__(self):
-        return f"<DatasetUser dataset={self.dataset} user={self.user} permission={self.permission}>"
+        return (
+            f"<DatasetUser dataset={self.dataset} user={self.user} "
+            f"permission={self.permission} permission_attributes={self.permission_attributes}>"
+        )
 
     def get_limited_value(self):
         return self.permission_attributes.get("key")
@@ -88,12 +91,17 @@ def dataset_user_post_delete(sender, instance, **kwargs):
     dataset = instance.dataset
     user = instance.user
     permission = instance.permission
-    Activity.objects.create(
-        type="dataset permission",
-        dataset=dataset,
-        user=user,
-        meta={"user_affected": str(user.id), "action": "remove", "permission": "all"},
-    )
+    if not dataset.is_deleted:
+        Activity.objects.create(
+            type="dataset permission",
+            dataset=dataset,
+            user=user,
+            meta={
+                "user_affected": str(user.id),
+                "action": "remove",
+                "permission": "all",
+            },
+        )
 
     monitor_dataset_user_event(
         event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
