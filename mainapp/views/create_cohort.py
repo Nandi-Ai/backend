@@ -187,7 +187,13 @@ class CreateCohort(GenericAPIView):
             new_data_source.save()
 
             process_structured_cohort_in_background(
-                org_name=org_name, data_source=new_data_source
+                org_name=org_name,
+                data_source=new_data_source,
+                columns=columns,
+                data_filter=data_filter,
+                orig_data_source=dataset.data_sources.get(
+                    id=query_serialized.validated_data["data_source_id"]
+                ),
             )
 
             req_res = {"query": query, "ctas_query": ctas_query}

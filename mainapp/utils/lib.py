@@ -317,6 +317,47 @@ def create_glue_database(boto3_client, org_name, dataset):
     dataset.save()
 
 
+def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_source):
+    logger.info(
+        f"processing cohort users for data_source {data_source.name}:{data_source.id} "
+        f"in org {org_name} "
+    )
+    data_source.state = "pending"
+    data_source.save()
+    try:
+        for dataset_user in data_source.dataset.datasetuser_set.all():
+            logger.info(
+                f"processing data for user {dataset_user.user.id} with permission {dataset_user.permission} "
+                f"in data_source {data_source.name}:{data_source.id} "
+                f"in org {org_name} "
+            )
+            if dataset_user.permission == "limited_access":
+                limited = dataset_user.get_limited_value()
+                logger.info(
+                    f"creating limited table for user {dataset_user.user.id} with limited {limited} "
+                )
+                query, _ = devexpress_filtering.dev_express_to_sql(
+                    table=f"{orig_data_source.dir}_limited_{limited}",
+                    schema=orig_data_source.dataset.glue_database,
+                    data_filter=data_filter,
+                    columns=columns,
+                )
+                create_limited_glue_table(
+                    data_source=data_source,
+                    org_name=org_name,
+                    limited=limited,
+                    query=query,
+                )
+        data_source.state = "ready"
+    except Exception as e:
+        logger.exception(
+            f"Failed processing user in the data source {data_source.name} ({data_source.id}) with error {e}"
+        )
+        data_source.state = "error"
+
+    data_source.save()
+
+
 @with_glue_client
 def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source):
     try:
@@ -329,6 +370,10 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
             )
         update_glue_table(data_source=data_source, org_name=org_name)
         data_source.state = "ready"
+        logger.info(
+            f"Done processing data_source {data_source.name} ({data_source.id}) "
+            f"in org {org_name} "
+        )
     except Exception as e:
         logger.exception(
             f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
@@ -397,13 +442,38 @@ def process_structured_data_source_in_background(org_name, data_source):
     create_glue_table_thread.start()
 
 
-def process_structured_cohort_in_background(org_name, data_source):
+def create_glue_tables_for_cohort(
+    org_name, data_source, columns, data_filter, orig_data_source
+):
+    process_datasource_glue_and_bucket_data(org_name=org_name, data_source=data_source)
+    process_cohort_users(
+        data_source=data_source,
+        org_name=org_name,
+        columns=columns,
+        data_filter=data_filter,
+        orig_data_source=orig_data_source,
+    )
+
+
+def process_structured_cohort_in_background(
+    org_name, data_source, columns, data_filter, orig_data_source
+):
+    """
+    process data_source glue tables
+    and create limited glue tables for limited users
+    """
     data_source.state = "pending"
     data_source.save()
 
     create_glue_table_thread = threading.Thread(
-        target=process_datasource_glue_and_bucket_data,
-        kwargs={"org_name": org_name, "data_source": data_source},
+        target=create_glue_tables_for_cohort,
+        kwargs={
+            "org_name": org_name,
+            "data_source": data_source,
+            "columns": columns,
+            "data_filter": data_filter,
+            "orig_data_source": orig_data_source,
+        },
     )  # also setting the data_source state to ready when it's done
     create_glue_table_thread.start()
 
@@ -536,21 +606,27 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
 
 
 @with_athena_client
-def create_limited_glue_table(boto3_client, data_source, org_name, limited):
+def create_limited_glue_table(boto3_client, data_source, org_name, limited, query=None):
     logger.info(
         f"creating limited table for data_source {data_source.id} limited={limited}"
     )
 
     dataset = data_source.dataset
-    glue_database = dataset.glue_database
+    destination_glue_database = dataset.glue_database
+    destination_glue_table = data_source.glue_table
     bucket = dataset.bucket
-    destination = f"{bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
+    destination_dir = f"{bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
+    if not query:
+        # noinspection SqlNoDataSourceInspection
+        query = (
+            f'SELECT * FROM "{destination_glue_database}"."{destination_glue_table}" '
+            f"ORDER BY RANDOM() limit {limited};"
+        )
     # noinspection SqlNoDataSourceInspection
     ctas_query = (
-        f'CREATE TABLE "{glue_database}"."{data_source.dir}_limited_{limited}" '
-        f"WITH (format = 'TEXTFILE', external_location = 's3://{destination}') "
-        f'AS SELECT * FROM "{glue_database}"."{data_source.glue_table}" '
-        f"ORDER BY RANDOM() limit {limited};"
+        f'CREATE TABLE "{destination_glue_database}"."{data_source.dir}_limited_{limited}" '
+        f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dir}') "
+        f"AS {query};"
     )
 
     logger.debug(f"Query result of CREATE TABLE AS SELECT {ctas_query}")
@@ -558,14 +634,14 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited):
     try:
         query_results = boto3_client.start_query_execution(
             QueryString=ctas_query,
-            QueryExecutionContext={"Database": glue_database},
+            QueryExecutionContext={"Database": destination_glue_database},
             ResultConfiguration={
                 "OutputLocation": f"s3://{bucket}/temp_execution_results"
             },
         )
 
         logger.info(
-            f"limited file created for datasource {data_source.id} limited {limited} at {destination} in bucket {bucket}"
+            f"limited file created for datasource {data_source.id} limited {limited} at {destination_dir} in bucket {bucket}"
         )
 
         return query_results
