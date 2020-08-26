@@ -137,6 +137,11 @@ APPEND_SLASH = False
 
 SECURED_BUCKET = False
 
+# Used to decide if deleted datasets will be removed from database or will be set with `is_deleted` flag instead.
+# Can be overridden to True from `local_settings` in order to have clean database in development
+# but MUST BE set to False in production!
+DELETE_DATASETS_FROM_DATABASE = False
+
 ENV = os.getenv("ENV", "local")
 
 if ENV != "local":
