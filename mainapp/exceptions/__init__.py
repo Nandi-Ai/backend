@@ -1,18 +1,4 @@
-from .glue_error import UnableToGetGlueColumns
-from .query_execution_error import (
-    QueryExecutionError,
-    InvalidExecutionId,
-    MaxExecutionReactedError,
-    UnsupportedColumnTypeError,
-)
-from .s3 import BucketNotFound
-from .settings_error import (
-    InvalidOrganizationOrgValues,
-    InvalidOrganizationSettings,
-    MissingOrganizationSettingKey,
-)
-from .iam_error import RoleNotFound, PolicyNotFound
-
+from .boto import InvalidBotoResponse
 from .ec2_error import (
     InstanceNotFound,
     TooManyInstancesError,
@@ -21,7 +7,14 @@ from .ec2_error import (
     Ec2Error,
     LaunchTemplateFailedError,
 )
-
+from .glue_error import UnableToGetGlueColumns
+from .iam_error import RoleNotFound, PolicyNotFound
+from .query_execution_error import (
+    QueryExecutionError,
+    InvalidExecutionId,
+    MaxExecutionReactedError,
+    UnsupportedColumnTypeError,
+)
 from .route53_error import (
     DnsRecordNotFoundError,
     InvalidChangeBatchError,
@@ -30,4 +23,10 @@ from .route53_error import (
     PriorRequestNotCompleteError,
     Route53Error,
     DnsRecordExistsError,
+)
+from .s3 import BucketNotFound
+from .settings_error import (
+    InvalidOrganizationOrgValues,
+    InvalidOrganizationSettings,
+    MissingOrganizationSettingKey,
 )

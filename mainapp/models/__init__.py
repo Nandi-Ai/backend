@@ -1,6 +1,7 @@
 from .activity import Activity
 from .data_source import DataSource
 from .dataset import Dataset
+from .dataset_user import DatasetUser
 from .documentation import Documentation
 from .execution import Execution
 from .organization import Organization

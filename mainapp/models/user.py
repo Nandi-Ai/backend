@@ -125,7 +125,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def related_studies(self):
         studies_ids = []
+        # get all studies which the collaborator in
         studies_ids = studies_ids + [s.id for s in self.studies.all()]
+        # for activity purposes, we need to return also the studies which uses dataset which the user admins.
         for dataset in self.admin_datasets.all():
             studies_ids = studies_ids + [s.id for s in dataset.studies.all()]
         studies = Study.objects.filter(
@@ -140,6 +142,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             | self.full_access_datasets.filter(is_discoverable=False)
             | self.aggregated_datasets.filter(is_discoverable=False)
             | self.admin_datasets.filter(is_discoverable=False)
+            | self.permitted_datasets.filter(is_discoverable=False)
         ).distinct()
         not_archived_datasets = (
             Dataset.objects.exclude(state="archived")
@@ -201,4 +204,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             return "full_access"
         if self in dataset.aggregated_users.all():
             return "aggregated_access"
+        if self in dataset.users.all():
+            return "limited_access"
         # this function can also return None.....

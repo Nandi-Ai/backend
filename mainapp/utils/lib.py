@@ -1,23 +1,19 @@
+import csv
 import json
+import logging
 import os
 import shutil
 import subprocess
-import zipfile
 import tempfile
-import csv
-from mainapp.utils.aws_utils import s3_storage
+import threading
+import zipfile
 from datetime import datetime as dt, timedelta as td
 from enum import Enum
 from time import sleep
 
-
-import logging
-
 import botocore
 import botocore.exceptions
 import magic
-import pytz
-import requests
 import sqlparse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -34,15 +30,17 @@ from mainapp.exceptions import (
     InvalidExecutionId,
     QueryExecutionError,
 )
-from mainapp.utils import aws_service, statistics, devexpress_filtering
+from mainapp.exceptions.s3 import TooManyBucketsException
+from mainapp.utils import aws_service, statistics, devexpress_filtering, executor
+from mainapp.utils.aws_utils import s3_storage
 from mainapp.utils.decorators import (
     organization_dependent,
     with_glue_client,
     with_s3_client,
     with_s3_resource,
     with_iam_resource,
+    with_athena_client,
 )
-
 from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     ErrorResponse,
@@ -52,9 +50,10 @@ from mainapp.utils.response_handler import (
 logger = logging.getLogger(__name__)
 
 
-class PrivilagePath(Enum):
+class PrivilegePath(Enum):
     FULL = "full_access"
     AGG_STATS = "aggregated_access"
+    LIMITED = "limited_access"
 
 
 LYNX_STORAGE_DIR = "lynx-storage"
@@ -135,7 +134,7 @@ def download_and_upload_fixed_file(
                 s3_client=boto3_client,
                 csv_path_and_file=file_path,
                 bucket_name=bucket_name,
-                file_path=os.path.join(path, file_name),
+                file_path=f"{path}/{file_name}",
             )
 
         except boto3_client.exceptions as e:
@@ -179,7 +178,10 @@ def create_s3_bucket(
         args["CreateBucketConfiguration"] = {
             "LocationConstraint": org_settings["AWS_REGION"]
         }
-    s3_client.create_bucket(**args)
+    try:
+        s3_client.create_bucket(**args)
+    except s3_client.exceptions.TooManyBuckets as e:
+        raise TooManyBucketsException() from e
 
     try:
         response = s3_client.put_public_access_block(
@@ -193,11 +195,12 @@ def create_s3_bucket(
         )
     except BucketNotFound as e:
         raise BucketNotFound(
-            f"The bucket queried does not exist. Bucket: {name}, in org {org_name}", e
-        )
-    except botocore.exceptions.ClientError as e:
+            f"The bucket queried does not exist. Bucket: {name}, in org {org_name}"
+        ) from e
+    except s3_client.exceptions.ClientError as e:
         raise ForbiddenErrorResponse(
-            f"Missing s3:PutBucketPublicAccessBlock permissions to put public access block policy for bucket: {name}, in org {org_name}",
+            f"Missing s3:PutBucketPublicAccessBlock permissions to put public access block policy for bucket: "
+            f"{name}, in org {org_name}",
             e,
         )
     except Exception as e:
@@ -314,21 +317,90 @@ def create_glue_database(boto3_client, org_name, dataset):
     dataset.save()
 
 
+def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_source):
+    logger.info(
+        f"processing cohort users for data_source {data_source.name}:{data_source.id} "
+        f"in org {org_name} "
+    )
+    data_source.state = "pending"
+    data_source.save()
+    try:
+        for dataset_user in data_source.dataset.datasetuser_set.all():
+            logger.info(
+                f"processing data for user {dataset_user.user.id} with permission {dataset_user.permission} "
+                f"in data_source {data_source.name}:{data_source.id} "
+                f"in org {org_name} "
+            )
+            if dataset_user.permission == "limited_access":
+                limited = dataset_user.get_limited_value()
+                logger.info(
+                    f"creating limited table for user {dataset_user.user.id} with limited {limited} "
+                )
+                query, _ = devexpress_filtering.dev_express_to_sql(
+                    table=f"{orig_data_source.dir}_limited_{limited}",
+                    schema=orig_data_source.dataset.glue_database,
+                    data_filter=data_filter,
+                    columns=columns,
+                )
+                create_limited_glue_table(
+                    data_source=data_source,
+                    org_name=org_name,
+                    limited=limited,
+                    query=query,
+                )
+        data_source.state = "ready"
+    except Exception as e:
+        logger.exception(
+            f"Failed processing user in the data source {data_source.name} ({data_source.id}) with error {e}"
+        )
+        data_source.state = "error"
+
+    data_source.save()
+
+
 @with_glue_client
-def create_catalog(boto3_client, org_name, data_source):
+def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source):
+    try:
+        update_folder_hierarchy(data_source=data_source, org_name=org_name)
+        create_agg_stats(data_source=data_source, org_name=org_name)
+        limited = data_source.limited_value
+        if limited:
+            create_limited_glue_table(
+                data_source=data_source, org_name=org_name, limited=limited
+            )
+        update_glue_table(data_source=data_source, org_name=org_name)
+        data_source.state = "ready"
+        logger.info(
+            f"Done processing data_source {data_source.name} ({data_source.id}) "
+            f"in org {org_name} "
+        )
+    except Exception as e:
+        logger.exception(
+            f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
+        )
+        data_source.state = "error"
+
+    data_source.save()
+
+
+@with_glue_client
+def create_glue_table(boto3_client, org_name, data_source):
     create_glue_crawler(data_source=data_source, org_name=org_name)
 
-    boto3_client.start_crawler(Name=f"data_source-{data_source.id}")
+    crawler_name = f"data_source-{data_source.id}"
+
+    boto3_client.start_crawler(Name=crawler_name)
     logger.info(
         f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
         f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
         f"was created and started successfully"
     )
     crawler_ready = False
-    retries = 500
+    max_retries = 500
+    retries = max_retries
 
     while not crawler_ready and retries >= 0:
-        res = boto3_client.get_crawler(Name=f"data_source-{data_source.id}")
+        res = boto3_client.get_crawler(Name=crawler_name)
         crawler_ready = True if res["Crawler"]["State"] == "READY" else False
         sleep(5)
         retries -= 1
@@ -338,43 +410,126 @@ def create_catalog(boto3_client, org_name, data_source):
         f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
         f"for org_name {org_name} has finished: {crawler_ready}"
     )
+    boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
     if not crawler_ready:
         logger.warning(
             f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
-            f"had a failure after 3 tries"
+            f"had a failure after {max_retries} tries"
         )
-        data_source.state = "crawling error"
+        data_source.state = "error"
         data_source.save()
 
     else:
-        try:
-            logger.debug(
-                f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
-                f"was finished succesfully. "
-                f"Updating data_source state accordingly."
-            )
-            boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
+        logger.debug(
+            f"The crawler for datasource {data_source.name} ({data_source.id}) in org {org_name} "
+            f"was finished successfully. "
+            f"Updating data_source state accordingly."
+        )
 
-            update_folder_hierarchy(data_source=data_source, org_name=org_name)
-            create_agg_stats(data_source=data_source, org_name=org_name)
-            update_glue_table(data_source=data_source, org_name=org_name)
+        process_datasource_glue_and_bucket_data(
+            org_name=org_name, data_source=data_source
+        )
 
-            data_source.state = "ready"
 
-        except botocore.exceptions.ClientError as e:
-            logger.exception(
-                f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
-            )
-            data_source.state = "error"
+def process_structured_data_source_in_background(org_name, data_source):
+    data_source.state = "pending"
+    data_source.save()
 
-        data_source.save()
+    create_glue_table_thread = threading.Thread(
+        target=create_glue_table,
+        kwargs={"org_name": org_name, "data_source": data_source},
+    )  # also setting the data_source state to ready when it's done
+    create_glue_table_thread.start()
+
+
+def create_glue_tables_for_cohort(
+    org_name, data_source, columns, data_filter, orig_data_source
+):
+    process_datasource_glue_and_bucket_data(org_name=org_name, data_source=data_source)
+    process_cohort_users(
+        data_source=data_source,
+        org_name=org_name,
+        columns=columns,
+        data_filter=data_filter,
+        orig_data_source=orig_data_source,
+    )
+
+
+def process_structured_cohort_in_background(
+    org_name, data_source, columns, data_filter, orig_data_source
+):
+    """
+    process data_source glue tables
+    and create limited glue tables for limited users
+    """
+    data_source.state = "pending"
+    data_source.save()
+
+    create_glue_table_thread = threading.Thread(
+        target=create_glue_tables_for_cohort,
+        kwargs={
+            "org_name": org_name,
+            "data_source": data_source,
+            "columns": columns,
+            "data_filter": data_filter,
+            "orig_data_source": orig_data_source,
+        },
+    )  # also setting the data_source state to ready when it's done
+    create_glue_table_thread.start()
+
+
+def process_dataset_user(dataset_user):
+    dataset = dataset_user.dataset
+    organization = dataset.organization
+    organization_name = organization.name
+    if dataset_user.permission == "limited_access":
+        limited_value = dataset_user.get_limited_value()
+
+        def thread(ds):
+            try:
+                return create_limited_glue_table(
+                    data_source=ds, org_name=organization_name, limited=limited_value
+                )
+            except Exception as e:
+                logger.exception(e)
+
+        executor.map(thread, dataset.data_sources.all())
+
+
+def process_structured_data_sources_in_background(org_name, dataset):
+    if dataset.default_user_permission == "limited_access":
+        limited_value = dataset.get_limited_value()
+
+        def thread(ds):
+            try:
+                return create_limited_glue_table(
+                    data_source=ds, org_name=org_name, limited=limited_value
+                )
+            except Exception as e:
+                logger.exception(e)
+
+        executor.map(thread, dataset.data_sources.all())
+
+
+@with_s3_resource
+def determine_data_source_s3_object_from_execution_id(
+    boto3_client, query_execution_id, org_name, dataset
+):
+    bucket = dataset.bucket
+    key = f"temp_execution_results/tables/{query_execution_id}-manifest.csv"
+    obj = boto3_client.Object(bucket, key)
+    size = obj.content_length
+    body = obj.get()["Body"].read().decode("utf-8")
+    path, file_name, file_name_no_ext, ext = break_s3_object(body.strip("\n"))
+    path = path.split("/")[-1]
+
+    key = f"{path}/{file_name}"
+
+    return {"key": key, "size": size}
 
 
 @with_glue_client
 def update_glue_table(boto3_client, data_source, org_name):
-    s3_object_key = data_source.s3_objects[0]["key"]
-    _, _, datasource_name, _ = break_s3_object(s3_object_key)
-
     # get data from current table
     try:
         response = boto3_client.get_table(
@@ -383,7 +538,7 @@ def update_glue_table(boto3_client, data_source, org_name):
     except Exception as e:
         return ErrorResponse("Error fetching current glue table", e)
 
-    new_table_name = f"{datasource_name}_full"
+    new_table_name = f"{data_source.dir}_full"
     table_input = response["Table"]
     table_input["Name"] = new_table_name
 
@@ -394,7 +549,7 @@ def update_glue_table(boto3_client, data_source, org_name):
     table_input.pop("DatabaseName")
     table_input["StorageDescriptor"][
         "Location"
-    ] = f"s3://lynx-dataset-{data_source.dataset.id}/{datasource_name}/{LYNX_STORAGE_DIR}/{PrivilagePath.FULL.value}/"
+    ] = f"s3://lynx-dataset-{data_source.dataset.id}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}/"
 
     try:
         boto3_client.create_table(
@@ -419,36 +574,25 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
 
     # create folders
     data_source_dir = data_source.dir
+    base_dir = f"{data_source_dir}/{LYNX_STORAGE_DIR}"
+    full_access_dir = f"{base_dir}/{PrivilegePath.FULL.value}/"
+    agg_stat_dir = f"{base_dir}/{PrivilegePath.AGG_STATS.value}/"
+
     # create folders
-    s3_client.put_object(
-        Bucket=s3_bucket,
-        Key=os.path.join(
-            data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, ""
-        ),
-        ACL="private",
-    )
-    s3_client.put_object(
-        Bucket=s3_bucket,
-        Key=os.path.join(
-            data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.AGG_STATS.value, ""
-        ),
-        ACL="private",
-    )
+    s3_client.put_object(Bucket=s3_bucket, Key=full_access_dir, ACL="private")
+    s3_client.put_object(Bucket=s3_bucket, Key=agg_stat_dir, ACL="private")
 
     s3_objects_all = data_source.s3_objects
 
     for index, s3_object in enumerate(s3_objects_all):
         s3_object_key = s3_object["key"]
         file_name = s3_object_key.split("/")[-1]
-        new_key = os.path.join(
-            data_source_dir, LYNX_STORAGE_DIR, PrivilagePath.FULL.value, file_name
-        )
+        new_key = f"{data_source_dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}/{file_name}"
         try:
-            boto3_client.Object(s3_bucket, new_key).copy_from(
-                CopySource=os.path.join(s3_bucket, s3_object_key)
-            )
+            copy_source = f"{s3_bucket}/{s3_object_key}"
+            boto3_client.Object(s3_bucket, new_key).copy_from(CopySource=copy_source)
         except botocore.exceptions.ClientError as e:
-            return ErrorResponse(f"Unable to Move file with key {s3_object_key}!")
+            return ErrorResponse(f"Unable to Move file with key {s3_object_key}!", e)
         data_source.s3_objects[index]["key"] = new_key
         data_source.save()
         try:
@@ -461,13 +605,59 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
     )
 
 
+@with_athena_client
+def create_limited_glue_table(boto3_client, data_source, org_name, limited, query=None):
+    logger.info(
+        f"creating limited table for data_source {data_source.id} limited={limited}"
+    )
+
+    dataset = data_source.dataset
+    destination_glue_database = dataset.glue_database
+    destination_glue_table = data_source.glue_table
+    bucket = dataset.bucket
+    destination_dir = f"{bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
+    if not query:
+        # noinspection SqlNoDataSourceInspection
+        query = (
+            f'SELECT * FROM "{destination_glue_database}"."{destination_glue_table}" '
+            f"ORDER BY RANDOM() limit {limited};"
+        )
+    # noinspection SqlNoDataSourceInspection
+    ctas_query = (
+        f'CREATE TABLE "{destination_glue_database}"."{data_source.dir}_limited_{limited}" '
+        f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dir}') "
+        f"AS {query};"
+    )
+
+    logger.debug(f"Query result of CREATE TABLE AS SELECT {ctas_query}")
+
+    try:
+        query_results = boto3_client.start_query_execution(
+            QueryString=ctas_query,
+            QueryExecutionContext={"Database": destination_glue_database},
+            ResultConfiguration={
+                "OutputLocation": f"s3://{bucket}/temp_execution_results"
+            },
+        )
+
+        logger.info(
+            f"limited file created for datasource {data_source.id} limited {limited} at {destination_dir} in bucket {bucket}"
+        )
+
+        return query_results
+    except boto3_client.exceptions.InvalidRequestException as e:
+        error = Exception(
+            f"Failed executing the CTAS query: {ctas_query}. "
+            f"Query string: {ctas_query}"
+        ).with_traceback(e.__traceback__)
+        logger.debug(f"This is the ctas_query {ctas_query}")
+        return ErrorResponse(f"There was an error executing this query", error=error)
+
+
 @with_s3_client
 def create_agg_stats(boto3_client, data_source, org_name):
     # get statistics
     stats, _ = calculate_statistics(data_source)
-
-    s3_object_key = data_source.s3_objects[0]["key"]
-    _, _, datasource_name, _ = break_s3_object(s3_object_key)
 
     # create CSV
     columns = stats["result"][0].keys()
@@ -482,20 +672,15 @@ def create_agg_stats(boto3_client, data_source, org_name):
     try:
         boto3_client.upload_file(
             Bucket=data_source.bucket,
-            Key=os.path.join(
-                datasource_name,
-                LYNX_STORAGE_DIR,
-                PrivilagePath.AGG_STATS.value,
-                data_source.name,
-            ),
+            Key=f"{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.AGG_STATS.value}/{data_source.name}",
             Filename=temp_file_name,
         )
     except BucketNotFound as e:
         raise BucketNotFound(
-            f"The bucket for uploading agg stat datasource does not exist. Bucket: {data_source.bucket}, in org {org_name}",
-            e,
-        )
-    except botocore.exceptions.ClientError as e:
+            f"The bucket for uploading agg stat datasource does not exist. "
+            f"Bucket: {data_source.bucket}, in org {org_name}"
+        ) from e
+    except boto3_client.exceptions.ClientError as e:
         raise ForbiddenErrorResponse(
             f"Missing permissions to upload file to bucket: {data_source.bucket}, in org {org_name}",
             e,
@@ -621,11 +806,6 @@ def handle_zipped_data_source(boto3_client, data_source, org_name):
     data_source.save()
 
 
-#
-# def clean(string):
-#     return ''.join(e for e in string.replace("-", " ").replace(" ", "c83b4ce5") if e.isalnum()).lower().replace("c83b4ce5", "-")
-
-
 def calc_access_to_database(user, dataset):
     if dataset.state == "private":
         if user.permission(dataset) == "aggregated_access":
@@ -635,63 +815,14 @@ def calc_access_to_database(user, dataset):
         else:  # user not aggregated and not full or admin
             if dataset.default_user_permission == "aggregated_access":
                 return "aggregated access"
+            elif dataset.default_user_permission == "limited_access":
+                return "limited access"
             elif dataset.default_user_permission == "no access":
                 return "no access"
     elif dataset.state == "public":
         return "full access"
 
     return "no permission"  # safe. includes archived dataset
-
-
-def close_all_jh_running_servers(idle_for_hours=0):
-    import dateparser
-    from datetime import datetime as dt, timedelta as td
-
-    aws_response = requests.get(
-        "http://169.254.169.254/latest/dynamic/instance-identity/document"
-    )
-    aws_response_json = aws_response.json()["accountId"]
-    for account_key, account_value in settings.ORG_VALUES.items():
-        if account_value["ACCOUNT_NUMBER"] == aws_response_json:
-            org_name = account_key
-        else:
-            logger.exception("No such account")
-    headers = {
-        "Authorization": "Bearer "
-        + settings.ORG_VALUES[org_name]["JH"]["JH_API_ADMIN_TOKEN"],
-        "ALBTOKEN": settings.ORG_VALUES[org_name]["JH"]["JH_ALB_TOKEN"],
-    }
-    res = requests.get(
-        settings.ORG_VALUES[org_name]["JH"]["JH_URL"] + "hub/api/users",
-        headers=headers,
-        verify=False,
-    )
-    assert res.status_code == 200, "error getting users: " + res.text
-    users = json.loads(res.text)
-    for user in users:
-        # if user['admin']:
-        #     continue
-        if user["server"]:
-            last_activity = user["last_activity"] or user["created"]
-            idle_time = dt.now(tz=pytz.UTC) - dateparser.parse(last_activity)
-            if idle_time > td(hours=idle_for_hours):
-                res = requests.delete(
-                    settings.ORG_VALUES[org_name]["JH"]["JH_URL"]
-                    + "hub/api/users/"
-                    + user["name"]
-                    + "/server",
-                    headers=headers,
-                    verify=False,
-                )
-                logger.debug(
-                    f"User: {user['name']} "
-                    f"idle time: {idle_time}, {str(res.status_code)}, {res.text}"
-                )
-            else:
-                logger.debug(
-                    f"User: {user['name']} "
-                    f"idle time: {idle_time} < {td(hours=idle_for_hours)}"
-                )
 
 
 def load_tags(delete_removed_tags=True):
@@ -807,7 +938,6 @@ def list_objects_version(
     end=None,
     prefix="",
 ):
-
     import fnmatch
     import pytz
 

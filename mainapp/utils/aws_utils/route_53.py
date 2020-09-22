@@ -7,7 +7,7 @@ from mainapp.exceptions import (
     Route53Error,
 )
 from mainapp.utils.aws_service import create_ec2_resource
-from mainapp.utils.aws_utils.ec2 import get_instance
+from mainapp.utils.aws_utils.ec2 import get_instance, AWS_EC2_RUNNING
 
 
 class Route53Actions(Enum):
@@ -40,6 +40,7 @@ def create_route53(boto3_client, existing_records, record_name, org_name, hosted
         instance_ip = get_instance(
             boto_resource=create_ec2_resource(org_name),
             execution_token=record_name.split(".")[0],
+            status_filter=[AWS_EC2_RUNNING],
         ).private_ip_address
     except Ec2Error as error:
         raise Route53Error(str(error))
