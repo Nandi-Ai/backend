@@ -153,7 +153,7 @@ class CreateCohort(GenericAPIView):
 
             logger.debug(f"Response of created query {response}")
 
-            sleep(3)
+            sleep(20)
             s3_object = lib.determine_data_source_s3_object_from_execution_id(
                 query_execution_id=response["QueryExecutionId"],
                 org_name=org_name,
