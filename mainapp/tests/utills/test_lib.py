@@ -11,7 +11,7 @@ class UtilsLibTestCase(TestCase):
         os.remove(self.WRITE_FILE_PATH)
 
     def test_replace_missing_file_columns(self):
-        lib.replace_empty_col_name_on_downloaded_file(
+        lib.replace_col_name_on_downloaded_file(
             read_file_path=self.READ_FILE_PATH,
             write_file_path=self.WRITE_FILE_PATH,
             delimiter=",",
@@ -21,3 +21,15 @@ class UtilsLibTestCase(TestCase):
             split_line = read_file.readline().split(",")
             for item in split_line:
                 self.assertTrue(item != "")
+
+    def test_replace_unsupportred_chars_in_columns(self):
+        lib.replace_col_name_on_downloaded_file(
+            read_file_path=self.READ_FILE_PATH,
+            write_file_path=self.WRITE_FILE_PATH,
+            delimiter=",",
+        )
+
+        with open(self.WRITE_FILE_PATH) as read_file:
+            split_line = read_file.readline().split(",")
+            for item in split_line:
+                self.assertTrue(char in item for char in lib.UNSUPPORTED_CHARS)
