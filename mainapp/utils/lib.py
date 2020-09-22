@@ -57,6 +57,7 @@ class PrivilegePath(Enum):
 
 
 LYNX_STORAGE_DIR = "lynx-storage"
+UNSUPPORTED_CHARS = [".", ",", ":", "[", "]"]
 
 
 def break_s3_object(obj):
@@ -109,10 +110,13 @@ def download_and_upload_fixed_file(
     bucket_name = data_source.dataset.bucket
     path, file_name, _, _ = break_s3_object(s3_obj)
 
+    is_unsupported_char_present = check_for_unsupported(column_line)
+
     if (
         column_line[0] == delimiter
         or column_line[-1] == delimiter
         or f"{delimiter}{delimiter}" in column_line
+        or is_unsupported_char_present
     ):
         temp_dir = tempfile.TemporaryDirectory(str(data_source.id))
         file_path = os.path.join(temp_dir.name, file_name)
@@ -126,9 +130,7 @@ def download_and_upload_fixed_file(
                 file_path=temp_file_path,
             )
 
-            replace_empty_col_name_on_downloaded_file(
-                temp_file_path, file_path, delimiter
-            )
+            replace_col_name_on_downloaded_file(temp_file_path, file_path, delimiter)
 
             s3_storage.upload_file(
                 s3_client=boto3_client,
@@ -147,9 +149,16 @@ def download_and_upload_fixed_file(
             temp_dir.cleanup()
 
 
-def replace_empty_col_name_on_downloaded_file(
-    read_file_path, write_file_path, delimiter
-):
+def check_for_unsupported(column_line):
+    list_column_line_data = column_line.split(",")
+
+    for item in list_column_line_data:
+        if any(char in item for char in UNSUPPORTED_CHARS):
+            return True
+    return False
+
+
+def replace_col_name_on_downloaded_file(read_file_path, write_file_path, delimiter):
     with open(read_file_path, "r") as read_file, open(
         write_file_path, "w"
     ) as write_file:
@@ -157,6 +166,10 @@ def replace_empty_col_name_on_downloaded_file(
         for index, item in enumerate(split_line):
             if not item:
                 split_line[index] = f"Col{index}"
+
+            unsupported_char = [char for char in UNSUPPORTED_CHARS if char in item]
+            if unsupported_char:
+                split_line[index] = item.replace(unsupported_char[0], " ")
         write_file.write(",".join(split_line))
         write_file.write(read_file.read())
 
