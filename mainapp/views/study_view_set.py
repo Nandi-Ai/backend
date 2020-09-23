@@ -1,17 +1,12 @@
-import json
 import logging
 import uuid
-
-import botocore.exceptions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-
-from mainapp import settings
 from mainapp.exceptions import InvalidEc2Status, LaunchTemplateFailedError
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
-from mainapp.utils import lib, aws_service
+from mainapp.utils import lib
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
     ErrorResponse,
@@ -196,74 +191,7 @@ class StudyViewSet(ModelViewSet):
                     f"Only the study creator can edit a study"
                 )
 
-            org_name = study.organization.name
-
-            client = aws_service.create_iam_client(org_name=org_name)
-            account_number = settings.ORG_VALUES[org_name]["ACCOUNT_NUMBER"]
-            policy_arn = (
-                f"arn:aws:iam::{account_number}:policy/lynx-workspace-{study.id}"
-            )
-
-            role_name = f"lynx-workspace-{study.id}"
-
-            try:
-                client.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
-                client.delete_policy(PolicyArn=policy_arn)
-            except client.exceptions.NoSuchEntityException:
-                logger.warning(
-                    f"Ignoring detaching and deleting role policy that not exist for role-name: {role_name}"
-                )
-            except Exception as e:
-                error = Exception(
-                    f"There was an unexpected error while detaching and deleting the role: {role_name}"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            policy_json = {
-                "Version": "2012-10-17",
-                "Statement": [{"Effect": "Allow", "Action": "s3:*", "Resource": []}],
-            }
-
-            policy_name = f"lynx-workspace-{study.id}"
-            workspace_bucket_name = f"lynx-workspace-{study.id}"
-            policy_json["Statement"][0]["Resource"].append(
-                f"arn:aws:s3:::{workspace_bucket_name}*"
-            )
-
             datasets = study_updated["studydataset_set"]
-            for dataset_data in datasets:
-                policy_json["Statement"][0]["Resource"].append(
-                    f'arn:aws:s3:::{dataset_data["dataset"].bucket}*'
-                )
-
-            try:
-                response = client.create_policy(
-                    PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
-                )
-            except botocore.exceptions.ClientError as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error."
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            except Exception as e:
-                error = Exception(
-                    f"There was an error creating this policy: {policy_name}"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            policy_arn = response["Policy"]["Arn"]
-
-            role_name = f"lynx-workspace-{study.id}"
-
-            client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
             monitor_kwargs = {
                 "user_ip": lib.get_client_ip(request),
