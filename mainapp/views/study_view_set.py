@@ -1,6 +1,5 @@
 import json
 import logging
-import time
 import uuid
 
 import botocore.exceptions
@@ -8,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from mainapp import resources, settings
+from mainapp import settings
 from mainapp.exceptions import InvalidEc2Status, LaunchTemplateFailedError
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
@@ -154,118 +153,7 @@ class StudyViewSet(ModelViewSet):
                 study=study,
             )
 
-            workspace_bucket_name = study.bucket
             org_name = study.organization.name
-            s3 = aws_service.create_s3_client(org_name=org_name)
-
-            try:
-                lib.create_s3_bucket(
-                    org_name=org_name, name=workspace_bucket_name, s3_client=s3
-                )
-            except botocore.exceptions.ClientError as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            except Exception as e:
-                error = Exception(
-                    f"There was an error when trying to create a bucket for workspace: {study.id}"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            time.sleep(1)  # wait for the bucket to be created
-
-            policy_json = {
-                "Version": "2012-10-17",
-                "Statement": [{"Effect": "Allow", "Action": "s3:*", "Resource": []}],
-            }
-
-            policy_json["Statement"][0]["Resource"].append(
-                "arn:aws:s3:::" + workspace_bucket_name + "*"
-            )
-
-            for dataset in study.datasets.all():
-                policy_json["Statement"][0]["Resource"].append(
-                    "arn:aws:s3:::" + dataset.bucket + "*"
-                )
-
-            client = aws_service.create_iam_client(org_name=org_name)
-
-            try:
-                response = client.create_policy(
-                    PolicyName=workspace_bucket_name,
-                    PolicyDocument=json.dumps(policy_json),
-                )
-            except botocore.exceptions.ClientError as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error"
-                ).with_traceback(e.__traceback__)
-                return ForbiddenErrorResponse(
-                    f"Unauthorized to perform this request", error=error
-                )
-            except Exception as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error for study workspace."
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            policy_arn = response["Policy"]["Arn"]
-
-            trust_policy_json = resources.create_base_trust_relationship(
-                org_name=org_name
-            )
-            try:
-                client.create_role(
-                    RoleName=workspace_bucket_name,
-                    AssumeRolePolicyDocument=json.dumps(trust_policy_json),
-                    Description=workspace_bucket_name,
-                )
-            except botocore.exceptions.ClientError as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error."
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            except Exception as e:
-                error = Exception(
-                    f"There was an error creating the role: {workspace_bucket_name}"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            try:
-                client.attach_role_policy(
-                    RoleName=workspace_bucket_name, PolicyArn=policy_arn
-                )
-            except botocore.exceptions.ClientError as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error."
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            except Exception as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error."
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
 
             for dataset in study.datasets.all():
                 Activity.objects.create(
@@ -280,7 +168,6 @@ class StudyViewSet(ModelViewSet):
                 setup_study_workspace(
                     org_name=org_name,
                     execution_token=study.execution.token,
-                    workspace_bucket=study.bucket,
                     study_id=study.id,
                 )
             except LaunchTemplateFailedError as ce:

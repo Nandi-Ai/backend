@@ -8,9 +8,6 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from mainapp import settings
 from mainapp.exceptions import (
     InvalidEc2Status,
-    BucketNotFound,
-    PolicyNotFound,
-    RoleNotFound,
     Route53Error,
     Ec2Error,
     InvalidChangeBatchError,
@@ -169,21 +166,6 @@ def delete_study(study):
     org_name = study.organization.name
 
     try:
-        study.delete_bucket(org_name=org_name)
-    except BucketNotFound as e:
-        logger.warning(
-            f"Bucket {e.bucket_name} was not found for study {study.name}:{study.id} at delete bucket operation"
-        )
-    except PolicyNotFound as e:
-        logger.warning(
-            f"Policy {e.policy} was not found for study {study.name}:{study.id} at delete bucket operation"
-        )
-    except RoleNotFound as e:
-        logger.warning(
-            f"Role {e.role} was not found for study {study.name}:{study.id} at delete bucket operation"
-        )
-
-    try:
         change_resource_record_sets(
             execution=study.execution.execution_user.email,
             org_name=study.organization.name,
@@ -213,9 +195,7 @@ def delete_study(study):
 
 
 @with_ec2_client
-def setup_study_workspace(
-    boto3_client, org_name, execution_token, workspace_bucket, study_id
-):
+def setup_study_workspace(boto3_client, org_name, execution_token, study_id):
     organization_value = settings.ORG_VALUES[org_name]
     org_region = organization_value["AWS_REGION"]
     org_fs_server = organization_value["FS_SERVER"]
@@ -225,7 +205,6 @@ def setup_study_workspace(
         user_data_template = Template(user_data_template_file.read())
         user_data = user_data_template.render(
             execution_token=execution_token,
-            bucket=workspace_bucket,
             org_region=org_region,
             fs_server=org_fs_server,
             lynx_account=lynx_org_value["ACCOUNT_NUMBER"],
@@ -242,11 +221,30 @@ def setup_study_workspace(
                 {
                     "ResourceType": "instance",
                     "Tags": [{"Key": "Name", "Value": f"jupyter-{execution_token}"}],
-                }
+                },
+                {
+                    "ResourceType": "volume",
+                    "Tags": [
+                        {"Key": "Name", "Value": f"ebs-{execution_token}"},
+                        {"Key": "Volume-Type", "Value": "jupyter-ebs"},
+                    ],
+                },
             ],
             UserData=user_data,
             MinCount=1,
             MaxCount=1,
+            BlockDeviceMappings=[
+                {
+                    "DeviceName": "/dev/sdf",
+                    "Ebs": {
+                        "DeleteOnTermination": True,
+                        "VolumeSize": 100,
+                        "VolumeType": "standard",
+                        "KmsKeyId": "alias/aws/ebs",
+                        "Encrypted": True,
+                    },
+                }
+            ],
         )
     except botocore.exceptions.ClientError as ce:
         logger.error(f"Failed to launch instance from template due to error: {ce}")

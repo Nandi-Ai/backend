@@ -2,7 +2,6 @@ import logging
 import uuid
 
 from django.db import models
-from mainapp.utils import lib
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +57,6 @@ class Study(models.Model):
 
     class Meta:
         db_table = "studies"
-
-    @property
-    def bucket(self):
-        return "lynx-workspace-" + str(self.id)
-
-    def delete_bucket(self, org_name):
-        logger.info(f"Deleting bucket {self.bucket} for study {self.name}:{self.id}")
-        lib.delete_bucket(bucket_name=self.bucket, org_name=org_name)
-        lib.delete_role_and_policy(bucket_name=self.bucket, org_name=org_name)
 
     def __str__(self):
         return f"<Study id={self.id} name={self.name}>"
