@@ -72,7 +72,6 @@ urlpatterns = [
         name="get_execution_config",
     ),  # for execution
     url(r"^dummy/?$", views.Dummy.as_view(), name="dummy"),
-    url(r"^get_sts/?$", views.GetSTS.as_view(), name="get_sts"),  # for execution
     url(
         r"^get_static_sts/?$", views.GetStaticSTS.as_view(), name="get_static_sts"
     ),  # for uploading static images
