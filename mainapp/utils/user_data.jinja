@@ -44,12 +44,15 @@ mkdir /home/ec2-user/lynx-workspace/data
 chown ec2-user /home/ec2-user/lynx-workspace/data
 
 # mount volume
-sudo mkfs -t xfs /dev/xvdf
+isnvme=$(lsblk | grep -e "\s/$" | grep -o nvme | wc -c)
+if [[ "$isnvme" -gt 0 ]]; then mountdevice="nvme1n1" ; else mountdevice="xvdf"; fi;
+
+sudo mkfs -t xfs /dev/$mountdevice
 sudo mkdir /home/ec2-user/lynx-workspace/workspace/
-sudo mount /dev/xvdf /home/ec2-user/lynx-workspace/workspace/
+sudo mount /dev/$mountdevice /home/ec2-user/lynx-workspace/workspace/
 sudo chown ec2-user /home/ec2-user/lynx-workspace/workspace/
 
-volumeid=$(sudo blkid | grep /dev/xvdf | awk -F\" '{print $2}')
+volumeid=$(sudo blkid | grep /dev/$mountdevice | awk -F\" '{print $2}')
 sudo echo "UUID=${volumeid}  /home/ec2-user/lynx-workspace/workspace/  xfs  defaults,nofail  0  2" | sudo tee -a /etc/fstab
 
 # Startup Script
