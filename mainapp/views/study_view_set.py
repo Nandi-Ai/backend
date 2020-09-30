@@ -1,12 +1,14 @@
 import logging
+import os
 import uuid
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from mainapp import settings
 from mainapp.exceptions import InvalidEc2Status, LaunchTemplateFailedError
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
-from mainapp.utils import lib
+from mainapp.utils import lib, aws_service
 from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.response_handler import (
     ErrorResponse,
@@ -27,6 +29,13 @@ logger = logging.getLogger(__name__)
 class StudyViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     filter_fields = ("user_created",)
+    file_types = {
+        ".jpg": ["image/jpeg"],
+        ".jpeg": ["image/jpeg"],
+        ".tiff": ["image/tiff"],
+        ".png": ["image/png"],
+        ".bmp": ["image/bmp"],
+    }
 
     serializer_class = StudySerializer
 
@@ -221,6 +230,26 @@ class StudyViewSet(ModelViewSet):
 
                 self.__monitor_study(**monitor_kwargs)
                 Activity.objects.create(**activity_kwargs)
+
+            if study.cover != request.data["cover"]:
+                if not request.data["cover"].lower().startswith("dataset/gallery"):
+                    file_name = request.data["cover"]
+                    workdir = "/tmp/"
+                    s3_client = aws_service.create_s3_client(
+                        org_name=settings.LYNX_ORGANIZATION
+                    )
+                    local_path = os.path.join(workdir, file_name)
+                    try:
+                        lib.validate_file_type(
+                            s3_client=s3_client,
+                            bucket=settings.LYNX_FRONT_STATIC_BUCKET,
+                            workdir="/tmp/study/",
+                            object_key=file_name,
+                            local_path=local_path,
+                            file_types=self.file_types,
+                        )
+                    except Exception as e:
+                        return BadRequestErrorResponse(error=e)
 
         return super(self.__class__, self).update(request=self.request)
 

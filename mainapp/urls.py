@@ -73,7 +73,9 @@ urlpatterns = [
     ),  # for execution
     url(r"^dummy/?$", views.Dummy.as_view(), name="dummy"),
     url(
-        r"^get_static_sts/?$", views.GetStaticSTS.as_view(), name="get_static_sts"
+        r"^get_static_sts/(?P<file_name>[^/]*)/?$",
+        views.GetStaticSTS.as_view(),
+        name="get_static_sts",
     ),  # for uploading static images
     url(r"^run_query/?$", views.RunQuery.as_view(), name="run_query"),  # for execution
     url(r"^create_cohort/?$", views.CreateCohort.as_view(), name="create_cohort"),

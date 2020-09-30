@@ -78,6 +78,7 @@ class UserManager(BaseUserManager):
             user = self.create(
                 cognito_id=cognito_id,
                 email=payload["email"],
+                phone_number=payload["phone_number"],
                 is_active=True,
                 organization=org,
             )
@@ -113,6 +114,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     cognito_id = models.CharField(max_length=255, blank=True, null=True)
     is_execution = models.BooleanField(default=False)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    title = models.CharField(max_length=128, blank=True, null=True)
+    department = models.CharField(max_length=128, blank=True, null=True)
+    linkedin = models.CharField(max_length=60, blank=True, null=True)
+    bio = models.CharField(max_length=512, blank=True, null=True)
+    interests = models.CharField(max_length=512, blank=True, null=True)
+    photo = models.CharField(max_length=255, blank=True, null=True)
+    tags = models.ManyToManyField("Tag", related_name="users", blank=True)
 
     @property
     def data_sources(self):

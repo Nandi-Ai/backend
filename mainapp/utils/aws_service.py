@@ -36,6 +36,10 @@ def create_sts_client(*args, **kwargs):
     return create_client(service_name="sts", *args, **kwargs)
 
 
+def create_cognito_client(*args, **kwargs):
+    return create_client(service_name="cognito-idp", *args, **kwargs)
+
+
 def create_athena_client(*args, **kwargs):
     return create_client(service_name="athena", *args, **kwargs)
 
