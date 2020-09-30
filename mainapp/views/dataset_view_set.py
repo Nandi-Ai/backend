@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 import uuid
 
@@ -11,7 +12,7 @@ from rest_framework.viewsets import ModelViewSet
 # noinspection PyPackageRequirements
 from slugify import slugify
 
-from mainapp import resources
+from mainapp import resources, settings
 from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
 from mainapp.serializers import DatasetSerializer
@@ -31,6 +32,13 @@ class DatasetViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     serializer_class = DatasetSerializer
     filter_fields = ("ancestor",)
+    file_types = {
+        ".jpg": ["image/jpeg"],
+        ".jpeg": ["image/jpeg"],
+        ".tiff": ["image/tiff"],
+        ".png": ["image/png"],
+        ".bmp": ["image/bmp"],
+    }
 
     def __monitor_dataset(
         self, dataset, event_type, user_ip, user, datasource=None, additional_data=None
@@ -558,6 +566,25 @@ class DatasetViewSet(ModelViewSet):
                             "permission": "all",
                         },
                     )
+            if dataset.cover != request.data["cover"]:
+                if not request.data["cover"].lower().startswith("dataset/gallery"):
+                    file_name = request.data["cover"]
+                    workdir = "/tmp/"
+                    s3_client = aws_service.create_s3_client(
+                        org_name=settings.LYNX_ORGANIZATION
+                    )
+                    local_path = os.path.join(workdir, file_name)
+                    try:
+                        lib.validate_file_type(
+                            s3_client=s3_client,
+                            bucket=settings.LYNX_FRONT_STATIC_BUCKET,
+                            workdir="/tmp/dataset/",
+                            object_key=file_name,
+                            local_path=local_path,
+                            file_types=self.file_types,
+                        )
+                    except Exception as e:
+                        return BadRequestErrorResponse(error=e)
 
         result = super(self.__class__, self).update(
             request=self.request
