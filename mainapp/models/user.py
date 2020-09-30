@@ -69,7 +69,11 @@ class UserManager(BaseUserManager):
         cognito_id = payload["sub"]
 
         try:
-            return self.get(cognito_id=cognito_id)
+            current_user = self.get(cognito_id=cognito_id)
+            if not current_user.phone_number:
+                current_user.phone_number = payload["phone_number"]
+                current_user.save()
+            return current_user
         except self.model.DoesNotExist:
             pass
 
