@@ -136,6 +136,11 @@ class DatasetViewSet(ModelViewSet):
                 name=dataset_data["name"],
                 is_discoverable=dataset_data["is_discoverable"],
                 cover=dataset_data.get("cover"),
+                organization=(
+                    dataset_data["ancestor"].organization
+                    if "ancestor" in dataset_data
+                    else request.user.organization
+                ),
             )
             dataset.id = uuid.uuid4()
 
@@ -283,12 +288,6 @@ class DatasetViewSet(ModelViewSet):
                     f"Unexpected error. Server was not able to complete this request.",
                     error=error,
                 )
-
-            dataset.organization = (
-                dataset.ancestor.organization
-                if dataset.ancestor
-                else request.user.organization
-            )
 
             dataset.save()
 
