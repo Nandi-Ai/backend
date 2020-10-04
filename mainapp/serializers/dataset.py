@@ -115,12 +115,8 @@ class DatasetSerializer(ModelSerializer):
             except DatasetUser.DoesNotExist:
                 try:
                     user_instance = User.objects.get(id=user_id)
-                except Dataset.DoesNotExist:
+                except User.DoesNotExist:
                     raise Exception(f"User instance {user_id} not exist")
-                if user_instance.organization != instance.organization:
-                    raise Exception(
-                        "Dataset's organization doesn't match the study organization"
-                    )
 
                 dataset_user = DatasetUser.objects.create(
                     dataset=instance,
