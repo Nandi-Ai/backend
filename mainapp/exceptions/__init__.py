@@ -7,7 +7,12 @@ from .ec2_error import (
     Ec2Error,
     LaunchTemplateFailedError,
 )
-from .glue_error import UnableToGetGlueColumns
+from .glue_error import (
+    UnableToGetGlueColumns,
+    GlueError,
+    GlueTableFetchError,
+    GlueTableMigrationError,
+)
 from .iam_error import RoleNotFound, PolicyNotFound
 from .query_execution_error import (
     QueryExecutionError,

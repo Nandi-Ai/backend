@@ -16,7 +16,10 @@ from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
+from mainapp.utils.deidentification import DeidentificationError
+from mainapp.utils.deidentification.common.functions import handle_method
 from mainapp.utils.lib import process_structured_data_source_in_background
+from mainapp.utils.permissions import IsDataSourceAdmin
 from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.response_handler import (
     ErrorResponse,
@@ -32,6 +35,8 @@ class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
     filter_fields = ("dataset",)
+    permission_classes = [IsDataSourceAdmin]
+    ADMIN_PROTECTED_ENDPOINTS = ["example", "columns"]
     file_types = {
         ".jpg": ["image/jpeg"],
         ".jpeg": ["image/jpeg"],
@@ -69,6 +74,66 @@ class DataSourceViewSet(ModelViewSet):
                 )
 
         return Response(final_result)
+
+    @action(detail=True, methods=["get"])
+    def example(self, request, *args, **kwargs):
+        data_source = self.get_object()
+        return Response({str(data_source.id): data_source.example_values()})
+
+    @action(detail=True, methods=["put"])
+    def columns(self, request, *args, **kwargs):
+        data_source = self.get_object()
+
+        if data_source.type != "structured":
+            logger.error(
+                f"Data Source {data_source.name}:{data_source.id} was sent to 'columns' endpoint even "
+                f"though it isn't structured"
+            )
+            return BadRequestErrorResponse(
+                "Only structured data sources support column updates"
+            )
+
+        for method in data_source.methods.all():
+            if method.state == "pending":
+                logger.warning(
+                    "Aborting column configuration due to running de identification process"
+                )
+                return BadRequestErrorResponse(
+                    "Data source is currently being De-identified, please try again later"
+                )
+
+        logger.info(f"Validating columns for {data_source.name}:{data_source.id}")
+        columns_serialized = DataSourceColumnsSerializer(
+            data={"columns": request.data}, context={"data_source": data_source}
+        )
+
+        if not columns_serialized.is_valid():
+            logger.exception(f"Columns are invalid for Data Source {data_source.id}")
+            return BadRequestErrorResponse(columns_serialized.errors)
+
+        logger.info(
+            f"Fetching methods for Data Source {data_source.name}:{data_source.id}"
+        )
+        data_source.columns = request.data
+
+        changed_columns = columns_serialized.get_changed_columns()
+        if data_source.methods:
+            dsrc_index = 0
+            for dsrc_method in data_source.methods.all():
+                dsrc_index += 1
+                try:
+                    if any([col in dsrc_method.attributes for col in changed_columns]):
+                        handle_method(dsrc_method, data_source, dsrc_index)
+                except DeidentificationError as de:
+                    return BadRequestErrorResponse(str(de))
+                except Exception:
+                    dsrc_method.state = "error"
+                    dsrc_method.save()
+
+        data_source.save()
+        return Response(
+            self.serializer_class(data_source, allow_null=True).data, status=201
+        )
 
     def get_queryset(self):
         return self.request.user.data_sources

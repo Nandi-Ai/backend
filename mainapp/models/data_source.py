@@ -12,6 +12,13 @@ from mainapp.utils.data_source import (
     delete_data_source_files_from_bucket,
 )
 from mainapp.utils.monitoring import handle_event, MonitorEvents
+from mainapp.utils.deidentification import (
+    GLUE_LYNX_TYPE_MAPPING,
+    GLUE_DATA_TYPE_MAPPING,
+    GlueDataTypes,
+    LynxDataTypeNames,
+    DataTypes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +43,7 @@ class DataSource(models.Model):
         "self", on_delete=models.SET_NULL, related_name="children", null=True
     )
     cohort = JSONField(null=True, blank=True, default=None)
+    columns = JSONField(null=True, blank=True, default=None)
     glue_table = models.CharField(null=True, blank=True, max_length=255)
 
     class Meta:
@@ -56,8 +64,106 @@ class DataSource(models.Model):
             except ValueError:
                 raise LimitedKeyInvalidException(self)
 
+    @property
+    def needs_deid(self):
+        methods = list(self.dataset.methods.iterator())
+        if self.type != "structured" or not methods:
+            return False
+
+        for method in methods:
+            for dsrc_method in method.data_source_methods.iterator():
+                if dsrc_method.data_source.id == self.id:
+                    return False
+        return True
+
+    def generate_columns(self):
+        column_types = self.dataset.get_columns_types(self.glue_table)
+        self.columns = {
+            col["Name"]: {
+                "glue_type": col["Type"],
+                "data_type": GLUE_DATA_TYPE_MAPPING.get(
+                    col["Type"], DataTypes.STRING.value
+                ),
+                "lynx_type": GLUE_LYNX_TYPE_MAPPING.get(
+                    col["Type"], LynxDataTypeNames.TEXT.value
+                ),
+                "display_name": col["Name"],
+            }
+            for col in column_types
+        }
+        self.save()
+
+    def example_values(self):
+        if self.type != "structured" or not self.columns:
+            logger.warning(
+                f"Data Source {self.id} does not have any columns - Could not fetch example values"
+            )
+            return dict()
+
+        try:
+            example_query_template = '(SELECT "{col_name}" FROM "{glue_table}" WHERE "{col_name}" IS NOT NULL{addition} limit 1)'
+            column_example_queries = list()
+            for col_name, col in self.columns.items():
+                glue_type = col["glue_type"]
+                column_example_queries.append(
+                    example_query_template.format(
+                        col_name=col_name,
+                        glue_table=self.glue_table,
+                        addition=f" AND \"{col_name}\" <> ''"
+                        if glue_type
+                        in [
+                            GlueDataTypes.CHAR.value,
+                            GlueDataTypes.STRING.value,
+                            GlueDataTypes.VARCHAR.value,
+                        ]
+                        else "",
+                    )
+                )
+
+            logger.info(
+                f"Querying table {self.dataset.glue_database}.{self.glue_table} for example values"
+            )
+            example_values_query_response = self.dataset.query(
+                f"SELECT * FROM {','.join(column_example_queries)};"
+            )
+
+            response_object = self.dataset.get_query_execution(
+                example_values_query_response["QueryExecutionId"]
+            )
+
+            logger.info(
+                f"Received example values for {self.dataset.glue_database}.{self.glue_table}"
+            )
+            query_result = (
+                response_object["Body"]
+                .read()
+                .decode("utf-8")
+                .replace('"', "")
+                .split("\n")
+            )
+            col_names, example_values = (
+                query_result[0].split(","),
+                query_result[1].split(","),
+            )
+            examples = dict()
+
+            for col_index in range(len(col_names)):
+                examples[col_names[col_index]] = example_values[col_index]
+
+        except Exception as e:
+            logger.error(
+                f"Error {e} occurred while trying to fetch example values for Data Source "
+                f"{self.name}:{self.id}"
+            )
+            examples = dict()
+
+        return examples
+
     def get_limited_glue_table_name(self, limited):
         return f"{self.dir}_limited_{limited}"
+
+    def get_deid_glue_table_name(self, deid):
+        return f"{self.dir}_deid_{deid}"
 
     def __set_state(self, state):
         if self.state == state:

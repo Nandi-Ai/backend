@@ -15,11 +15,13 @@ from slugify import slugify
 from mainapp import resources, settings
 from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
-from mainapp.serializers import DatasetSerializer
+from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
+from mainapp.utils.deidentification.common.functions import handle_method
 from mainapp.utils.lib import process_structured_data_sources_in_background
-from mainapp.utils.monitoring import handle_event
+from mainapp.utils.permissions import IsDatasetAdmin
 from mainapp.utils.monitoring.monitor_events import MonitorEvents
+from mainapp.utils.monitoring import handle_event
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -33,6 +35,14 @@ logger = logging.getLogger(__name__)
 class DatasetViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     serializer_class = DatasetSerializer
+    permission_classes = [IsDatasetAdmin]
+    ADMIN_PROTECTED_ENDPOINTS = [
+        "data_source_examples",
+        "methods",
+        "add_method",
+        "update",
+        "destroy",
+    ]
     filter_fields = ("ancestor",)
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -73,6 +83,62 @@ class DatasetViewSet(ModelViewSet):
         dataset.save()
 
         return Response(DatasetSerializer(dataset).data, status=200)
+
+    @action(detail=True, methods=["get"])
+    def data_source_examples(self, request, *args, **kwargs):
+        dataset = self.get_object()
+        data_sources = dataset.data_sources
+        data_source_examples = {
+            str(data_source.id): data_source.example_values()
+            for data_source in data_sources.iterator()
+        }
+        return Response(data_source_examples)
+
+    @action(detail=True, methods=["get"])
+    def methods(self, request, *args, **kwargs):
+        dataset = self.get_object()
+
+        return Response(MethodSerializer(dataset.methods, many=True).data, status=200)
+
+    @action(detail=True, methods=["post"])
+    def add_method(self, request, *args, **kwargs):
+        dataset = self.get_object()
+
+        logger.info(f"Validating Method for Dataset {dataset.name}:{dataset.id}")
+        method_serialized = MethodSerializer(data=request.data)
+
+        method_serialized.is_valid(raise_exception=True)
+
+        for method in dataset.methods.all():
+            if method.state == "pending":
+                logger.warning(
+                    "Aborting method creation due to running de identification process"
+                )
+                return BadRequestErrorResponse(
+                    "Dataset is currently being De-identified, please try again later"
+                )
+
+        method = method_serialized.save()
+        logger.debug(
+            f"Created Method {method.name}:{method.id} for Dataset {dataset.name}:{dataset.id}"
+        )
+
+        logger.info(
+            f"Deidentifying Data Sources according to Method {method.name}:{method.id}"
+        )
+        if method.data_source_methods:
+            dsrc_index = 0
+            for dsrc_method in method.data_source_methods.all():
+                dsrc_index += 1
+                try:
+                    handle_method(dsrc_method, dsrc_method.data_source, dsrc_index)
+                except Exception as e:
+                    method.delete()
+                    return BadRequestErrorResponse(str(e))
+
+        method.save()
+
+        return Response(MethodSerializer(method).data, status=201)
 
     def get_queryset(self):
         return self.request.user.datasets.exclude(is_deleted=True)
@@ -378,12 +444,6 @@ class DatasetViewSet(ModelViewSet):
 
             dataset = self.get_object()
 
-            if request.user.permission(dataset) != "admin":
-                return ForbiddenErrorResponse(
-                    f"This user can't update the following dataset {dataset.name}"
-                    f"with following id {dataset.id}"
-                )
-
             if dataset.has_pending_datasource():
                 return ConflictErrorResponse(
                     "Some of the data-sources are currently being processed. Please try again later"
@@ -577,11 +637,6 @@ class DatasetViewSet(ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         dataset = self.get_object()
-        if request.user.permission(dataset) != "admin":
-            return ForbiddenErrorResponse(
-                f"This user can't delete the following dataset {dataset.name}"
-                f"with following id {dataset.id}"
-            )
 
         def delete_dataset_tree(dataset_to_delete):
             for child_dataset in dataset_to_delete.children.all():

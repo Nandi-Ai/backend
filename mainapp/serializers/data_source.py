@@ -25,6 +25,8 @@ class DataSourceSerializer(ModelSerializer):
             "children",
             "ancestor",
             "cohort",
+            "columns",
+            "needs_deid",
         )
         extra_kwargs = {
             "state": {"read_only": True},

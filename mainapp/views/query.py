@@ -60,9 +60,13 @@ class Query(GenericAPIView):
                 dataset_user = DatasetUser.objects.filter(
                     user=request.user, dataset=dataset
                 )[0]
-                glue_table = data_source.get_limited_glue_table_name(
-                    dataset_user.permission_key
-                )
+                permission_key = dataset_user.permission_key()
+                if dataset_user.permission == "limited_access":
+                    glue_table = data_source.get_limited_glue_table_name(permission_key)
+
+                elif dataset_user.permission == "deid_access":
+                    glue_table = data_source.get_deid_glue_table_name(permission_key)
+
             elif access == "limited access":
                 glue_table = data_source.get_limited_glue_table_name(
                     data_source.permission_key
