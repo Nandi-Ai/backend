@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 
 from mainapp.exceptions import InvalidEc2Status
 from mainapp.models import Study, Execution, User
-from mainapp.utils.elasticsearch_service import ElasticsearchService
+from mainapp.utils.monitoring import handle_event
 from mainapp.utils.response_handler import BadRequestErrorResponse
 from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
 from mainapp.utils.study_vm_service import update_study_state
@@ -28,13 +28,7 @@ class UpdateStudyStatus(APIView):
 
             monitor_event = status_monitoring_event_map.get(status, None)
             if monitor_event:
-                ElasticsearchService.write_monitoring_event(
-                    event_type=monitor_event,
-                    execution_token=study.execution.token,
-                    study_id=study.id,
-                    study_name=study.name,
-                    environment_name=study.organization.name,
-                )
+                handle_event(monitor_event, {"study": study, "view_request": request})
 
             update_study_state(study, status)
             return Response(status=201)

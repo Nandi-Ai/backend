@@ -17,8 +17,9 @@ from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
 from mainapp.serializers import DatasetSerializer
 from mainapp.utils import lib, aws_service
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.lib import process_structured_data_sources_in_background
+from mainapp.utils.monitoring.monitor_events import MonitorEvents
+from mainapp.utils.monitoring import handle_event
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -39,38 +40,6 @@ class DatasetViewSet(ModelViewSet):
         ".png": ["image/png"],
         ".bmp": ["image/bmp"],
     }
-
-    def __monitor_dataset(
-        self, dataset, event_type, user_ip, user, datasource=None, additional_data=None
-    ):
-        ElasticsearchService.write_monitoring_event(
-            event_type=event_type,
-            user_ip=user_ip,
-            dataset_id=dataset.id,
-            dataset_name=dataset.name,
-            user_name=user.display_name,
-            datasource_id=datasource.id if datasource else "",
-            datasource_name=datasource.name if datasource else "",
-            environment_name=dataset.organization.name,
-            user_organization=user.organization.name,
-            additional_data=additional_data if additional_data else None,
-        )
-
-        datasource_log = (
-            f"and datasource {datasource.name}:{datasource.id}" if datasource else ""
-        )
-        additional_data_log = (
-            f"additional data for event : {str(additional_data)}"
-            if additional_data
-            else ""
-        )
-        logger.info(
-            f"Dataset Event: {event_type.value} "
-            f"on dataset {dataset.name}:{dataset.id} "
-            f"by user {user.display_name}. "
-            f"{datasource_log}"
-            f"{additional_data_log}"
-        )
 
     # noinspection PyMethodMayBeStatic
     def logic_validate(
@@ -338,11 +307,9 @@ class DatasetViewSet(ModelViewSet):
             )
 
             dataset.save()
-            self.__monitor_dataset(
-                event_type=MonitorEvents.EVENT_DATASET_CREATED,
-                user_ip=lib.get_client_ip(request),
-                dataset=dataset,
-                user=request.user,
+            handle_event(
+                MonitorEvents.EVENT_DATASET_CREATED,
+                {"dataset": dataset, "view_request": request},
             )
 
             # the role takes this time to be created!
@@ -422,26 +389,28 @@ class DatasetViewSet(ModelViewSet):
             removed_admins = diff & existing
 
             if new:
-                self.__monitor_dataset(
-                    dataset=dataset,
-                    event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
-                    user_ip=lib.get_client_ip(request),
-                    user=request.user,
-                    additional_data={
-                        "user_list": [user.display_name for user in new],
-                        "permission": "admin",
+                handle_event(
+                    MonitorEvents.EVENT_DATASET_ADD_USER,
+                    {
+                        "dataset": dataset,
+                        "view_request": request,
+                        "additional_data": {
+                            "user_list": [user.display_name for user in new],
+                            "permission": "admin",
+                        },
                     },
                 )
 
             if removed_admins:
-                self.__monitor_dataset(
-                    dataset=dataset,
-                    event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
-                    user_ip=lib.get_client_ip(request),
-                    user=request.user,
-                    additional_data={
-                        "user_list": [user.display_name for user in removed_admins],
-                        "permission": "admin",
+                handle_event(
+                    MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    {
+                        "dataset": dataset,
+                        "view_request": request,
+                        "additional_data": {
+                            "user_list": [user.display_name for user in removed_admins],
+                            "permission": "admin",
+                        },
                     },
                 )
 
@@ -475,26 +444,28 @@ class DatasetViewSet(ModelViewSet):
             removed_agg = diff & existing
 
             if new:
-                self.__monitor_dataset(
-                    event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
-                    user_ip=lib.get_client_ip(request),
-                    dataset=dataset,
-                    user=request.user,
-                    additional_data={
-                        "user_list": [user.display_name for user in new],
-                        "permission": "aggregated",
+                handle_event(
+                    MonitorEvents.EVENT_DATASET_ADD_USER,
+                    {
+                        "dataset": dataset,
+                        "view_request": request,
+                        "additional_data": {
+                            "user_list": [user.display_name for user in new],
+                            "permission": "aggregated",
+                        },
                     },
                 )
 
             if removed_agg:
-                self.__monitor_dataset(
-                    event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
-                    user_ip=lib.get_client_ip(request),
-                    dataset=dataset,
-                    user=request.user,
-                    additional_data={
-                        "user_list": [user.display_name for user in removed_agg],
-                        "permission": "aggregated",
+                handle_event(
+                    MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    {
+                        "dataset": dataset,
+                        "view_request": request,
+                        "additional_data": {
+                            "user_list": [user.display_name for user in removed_agg],
+                            "permission": "aggregated",
+                        },
                     },
                 )
 
@@ -517,26 +488,28 @@ class DatasetViewSet(ModelViewSet):
             removed_full = diff & existing
 
             if new:
-                self.__monitor_dataset(
-                    event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
-                    user_ip=lib.get_client_ip(request),
-                    dataset=dataset,
-                    user=request.user,
-                    additional_data={
-                        "user_list": [user.display_name for user in new],
-                        "permission": "full_access",
+                handle_event(
+                    MonitorEvents.EVENT_DATASET_ADD_USER,
+                    {
+                        "dataset": dataset,
+                        "view_request": request,
+                        "additional_data": {
+                            "user_list": [user.display_name for user in new],
+                            "permission": "full_access",
+                        },
                     },
                 )
 
             if removed_full:
-                self.__monitor_dataset(
-                    event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
-                    user_ip=lib.get_client_ip(request),
-                    dataset=dataset,
-                    user=request.user,
-                    additional_data={
-                        "user_list": [user.display_name for user in removed_full],
-                        "permission": "full_access",
+                handle_event(
+                    MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                    {
+                        "dataset": dataset,
+                        "view_request": request,
+                        "additional_data": {
+                            "user_list": [user.display_name for user in removed_full],
+                            "permission": "full_access",
+                        },
                     },
                 )
 
@@ -624,11 +597,9 @@ class DatasetViewSet(ModelViewSet):
                 child.ancestor = dataset.ancestor
                 child.save()
 
-        self.__monitor_dataset(
-            event_type=MonitorEvents.EVENT_DATASET_DELETED,
-            user_ip=lib.get_client_ip(request),
-            dataset=dataset,
-            user=request.user,
+        handle_event(
+            MonitorEvents.EVENT_DATASET_DELETED,
+            {"dataset": dataset, "view_request": request},
         )
 
         dataset.delete()

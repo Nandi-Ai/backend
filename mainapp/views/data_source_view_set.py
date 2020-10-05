@@ -15,8 +15,8 @@ from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.lib import process_structured_data_source_in_background
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -42,27 +42,6 @@ class DataSourceViewSet(ModelViewSet):
         ".zip": ["application/zip"],
         ".xml": ["text/html", "text/xml"],
     }
-
-    def __monitor_datasource(self, event_type, user_ip, datasource, user):
-        ElasticsearchService.write_monitoring_event(
-            event_type=event_type,
-            user_ip=user_ip,
-            dataset_id=datasource.dataset.id,
-            dataset_name=datasource.dataset.name,
-            user_name=user.display_name,
-            datasource_id=datasource.id,
-            datasource_name=datasource.name,
-            environment_name=datasource.dataset.organization.name,
-            user_organization=user.organization.name,
-        )
-
-        logger.info(
-            f"Datasource Event: {event_type.value} "
-            f"on dataset {datasource.dataset.name}:{datasource.dataset.id} "
-            f"and datasource {datasource.name}:{datasource.id}"
-            f"by user {user.display_name} "
-            f"in org {datasource.dataset.organization.name}"
-        )
 
     @action(detail=True, methods=["get"])
     def statistics(self, request, *args, **kwargs):
@@ -251,11 +230,9 @@ class DataSourceViewSet(ModelViewSet):
                 )
 
             data_source.save()
-            self.__monitor_datasource(
-                event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
-                user_ip=lib.get_client_ip(request),
-                datasource=data_source,
-                user=request.user,
+            handle_event(
+                MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                {"datasource": data_source, "view_request": request},
             )
 
             return Response(

@@ -22,7 +22,6 @@ from mainapp.utils.decorators import (
     with_ec2_client,
     with_route53_client,
 )
-from mainapp.utils.elasticsearch_service import ElasticsearchService, MonitorEvents
 from mainapp.utils.aws_utils import (
     Route53Actions,
     AWS_EC2_STARTING,
@@ -35,6 +34,8 @@ from mainapp.utils.aws_utils import (
     delete_route53,
     create_route53,
 )
+from mainapp.utils.monitoring import handle_event, MonitorEvents
+from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
 
 logger = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() * 2 - 1)
@@ -89,6 +90,9 @@ STUDY_STATUS_BASED_ON_INSTANCE_NAME = {
 
 
 def update_study_state(study, status):
+    monitor_event = status_monitoring_event_map.get(status, None)
+    if monitor_event:
+        handle_event(monitor_event, {"study": study})
     logger.info(f"Updating study {study.name} instance status to be {status}")
     if status not in ALLOWED_STATUSES:
         raise InvalidEc2Status(status)
@@ -181,17 +185,7 @@ def delete_study(study):
     except Ec2Error as e:
         logger.warning(str(e))
 
-    ElasticsearchService.write_monitoring_event(
-        event_type=MonitorEvents.EVENT_STUDY_DELETED,
-        study_id=study.id,
-        study_name=study.name,
-        environment_name=study.organization.name,
-    )
-    logger.info(
-        f"Study Event: {MonitorEvents.EVENT_STUDY_DELETED.value} "
-        f"on study {study.name}:{study.id} "
-        f"in org {study.organization}"
-    )
+    handle_event(MonitorEvents.EVENT_STUDY_DELETED, {"study": study})
 
 
 @with_ec2_client

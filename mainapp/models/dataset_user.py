@@ -6,7 +6,7 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.models import Activity
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
@@ -78,11 +78,16 @@ def dataset_user_post_save(sender, instance, **kwargs):
         },
     )
 
-    monitor_dataset_user_event(
-        event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
-        dataset=dataset,
-        user=user,
-        additional_data={"user_list": [user.display_name], "permission": permission},
+    handle_event(
+        MonitorEvents.EVENT_DATASET_ADD_USER,
+        {
+            "dataset": dataset,
+            "user": user,
+            "additional_data": {
+                "user_list": [user.display_name],
+                "permission": permission,
+            },
+        },
     )
 
 

@@ -11,7 +11,8 @@ from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
     delete_data_source_files_from_bucket,
 )
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
@@ -68,17 +69,6 @@ def delete_data_source(sender, instance, **kwargs):
     delete_data_source_glue_tables(data_source=data_source, org_name=org_name)
     delete_data_source_files_from_bucket(data_source=data_source, org_name=org_name)
 
-    ElasticsearchService.write_monitoring_event(
-        event_type=MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE,
-        datasource_id=data_source.id,
-        datasource_name=data_source.name,
-        dataset_id=data_source.dataset.id,
-        dataset_name=data_source.dataset.name,
-        environment_name=data_source.dataset.organization.name,
-    )
-    logger.info(
-        f"Datasource Event: {MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE.value} "
-        f"on dataset {data_source.dataset.name}:{data_source.dataset.id} "
-        f"and datasource {data_source.name}:{data_source.id} "
-        f"in org {data_source.dataset.organization}"
+    handle_event(
+        MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE, {"datasource": data_source}
     )
