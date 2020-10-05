@@ -90,14 +90,15 @@ STUDY_STATUS_BASED_ON_INSTANCE_NAME = {
 
 
 def update_study_state(study, status):
-    monitor_event = status_monitoring_event_map.get(status, None)
-    if monitor_event:
-        handle_event(monitor_event, {"study": study})
-    logger.info(f"Updating study {study.name} instance status to be {status}")
-    if status not in ALLOWED_STATUSES:
-        raise InvalidEc2Status(status)
-    study.status = status
-    study.save()
+    if study.status != status:
+        monitor_event = status_monitoring_event_map.get(status, None)
+        if monitor_event:
+            handle_event(monitor_event, {"study": study})
+        logger.info(f"Updating study {study.name} instance status to be {status}")
+        if status not in ALLOWED_STATUSES:
+            raise InvalidEc2Status(status)
+        study.status = status
+        study.save()
 
 
 def wait_until_stopped(instance, study):

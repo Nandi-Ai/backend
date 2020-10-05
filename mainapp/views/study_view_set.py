@@ -189,6 +189,7 @@ class StudyViewSet(ModelViewSet):
             for dataset in diff_datasets:
 
                 monitor_kwargs["data"]["dataset"] = dataset
+                monitor_kwargs["data"]["view_request"] = request
                 activity_kwargs["dataset"] = dataset
 
                 if dataset in existing_datasets:
