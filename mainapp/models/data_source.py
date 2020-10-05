@@ -196,9 +196,6 @@ class DataSource(models.Model):
     def get_limited_glue_table_name(self, limited):
         return f"{self.dir}_limited_{limited}"
 
-    def get_deid_glue_table_name(self, deid):
-        return f"{self.dir}_deid_{deid}"
-
     def __set_state(self, state):
         if self.state == state:
             logger.warning(
