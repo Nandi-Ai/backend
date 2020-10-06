@@ -1,6 +1,8 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+from mainapp.utils.lib import create_limited_table_for_dataset
+
 
 class StudyDataset(models.Model):
     FULL_ACCESS = "full_access"
@@ -33,3 +35,14 @@ class StudyDataset(models.Model):
 
     def __str__(self):
         return f"<StudyDataset dataset={self.dataset} study={self.study} permission={self.permission}>"
+
+    @property
+    def permission_key(self):
+        return self.permission_attributes.get("key")
+
+    def process(self):
+        """
+        trigger process to the dataset attached to the study (if needed)
+        """
+        if self.permission == StudyDataset.LIMITED_ACCESS:
+            create_limited_table_for_dataset(self.dataset, self.permission_key)

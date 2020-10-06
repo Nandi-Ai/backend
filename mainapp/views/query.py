@@ -61,11 +61,11 @@ class Query(GenericAPIView):
                     user=request.user, dataset=dataset
                 )[0]
                 glue_table = data_source.get_limited_glue_table_name(
-                    dataset_user.get_limited_value()
+                    dataset_user.get_permission_key()
                 )
             elif access == "limited access":
                 glue_table = data_source.get_limited_glue_table_name(
-                    data_source.limited_value
+                    data_source.permission_key
                 )
             else:
                 glue_table = data_source.glue_table

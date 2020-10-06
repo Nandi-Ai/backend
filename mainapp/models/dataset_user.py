@@ -6,6 +6,7 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.models import Activity
+from mainapp.utils.lib import create_limited_table_for_dataset
 from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,15 @@ class DatasetUser(models.Model):
             f"permission={self.permission} permission_attributes={self.permission_attributes}>"
         )
 
-    def get_limited_value(self):
+    def get_permission_key(self):
         return self.permission_attributes.get("key")
+
+    def process(self):
+        """
+        process all data-sources in this datasets
+        """
+        if self.permission == DatasetUser.LIMITED_ACCESS:
+            create_limited_table_for_dataset(self.dataset, self.get_permission_key())
 
 
 @receiver(signals.post_save, sender=DatasetUser)

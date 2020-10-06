@@ -66,12 +66,14 @@ class StudySerializer(ModelSerializer):
                         "Dataset's organization doesn't match the study organization"
                     )
 
-                StudyDataset.objects.create(
+                new_study_dataset = StudyDataset.objects.create(
                     study=instance,
                     dataset=dataset_instance,
                     permission=permission,
                     permission_attributes=permission_attributes,
                 )
+
+                new_study_dataset.process()
 
         if len(prev_datasets) > 0:
             for item in prev_datasets.values():

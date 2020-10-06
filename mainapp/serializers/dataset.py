@@ -4,7 +4,6 @@ from rest_framework.serializers import ModelSerializer, ValidationError
 from mainapp.models import Dataset, DatasetUser, User
 from mainapp.serializers.user import UserSerializer
 from mainapp.serializers.dataset_user import DatasetUserSerializer
-from mainapp.utils.lib import process_dataset_user
 
 
 class DatasetSerializer(ModelSerializer):
@@ -111,7 +110,7 @@ class DatasetSerializer(ModelSerializer):
                 dataset_user.permission = permission
                 dataset_user.permission_attributes = permission_attributes
                 dataset_user.save()
-                process_dataset_user(dataset_user)
+                dataset_user.process()
             except DatasetUser.DoesNotExist:
                 try:
                     user_instance = User.objects.get(id=user_id)
@@ -124,7 +123,7 @@ class DatasetSerializer(ModelSerializer):
                     permission=permission,
                     permission_attributes=permission_attributes,
                 )
-                process_dataset_user(dataset_user)
+                dataset_user.process()
 
         if len(prev_users) > 0:
             for item in prev_users.values():

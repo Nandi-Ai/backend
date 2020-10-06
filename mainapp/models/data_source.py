@@ -11,7 +11,6 @@ from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
     delete_data_source_files_from_bucket,
 )
-
 from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
@@ -55,6 +54,25 @@ class DataSource(models.Model):
 
     def get_limited_glue_table_name(self, limited):
         return f"{self.dir}_limited_{limited}"
+
+    def __set_state(self, state):
+        if self.state == state:
+            logger.warning(
+                f"Human! Somewhere in your code you're trying to set the data-source {self.id} state "
+                f"to {state} when it's already in {state} state."
+            )
+        else:
+            self.state = state
+            self.save()
+
+    def set_as_pending(self):
+        self.__set_state("pending")
+
+    def set_as_ready(self):
+        self.__set_state("ready")
+
+    def set_as_error(self):
+        self.__set_state("error")
 
 
 @receiver(signals.pre_delete, sender=DataSource)
