@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 class DataSource(models.Model):
+    READY = "ready"
+    PENDING = "pending"
+    ERROR = "error"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
@@ -66,13 +70,16 @@ class DataSource(models.Model):
             self.save()
 
     def set_as_pending(self):
-        self.__set_state("pending")
+        self.__set_state(DataSource.PENDING)
 
     def set_as_ready(self):
-        self.__set_state("ready")
+        self.__set_state(DataSource.READY)
 
     def set_as_error(self):
-        self.__set_state("error")
+        self.__set_state(DataSource.ERROR)
+
+    def is_ready(self):
+        return self.state != DataSource.READY
 
 
 @receiver(signals.pre_delete, sender=DataSource)

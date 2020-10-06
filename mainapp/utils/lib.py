@@ -335,8 +335,7 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
         f"processing cohort users for data_source {data_source.name}:{data_source.id} "
         f"in org {org_name} "
     )
-    data_source.state = "pending"
-    data_source.save()
+    data_source.set_as_pending()
     try:
         for dataset_user in data_source.dataset.datasetuser_set.all():
             logger.info(
@@ -361,14 +360,12 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                     limited=limited,
                     query=query,
                 )
-        data_source.state = "ready"
+        data_source.set_as_ready()
     except Exception as e:
         logger.exception(
             f"Failed processing user in the data source {data_source.name} ({data_source.id}) with error {e}"
         )
-        data_source.state = "error"
-
-    data_source.save()
+        data_source.set_as_error()
 
 
 @with_glue_client
@@ -492,8 +489,7 @@ def process_structured_cohort_in_background(
     process data_source glue tables
     and create limited glue tables for limited users
     """
-    data_source.state = "pending"
-    data_source.save()
+    data_source.set_as_pending()
 
     create_glue_table_thread = threading.Thread(
         target=create_glue_tables_for_cohort,
@@ -832,8 +828,7 @@ def handle_zipped_data_source(boto3_client, data_source, org_name):
         ]
     )
     shutil.rmtree(f"/tmp/{str(data_source.id)}")
-    data_source.state = "ready"
-    data_source.save()
+    data_source.set_as_ready()
 
 
 def calc_access_to_database(user, dataset):
