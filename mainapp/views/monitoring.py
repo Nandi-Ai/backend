@@ -23,8 +23,8 @@ class Monitoring(GenericAPIView):
                 id=request.data.get("data")["study"]
             )
 
-        if request_args:
-            request_args["data"] = request.data.get("data")
+        request_args["data"] = request.data.get("data")
+        request_args["view_request"] = request
 
-        handle_event(event_type, request_args or request.data)
+        handle_event(event_type, request_args)
         return Response()

@@ -40,28 +40,6 @@ class DatasetUser(models.Model):
         return self.permission_attributes.get("key")
 
 
-def monitor_dataset_user_event(dataset, event_type, user, additional_data=None):
-    ElasticsearchService.write_monitoring_event(
-        event_type=event_type,
-        user_ip=None,
-        dataset_id=dataset.id,
-        dataset_name=dataset.name,
-        user_name=user.display_name,
-        datasource_id="",
-        datasource_name="",
-        environment_name=dataset.organization.name,
-        user_organization=user.organization.name,
-        additional_data=additional_data if additional_data else None,
-    )
-
-    logger.info(
-        f"Dataset Event: {event_type.value} "
-        f"on dataset {dataset.name}:{dataset.id} "
-        f"by user {user.display_name}. "
-        f"additional data for event : {str(additional_data)}"
-    )
-
-
 @receiver(signals.post_save, sender=DatasetUser)
 def dataset_user_post_save(sender, instance, **kwargs):
     dataset = instance.dataset
@@ -107,10 +85,13 @@ def dataset_user_post_delete(sender, instance, **kwargs):
                 "permission": "all",
             },
         )
-
-    monitor_dataset_user_event(
-        event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
-        dataset=dataset,
-        user=user,
-        additional_data={"user_list": [user.display_name], "permission": permission},
+    handle_event(
+        MonitorEvents.EVENT_DATASET_REMOVE_USER,
+        {
+            "dataset": dataset,
+            "additional_data": {
+                "user_list": [user.display_name],
+                "permission": permission,
+            },
+        },
     )
