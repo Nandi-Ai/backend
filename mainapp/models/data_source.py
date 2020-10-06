@@ -93,6 +93,54 @@ class DataSource(models.Model):
         }
         self.save()
 
+    def __query_examples(self, columns, query_template):
+        column_example_queries = list()
+        for col_name, col in columns.items():
+            glue_type = col["glue_type"]
+            column_example_queries.append(
+                query_template.format(
+                    col_name=col_name,
+                    glue_table=self.glue_table,
+                    addition=f" AND \"{col_name}\" <> ''"
+                    if glue_type
+                    in [
+                        GlueDataTypes.CHAR.value,
+                        GlueDataTypes.STRING.value,
+                        GlueDataTypes.VARCHAR.value,
+                    ]
+                    else str(),
+                )
+            )
+
+        logger.info(
+            f"Querying table {self.dataset.glue_database}.{self.glue_table} for examples"
+        )
+        example_values_query_response = self.dataset.query(
+            f"SELECT * FROM {','.join(column_example_queries)};"
+        )
+
+        response_object = self.dataset.get_query_execution(
+            example_values_query_response["QueryExecutionId"]
+        )
+
+        logger.info(
+            f"Received example values for {self.dataset.glue_database}.{self.glue_table}"
+        )
+        query_result = (
+            response_object["Body"].read().decode("utf-8").replace('"', "").split("\n")
+        )
+        col_names, example_values = (
+            query_result[0].split(","),
+            query_result[1].split(","),
+        )
+        examples = dict()
+
+        if len(col_names) == len(example_values):
+            for col_index in range(len(col_names)):
+                examples[col_names[col_index]] = example_values[col_index]
+
+        return examples
+
     def example_values(self):
         if self.type != "structured" or not self.columns:
             logger.warning(
@@ -101,54 +149,37 @@ class DataSource(models.Model):
             return dict()
 
         try:
-            example_query_template = '(SELECT "{col_name}" FROM "{glue_table}" WHERE "{col_name}" IS NOT NULL{addition} limit 1)'
-            column_example_queries = list()
-            for col_name, col in self.columns.items():
-                glue_type = col["glue_type"]
-                column_example_queries.append(
-                    example_query_template.format(
-                        col_name=col_name,
-                        glue_table=self.glue_table,
-                        addition=f" AND \"{col_name}\" <> ''"
-                        if glue_type
-                        in [
-                            GlueDataTypes.CHAR.value,
-                            GlueDataTypes.STRING.value,
-                            GlueDataTypes.VARCHAR.value,
-                        ]
-                        else "",
-                    )
+            examples = self.__query_examples(
+                self.columns,
+                '(SELECT "{col_name}" FROM "{glue_table}" WHERE "{col_name}" IS NOT NULL{addition} limit 1)',
+            )
+            if not examples:
+                logger.warning(
+                    f"One of the columns for Data Source {self.id} does not have any values, querying again"
                 )
-
-            logger.info(
-                f"Querying table {self.dataset.glue_database}.{self.glue_table} for example values"
-            )
-            example_values_query_response = self.dataset.query(
-                f"SELECT * FROM {','.join(column_example_queries)};"
-            )
-
-            response_object = self.dataset.get_query_execution(
-                example_values_query_response["QueryExecutionId"]
-            )
-
-            logger.info(
-                f"Received example values for {self.dataset.glue_database}.{self.glue_table}"
-            )
-            query_result = (
-                response_object["Body"]
-                .read()
-                .decode("utf-8")
-                .replace('"', "")
-                .split("\n")
-            )
-            col_names, example_values = (
-                query_result[0].split(","),
-                query_result[1].split(","),
-            )
-            examples = dict()
-
-            for col_index in range(len(col_names)):
-                examples[col_names[col_index]] = example_values[col_index]
+                logger.debug(
+                    f"Querying count of actual values for Data Source {self.id}"
+                )
+                counts = self.__query_examples(
+                    self.columns,
+                    '(SELECT COUNT(*) as "{col_name}" FROM "{glue_table}" WHERE "{col_name}" IS NOT NULL {addition})',
+                )
+                columns_with_values = {
+                    col_name: col
+                    for col_name, col in self.columns.items()
+                    if int(counts[col_name])
+                }
+                examples = self.__query_examples(
+                    columns_with_values,
+                    '(SELECT "{col_name}" FROM "{glue_table}" WHERE "{col_name}" IS NOT NULL{addition} limit 1)',
+                )
+                examples.update(
+                    {
+                        col_name: "*N/A*"
+                        for col_name in self.columns
+                        if not columns_with_values.get(col_name)
+                    }
+                )
 
         except Exception as e:
             logger.error(
