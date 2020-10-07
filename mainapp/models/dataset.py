@@ -127,9 +127,12 @@ class Dataset(models.Model):
     def get_permission_key(self):
         return self.permission_attributes.get("key")
 
+    def __filtered_dataset_users(self, permission):
+        return self.datasetuser_set.filter(permission=permission)
+
     @property
     def limited_dataset_users(self):
-        return self.users.filter(permission=DatasetUser.LIMITED_ACCESS)
+        return self.__filtered_dataset_users(DatasetUser.LIMITED_ACCESS)
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"
