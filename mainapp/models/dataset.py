@@ -123,7 +123,7 @@ class Dataset(models.Model):
             glue_table=glue_table,
         )
 
-    def get_limited_value(self):
+    def get_permission_key(self):
         return self.permission_attributes.get("key")
 
     def __str__(self):
