@@ -47,7 +47,7 @@ class DataSource(models.Model):
         return self.dataset.bucket
 
     @property
-    def limited_value(self):
+    def permission_key(self):
         dataset = self.dataset
         if dataset.default_user_permission == "limited_access":
             limited = dataset.permission_attributes.get("key")
