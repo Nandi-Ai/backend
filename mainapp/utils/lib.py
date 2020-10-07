@@ -376,10 +376,20 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
 
         # create agg stat and limited (only if dataset default permission is limited)
         create_agg_stats(data_source=data_source, org_name=org_name)
+
+        # create limited table if default dataset permission is limited
         limited = data_source.permission_key
         if limited:
             create_limited_glue_table(
                 data_source=data_source, org_name=org_name, limited=limited
+            )
+
+        # create limited for limited users for dataset
+        for dataset_user in data_source.dataset.limited_dataset_users:
+            create_limited_glue_table(
+                data_source=data_source,
+                org_name=org_name,
+                limited=dataset_user.get_permission_key,
             )
 
         # process all connected studies into the data_source's dataset.
@@ -438,8 +448,7 @@ def create_glue_table(boto3_client, org_name, data_source):
             f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
             f"had a failure after {max_retries} tries"
         )
-        data_source.state = "error"
-        data_source.save()
+        data_source.set_as_error()
 
     else:
         logger.debug(

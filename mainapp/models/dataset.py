@@ -7,6 +7,7 @@ from django.db import models
 from mainapp.settings import DELETE_DATASETS_FROM_DATABASE
 from mainapp.utils import lib, aws_service
 from mainapp.utils.dataset import delete_aws_resources_for_dataset
+from .dataset_user import DatasetUser
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,10 @@ class Dataset(models.Model):
 
     def get_permission_key(self):
         return self.permission_attributes.get("key")
+
+    @property
+    def limited_dataset_users(self):
+        return self.users.filter(permission=DatasetUser.LIMITED_ACCESS)
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"

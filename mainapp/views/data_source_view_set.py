@@ -226,8 +226,8 @@ class DataSourceViewSet(ModelViewSet):
                     data_source=data_source,
                     org_name=data_source.dataset.organization.name,
                 )
+                data_source.set_as_ready()
 
-            data_source.set_as_ready()
             handle_event(
                 MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
                 {"datasource": data_source, "view_request": request},
