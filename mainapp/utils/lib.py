@@ -344,7 +344,7 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                 f"in org {org_name} "
             )
             if dataset_user.permission == "limited_access":
-                limited = dataset_user.get_permission_key()
+                limited = dataset_user.permission_key
                 logger.info(
                     f"creating limited table for user {dataset_user.user.id} with limited {limited} "
                 )
@@ -354,12 +354,17 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                     data_filter=data_filter,
                     columns=columns,
                 )
-                create_limited_glue_table(
-                    data_source=data_source,
-                    org_name=org_name,
-                    limited=limited,
-                    query=query,
-                )
+                try:
+                    create_limited_glue_table(
+                        data_source=data_source,
+                        org_name=org_name,
+                        limited=limited,
+                        query=query,
+                    )
+                except Exception as e:
+                    return ErrorResponse(
+                        f"There was an error executing this query", error=e
+                    )
         data_source.set_as_ready()
     except Exception as e:
         logger.exception(
@@ -389,7 +394,7 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
             create_limited_glue_table(
                 data_source=data_source,
                 org_name=org_name,
-                limited=dataset_user.get_permission_key,
+                limited=dataset_user.permission_key,
             )
 
         # process all connected studies into the data_source's dataset.
@@ -513,7 +518,9 @@ def process_structured_cohort_in_background(
     create_glue_table_thread.start()
 
 
-def create_limited_table_for_dataset(dataset, limited_value):
+def create_limited_table_for_all_dataset_data_sources_in_threads(
+    dataset, limited_value
+):
     organization = dataset.organization
     organization_name = organization.name
 
@@ -531,19 +538,11 @@ def create_limited_table_for_dataset(dataset, limited_value):
     executor.map(thread, dataset.data_sources.all())
 
 
-def process_structured_data_sources_in_background(org_name, dataset):
+def process_structured_data_sources_in_background(dataset):
     if dataset.default_user_permission == "limited_access":
-        limited_value = dataset.get_permission_key()
-
-        def thread(ds):
-            try:
-                return create_limited_glue_table(
-                    data_source=ds, org_name=org_name, limited=limited_value
-                )
-            except Exception as e:
-                logger.exception(e)
-
-        executor.map(thread, dataset.data_sources.all())
+        create_limited_table_for_all_dataset_data_sources_in_threads(
+            dataset=dataset, limited_value=dataset.permission_key
+        )
 
 
 @with_s3_resource
@@ -686,7 +685,7 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
             f"Query string: {ctas_query}"
         ).with_traceback(e.__traceback__)
         logger.debug(f"This is the ctas_query {ctas_query}")
-        return ErrorResponse(f"There was an error executing this query", error=error)
+        raise error from e
 
 
 @with_s3_client

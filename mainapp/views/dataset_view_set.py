@@ -18,8 +18,8 @@ from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
 from mainapp.serializers import DatasetSerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.lib import process_structured_data_sources_in_background
-from mainapp.utils.monitoring.monitor_events import MonitorEvents
 from mainapp.utils.monitoring import handle_event
+from mainapp.utils.monitoring.monitor_events import MonitorEvents
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -563,9 +563,7 @@ class DatasetViewSet(ModelViewSet):
         )  # will handle the case where serializer is not valid
 
         updated_dataset = self.get_object()
-        process_structured_data_sources_in_background(
-            org_name=updated_dataset.organization.name, dataset=updated_dataset
-        )
+        process_structured_data_sources_in_background(dataset=updated_dataset)
 
         return result
 
