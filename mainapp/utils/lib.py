@@ -330,10 +330,8 @@ def create_glue_database(boto3_client, org_name, dataset):
     dataset.save()
 
 
+# This function should be running inside a thread! thus it's swallow errors
 def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_source):
-    """
-    This function should be running inside a thread! thus it's swallow errors
-    """
     logger.info(
         f"processing cohort users for data_source {data_source.name}:{data_source.id} "
         f"in org {org_name} "
@@ -481,10 +479,11 @@ def process_structured_data_source_in_background(org_name, data_source):
     create_glue_table_thread.start()
 
 
+# This function should be running inside a thread!
+# It will call process_cohort_users which swallow errors
 def create_glue_tables_for_cohort(
     org_name, data_source, columns, data_filter, orig_data_source
 ):
-    """This function should be running inside a thread!"""
     process_datasource_glue_and_bucket_data(org_name=org_name, data_source=data_source)
     process_cohort_users(
         data_source=data_source,
@@ -501,6 +500,8 @@ def process_structured_cohort_in_background(
     """
     process data_source glue tables
     and create limited glue tables for limited users
+    each datasource will call create_glue_tables_for_cohort function will run inside a thread!
+    create_glue_tables_for_cohort will call process_cohort_users which swallow errors
     """
     data_source.set_as_pending()
 
