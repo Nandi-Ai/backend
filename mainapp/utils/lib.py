@@ -330,6 +330,7 @@ def create_glue_database(boto3_client, org_name, dataset):
     dataset.save()
 
 
+# This function should be running inside a thread! thus it's swallow errors
 def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_source):
     logger.info(
         f"processing cohort users for data_source {data_source.name}:{data_source.id} "
@@ -344,7 +345,7 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                 f"in org {org_name} "
             )
             if dataset_user.permission == "limited_access":
-                limited = dataset_user.get_permission_key()
+                limited = dataset_user.permission_key
                 logger.info(
                     f"creating limited table for user {dataset_user.user.id} with limited {limited} "
                 )
@@ -389,7 +390,7 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
             create_limited_glue_table(
                 data_source=data_source,
                 org_name=org_name,
-                limited=dataset_user.get_permission_key,
+                limited=dataset_user.permission_key,
             )
 
         # process all connected studies into the data_source's dataset.
@@ -478,6 +479,8 @@ def process_structured_data_source_in_background(org_name, data_source):
     create_glue_table_thread.start()
 
 
+# This function should be running inside a thread!
+# It will call process_cohort_users which swallow errors
 def create_glue_tables_for_cohort(
     org_name, data_source, columns, data_filter, orig_data_source
 ):
@@ -497,6 +500,8 @@ def process_structured_cohort_in_background(
     """
     process data_source glue tables
     and create limited glue tables for limited users
+    each datasource will call create_glue_tables_for_cohort function will run inside a thread!
+    create_glue_tables_for_cohort will call process_cohort_users which swallow errors
     """
     data_source.set_as_pending()
 
@@ -514,8 +519,11 @@ def process_structured_cohort_in_background(
 
 
 def create_limited_table_for_dataset(dataset, limited_value):
-    organization = dataset.organization
-    organization_name = organization.name
+    """
+    Run thread(s) to create limited table(s) for each datasource in the dataset.
+    Each datasource processing will run in each own thread
+    """
+    organization_name = dataset.organization.name
 
     def thread(ds):
         ds.set_as_pending()
@@ -531,19 +539,11 @@ def create_limited_table_for_dataset(dataset, limited_value):
     executor.map(thread, dataset.data_sources.all())
 
 
-def process_structured_data_sources_in_background(org_name, dataset):
+def process_structured_data_sources_in_background(dataset):
     if dataset.default_user_permission == "limited_access":
-        limited_value = dataset.get_permission_key()
-
-        def thread(ds):
-            try:
-                return create_limited_glue_table(
-                    data_source=ds, org_name=org_name, limited=limited_value
-                )
-            except Exception as e:
-                logger.exception(e)
-
-        executor.map(thread, dataset.data_sources.all())
+        create_limited_table_for_dataset(
+            dataset=dataset, limited_value=dataset.permission_key
+        )
 
 
 @with_s3_resource
@@ -646,6 +646,9 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
         f"creating limited table for data_source {data_source.id} limited={limited}"
     )
 
+    if not limited:
+        raise ValueError("Invalid or None limited value")
+
     dataset = data_source.dataset
     destination_glue_database = dataset.glue_database
     destination_glue_table = data_source.glue_table
@@ -686,7 +689,7 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
             f"Query string: {ctas_query}"
         ).with_traceback(e.__traceback__)
         logger.debug(f"This is the ctas_query {ctas_query}")
-        return ErrorResponse(f"There was an error executing this query", error=error)
+        raise error from e
 
 
 @with_s3_client

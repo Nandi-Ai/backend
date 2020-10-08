@@ -124,7 +124,8 @@ class Dataset(models.Model):
             glue_table=glue_table,
         )
 
-    def get_permission_key(self):
+    @property
+    def permission_key(self):
         return self.permission_attributes.get("key")
 
     def __filtered_dataset_users(self, permission):

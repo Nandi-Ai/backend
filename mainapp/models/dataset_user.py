@@ -37,7 +37,8 @@ class DatasetUser(models.Model):
             f"permission={self.permission} permission_attributes={self.permission_attributes}>"
         )
 
-    def get_permission_key(self):
+    @property
+    def permission_key(self):
         return self.permission_attributes.get("key")
 
     def process(self):
@@ -45,7 +46,7 @@ class DatasetUser(models.Model):
         process all data-sources in this datasets
         """
         if self.permission == DatasetUser.LIMITED_ACCESS:
-            create_limited_table_for_dataset(self.dataset, self.get_permission_key())
+            create_limited_table_for_dataset(self.dataset, self.permission_key)
 
 
 @receiver(signals.post_save, sender=DatasetUser)
