@@ -79,7 +79,7 @@ class DataSource(models.Model):
         self.__set_state(DataSource.ERROR)
 
     def is_ready(self):
-        return self.state != DataSource.READY
+        return self.state == DataSource.READY
 
 
 @receiver(signals.pre_delete, sender=DataSource)
