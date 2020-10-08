@@ -520,8 +520,7 @@ def process_structured_cohort_in_background(
 def create_limited_table_for_all_dataset_data_sources_in_threads(
     dataset, limited_value
 ):
-    organization = dataset.organization
-    organization_name = organization.name
+    organization_name = dataset.organization.name
 
     def thread(ds):
         ds.set_as_pending()
