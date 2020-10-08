@@ -78,7 +78,7 @@ class DataSource(models.Model):
     def set_as_error(self):
         self.__set_state(DataSource.ERROR)
 
-    def is_ready(self):
+    def is_not_ready(self):
         return self.state != DataSource.READY
 
 
