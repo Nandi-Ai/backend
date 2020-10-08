@@ -47,7 +47,7 @@ class DataSourceViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def statistics(self, request, *args, **kwargs):
         data_source = self.get_object()
-        if data_source.is_not_ready():
+        if not data_source.is_ready():
             return ErrorResponse(
                 f"Data is still in processing. Datasource id {data_source.name}",
                 status_code=503,
