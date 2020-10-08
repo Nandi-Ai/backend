@@ -518,9 +518,11 @@ def process_structured_cohort_in_background(
     create_glue_table_thread.start()
 
 
-def create_limited_table_for_all_dataset_data_sources_in_threads(
-    dataset, limited_value
-):
+def create_limited_table_for_dataset(dataset, limited_value):
+    """
+    Run thread(s) to create limited table(s) for each datasource in the dataset.
+    Each datasource processing will run in each own thread
+    """
     organization_name = dataset.organization.name
 
     def thread(ds):
@@ -539,7 +541,7 @@ def create_limited_table_for_all_dataset_data_sources_in_threads(
 
 def process_structured_data_sources_in_background(dataset):
     if dataset.default_user_permission == "limited_access":
-        create_limited_table_for_all_dataset_data_sources_in_threads(
+        create_limited_table_for_dataset(
             dataset=dataset, limited_value=dataset.permission_key
         )
 

@@ -1,9 +1,7 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
-from mainapp.utils.lib import (
-    create_limited_table_for_all_dataset_data_sources_in_threads,
-)
+from mainapp.utils.lib import create_limited_table_for_dataset
 
 
 class StudyDataset(models.Model):
@@ -47,6 +45,4 @@ class StudyDataset(models.Model):
         trigger process to the dataset attached to the study (if needed)
         """
         if self.permission == StudyDataset.LIMITED_ACCESS:
-            create_limited_table_for_all_dataset_data_sources_in_threads(
-                self.dataset, self.permission_key
-            )
+            create_limited_table_for_dataset(self.dataset, self.permission_key)
