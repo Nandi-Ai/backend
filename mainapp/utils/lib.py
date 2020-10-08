@@ -644,6 +644,9 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
         f"creating limited table for data_source {data_source.id} limited={limited}"
     )
 
+    if not limited:
+        raise ValueError("Invalid or None limited value")
+
     dataset = data_source.dataset
     destination_glue_database = dataset.glue_database
     destination_glue_table = data_source.glue_table
