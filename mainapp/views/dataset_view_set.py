@@ -103,7 +103,9 @@ class DatasetViewSet(ModelViewSet):
 
             dataset = Dataset(
                 name=dataset_data["name"],
-                is_discoverable=dataset_data["is_discoverable"],
+                is_discoverable=dataset_data["is_discoverable"]
+                if dataset_data["state"] == "private"
+                else True,
                 cover=dataset_data.get("cover"),
                 organization=(
                     dataset_data["ancestor"].organization
