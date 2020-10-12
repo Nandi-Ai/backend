@@ -8,6 +8,7 @@ from mainapp.settings import DELETE_DATASETS_FROM_DATABASE
 from mainapp.utils import lib, aws_service
 from mainapp.utils.dataset import delete_aws_resources_for_dataset
 from .dataset_user import DatasetUser
+from .study import Study
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,13 @@ class Dataset(models.Model):
 
     def has_pending_datasource(self):
         return any(data_source.is_pending() for data_source in self.data_sources.all())
+
+    @property
+    def study_datasets(self):
+        for studydataset in self.studydataset_set.all():
+            if studydataset.study.status is not Study.STUDY_DELETED:
+                yield studydataset
+        return
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"

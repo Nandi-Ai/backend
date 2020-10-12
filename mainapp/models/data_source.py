@@ -207,6 +207,7 @@ class DataSource(models.Model):
                 f"to {state} when it's already in {state} state."
             )
         else:
+            logger.info(f"DataSource {self.id} state was changed to {state}")
             self.state = state
             self.save()
 

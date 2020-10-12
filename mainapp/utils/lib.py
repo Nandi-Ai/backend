@@ -399,10 +399,10 @@ def process_datasource_glue_and_bucket_data(org_name, data_source):
 
         # process all connected studies into the data_source's dataset.
         # create limited versions according to permission_attributes in the studies
-        for study_dataset in data_source.dataset.studydataset_set.all():
+        for study_dataset in data_source.dataset.study_datasets:
             study_dataset.process()
 
-        new_table_name = f"{data_source.dir}"
+        new_table_name = f"{data_source.dir}_full"
 
         try:
             # connect glue to the updated _full file.
@@ -410,7 +410,7 @@ def process_datasource_glue_and_bucket_data(org_name, data_source):
                 data_source=data_source,
                 org_name=org_name,
                 source_table=data_source.glue_table,
-                target_table=f"{data_source.dir}_full",
+                target_table=new_table_name,
                 path=f"{data_source.dataset.bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}",
             )
         except GlueError as ge:
@@ -422,13 +422,13 @@ def process_datasource_glue_and_bucket_data(org_name, data_source):
         data_source.glue_table = new_table_name
         data_source.save()
 
+        data_source.generate_columns()
+
         data_source.set_as_ready()
         logger.info(
             f"Done processing data_source {data_source.name} ({data_source.id}) "
             f"in org {org_name} "
         )
-
-        data_source.generate_columns()
 
     except Exception as e:
         logger.exception(
