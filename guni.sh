@@ -6,7 +6,8 @@ DJANGODIR=/home/lynx/lynx-be             # Django project directory
 SOCKFILE=/home/lynx/gunicorn.sock  # we will communicte using this unix socket
 USER=lynx                                        # the user to run as
 GROUP=lynx                             # the group to run as
-NUM_WORKERS=3                                     # how many worker processes should Gunicorn spawn
+NUM_WORKERS=6                                     # how many worker processes should Gunicorn spawn
+TIMEOUT=120                             # timeout for guni workers
 DJANGO_SETTINGS_MODULE=mainapp.settings             # which settings file should Django use
 DJANGO_WSGI_MODULE=mainapp.wsgi                     # WSGI module name
 
@@ -28,6 +29,7 @@ test -d $RUNDIR || mkdir -p $RUNDIR
 exec gunicorn ${DJANGO_WSGI_MODULE}:application \
   --name $NAME \
   --workers $NUM_WORKERS \
+  --timeout $TIMEOUT \
   --user=$USER --group=$GROUP \
   --bind=0.0.0.0:80 \
   --log-level=debug \
