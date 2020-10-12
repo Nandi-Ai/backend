@@ -135,5 +135,8 @@ class Dataset(models.Model):
     def limited_dataset_users(self):
         return self.__filtered_dataset_users(DatasetUser.LIMITED_ACCESS)
 
+    def has_pending_datasource(self):
+        return any(data_source.is_pending() for data_source in self.data_sources.all())
+
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"

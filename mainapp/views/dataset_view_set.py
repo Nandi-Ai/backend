@@ -24,6 +24,7 @@ from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
+    ConflictErrorResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -381,6 +382,11 @@ class DatasetViewSet(ModelViewSet):
                 return ForbiddenErrorResponse(
                     f"This user can't update the following dataset {dataset.name}"
                     f"with following id {dataset.id}"
+                )
+
+            if dataset.has_pending_datasource():
+                return ConflictErrorResponse(
+                    "Some of the data-sources are currently being processed. Please try again later"
                 )
 
             # activity

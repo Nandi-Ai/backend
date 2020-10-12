@@ -81,6 +81,9 @@ class DataSource(models.Model):
     def is_ready(self):
         return self.state == DataSource.READY
 
+    def is_pending(self):
+        return self.state == DataSource.PENDING
+
 
 @receiver(signals.pre_delete, sender=DataSource)
 def delete_data_source(sender, instance, **kwargs):
