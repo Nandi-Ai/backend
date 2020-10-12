@@ -449,8 +449,7 @@ def create_full_data_glue_table(org_name, data_source):
             f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
             f"had a failure after {MAX_RETRIES} tries"
         )
-        data_source.state = "error"
-        data_source.save()
+        data_source.set_as_error()
 
     else:
         logger.debug(
@@ -467,10 +466,10 @@ def create_full_data_glue_table(org_name, data_source):
 @with_glue_client
 def delete_if_table_exists(boto3_client, data_source, org_name, table_to_check):
     try:
-        table = boto3_client.get_table(
+        boto3_client.get_table(
             DatabaseName=data_source.dataset.glue_database, Name=table_to_check
         )
-    except Exception:
+    except boto3_client.exceptions.EntityNotFoundException:
         return
 
     boto3_client.delete_table(
