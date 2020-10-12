@@ -1,3 +1,4 @@
+from botocore.exceptions import ClientError
 from rest_framework import serializers
 from rest_framework.serializers import empty
 
@@ -6,6 +7,10 @@ from mainapp.utils.deidentification import (
     LYNX_DATA_TYPES,
     InvalidValueError,
     MismatchingTypesError,
+    NoExamplesError,
+    COL_NAME_ROW_INDEX,
+    EXAMPLE_QUERY_LENGTH,
+    EXAMPLE_VALUES_ROW_INDEX,
 )
 
 
@@ -21,7 +26,7 @@ class DataSourceColumnsSerializer(serializers.Serializer):
             first_row_query_response = data_source.dataset.query(
                 f'SELECT * FROM "{data_source.glue_table}" limit 1;'
             )
-        except Exception as e:
+        except ClientError as e:
             raise serializers.ValidationError(
                 f"Could not access original data source {data_source.id}," f"error: {e}"
             )
@@ -38,16 +43,16 @@ class DataSourceColumnsSerializer(serializers.Serializer):
                 .split("\n")
             )
 
-            if len(query_result) < 2:
-                raise Exception("Full data is empty, Can't validate data")
+            if len(query_result) < EXAMPLE_QUERY_LENGTH:
+                raise NoExamplesError("Full data is empty, Can't validate data")
             result = dict()
             col_names, first_values = (
-                query_result[0].split(","),
-                query_result[1].split(","),
+                query_result[COL_NAME_ROW_INDEX].split(","),
+                query_result[EXAMPLE_VALUES_ROW_INDEX].split(","),
             )
             for col_index in range(len(col_names)):
                 result[col_names[col_index]] = first_values[col_index]
-        except Exception as e:
+        except (ClientError, NoExamplesError) as e:
             raise serializers.ValidationError(
                 f"Failed parsing values in glue table for data source {data_source.id},"
                 f"error: {e}"

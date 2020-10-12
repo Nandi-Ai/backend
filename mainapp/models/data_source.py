@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+from botocore.exceptions import ClientError
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import signals
@@ -18,6 +19,8 @@ from mainapp.utils.deidentification import (
     GlueDataTypes,
     LynxDataTypeNames,
     DataTypes,
+    COL_NAME_ROW_INDEX,
+    EXAMPLE_VALUES_ROW_INDEX,
 )
 
 logger = logging.getLogger(__name__)
@@ -130,8 +133,8 @@ class DataSource(models.Model):
             response_object["Body"].read().decode("utf-8").replace('"', "").split("\n")
         )
         col_names, example_values = (
-            query_result[0].split(","),
-            query_result[1].split(","),
+            query_result[COL_NAME_ROW_INDEX].split(","),
+            query_result[EXAMPLE_VALUES_ROW_INDEX].split(","),
         )
         examples = dict()
 
@@ -181,7 +184,7 @@ class DataSource(models.Model):
                     }
                 )
 
-        except Exception as e:
+        except ClientError as e:
             logger.error(
                 f"Error {e} occurred while trying to fetch example values for Data Source "
                 f"{self.name}:{self.id}"

@@ -27,7 +27,7 @@ class MethodSerializer(ModelSerializer):
         Overriding method to disable unique together checks.
         will be declared in validate
         """
-        return []
+        return list()
 
     def validate(self, attrs):
         try:

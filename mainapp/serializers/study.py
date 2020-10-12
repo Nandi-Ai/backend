@@ -70,11 +70,10 @@ class StudySerializer(ModelSerializer):
                         "Dataset's organization doesn't match the study organization"
                     )
                 if permission == "deid_access":
-                    user = CurrentUserDefault()(self)
-                    current_user_id = user.id
+                    current_user = CurrentUserDefault()(self)
                     if permission_attributes and permission_attributes.key:
                         # verify user is admin / full when explicitly selecting method
-                        if user.permission(dataset_instance) not in [
+                        if current_user.permission(dataset_instance) not in [
                             "admin",
                             "full_access",
                         ]:
@@ -83,7 +82,7 @@ class StudySerializer(ModelSerializer):
                             )
                     else:
                         user_dataset_permission = dataset_instance.datasetuser_set.filter(
-                            user=current_user_id
+                            user=current_user.id
                         )
                         if not user_dataset_permission:
                             raise Exception(

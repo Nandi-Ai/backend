@@ -1,3 +1,7 @@
+class NoExamplesError(Exception):
+    pass
+
+
 class DeidentificationError(Exception):
     def __init__(self, lynx_data_type):
         self._lynx_data_type = lynx_data_type
