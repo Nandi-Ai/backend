@@ -11,12 +11,16 @@ from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
     delete_data_source_files_from_bucket,
 )
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
 
 class DataSource(models.Model):
+    READY = "ready"
+    PENDING = "pending"
+    ERROR = "error"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
@@ -43,7 +47,7 @@ class DataSource(models.Model):
         return self.dataset.bucket
 
     @property
-    def limited_value(self):
+    def permission_key(self):
         dataset = self.dataset
         if dataset.default_user_permission == "limited_access":
             limited = dataset.permission_attributes.get("key")
@@ -54,6 +58,31 @@ class DataSource(models.Model):
 
     def get_limited_glue_table_name(self, limited):
         return f"{self.dir}_limited_{limited}"
+
+    def __set_state(self, state):
+        if self.state == state:
+            logger.warning(
+                f"Human! Somewhere in your code you're trying to set the data-source {self.id} state "
+                f"to {state} when it's already in {state} state."
+            )
+        else:
+            self.state = state
+            self.save()
+
+    def set_as_pending(self):
+        self.__set_state(DataSource.PENDING)
+
+    def set_as_ready(self):
+        self.__set_state(DataSource.READY)
+
+    def set_as_error(self):
+        self.__set_state(DataSource.ERROR)
+
+    def is_ready(self):
+        return self.state == DataSource.READY
+
+    def is_pending(self):
+        return self.state == DataSource.PENDING
 
 
 @receiver(signals.pre_delete, sender=DataSource)
@@ -68,17 +97,6 @@ def delete_data_source(sender, instance, **kwargs):
     delete_data_source_glue_tables(data_source=data_source, org_name=org_name)
     delete_data_source_files_from_bucket(data_source=data_source, org_name=org_name)
 
-    ElasticsearchService.write_monitoring_event(
-        event_type=MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE,
-        datasource_id=data_source.id,
-        datasource_name=data_source.name,
-        dataset_id=data_source.dataset.id,
-        dataset_name=data_source.dataset.name,
-        environment_name=data_source.dataset.organization.name,
-    )
-    logger.info(
-        f"Datasource Event: {MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE.value} "
-        f"on dataset {data_source.dataset.name}:{data_source.dataset.id} "
-        f"and datasource {data_source.name}:{data_source.id} "
-        f"in org {data_source.dataset.organization}"
+    handle_event(
+        MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE, {"datasource": data_source}
     )

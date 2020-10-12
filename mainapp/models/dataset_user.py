@@ -6,7 +6,8 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.models import Activity
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.lib import create_limited_table_for_dataset
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
@@ -36,30 +37,16 @@ class DatasetUser(models.Model):
             f"permission={self.permission} permission_attributes={self.permission_attributes}>"
         )
 
-    def get_limited_value(self):
+    @property
+    def permission_key(self):
         return self.permission_attributes.get("key")
 
-
-def monitor_dataset_user_event(dataset, event_type, user, additional_data=None):
-    ElasticsearchService.write_monitoring_event(
-        event_type=event_type,
-        user_ip=None,
-        dataset_id=dataset.id,
-        dataset_name=dataset.name,
-        user_name=user.display_name,
-        datasource_id="",
-        datasource_name="",
-        environment_name=dataset.organization.name,
-        user_organization=user.organization.name,
-        additional_data=additional_data if additional_data else None,
-    )
-
-    logger.info(
-        f"Dataset Event: {event_type.value} "
-        f"on dataset {dataset.name}:{dataset.id} "
-        f"by user {user.display_name}. "
-        f"additional data for event : {str(additional_data)}"
-    )
+    def process(self):
+        """
+        process all data-sources in this datasets
+        """
+        if self.permission == DatasetUser.LIMITED_ACCESS:
+            create_limited_table_for_dataset(self.dataset, self.permission_key)
 
 
 @receiver(signals.post_save, sender=DatasetUser)
@@ -78,11 +65,16 @@ def dataset_user_post_save(sender, instance, **kwargs):
         },
     )
 
-    monitor_dataset_user_event(
-        event_type=MonitorEvents.EVENT_DATASET_ADD_USER,
-        dataset=dataset,
-        user=user,
-        additional_data={"user_list": [user.display_name], "permission": permission},
+    handle_event(
+        MonitorEvents.EVENT_DATASET_ADD_USER,
+        {
+            "dataset": dataset,
+            "user": user,
+            "additional_data": {
+                "user_list": [user.display_name],
+                "permission": permission,
+            },
+        },
     )
 
 
@@ -102,10 +94,13 @@ def dataset_user_post_delete(sender, instance, **kwargs):
                 "permission": "all",
             },
         )
-
-    monitor_dataset_user_event(
-        event_type=MonitorEvents.EVENT_DATASET_REMOVE_USER,
-        dataset=dataset,
-        user=user,
-        additional_data={"user_list": [user.display_name], "permission": permission},
+    handle_event(
+        MonitorEvents.EVENT_DATASET_REMOVE_USER,
+        {
+            "dataset": dataset,
+            "additional_data": {
+                "user_list": [user.display_name],
+                "permission": permission,
+            },
+        },
     )

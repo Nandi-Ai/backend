@@ -11,12 +11,13 @@ from rest_framework.viewsets import ModelViewSet
 
 # noinspection PyPackageRequirements
 from slugify import slugify
+
 from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.lib import process_structured_data_source_in_background
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -43,31 +44,10 @@ class DataSourceViewSet(ModelViewSet):
         ".xml": ["text/html", "text/xml"],
     }
 
-    def __monitor_datasource(self, event_type, user_ip, datasource, user):
-        ElasticsearchService.write_monitoring_event(
-            event_type=event_type,
-            user_ip=user_ip,
-            dataset_id=datasource.dataset.id,
-            dataset_name=datasource.dataset.name,
-            user_name=user.display_name,
-            datasource_id=datasource.id,
-            datasource_name=datasource.name,
-            environment_name=datasource.dataset.organization.name,
-            user_organization=user.organization.name,
-        )
-
-        logger.info(
-            f"Datasource Event: {event_type.value} "
-            f"on dataset {datasource.dataset.name}:{datasource.dataset.id} "
-            f"and datasource {datasource.name}:{datasource.id}"
-            f"by user {user.display_name} "
-            f"in org {datasource.dataset.organization.name}"
-        )
-
     @action(detail=True, methods=["get"])
     def statistics(self, request, *args, **kwargs):
         data_source = self.get_object()
-        if data_source.state != "ready":
+        if not data_source.is_ready():
             return ErrorResponse(
                 f"Data is still in processing. Datasource id {data_source.name}",
                 status_code=503,
@@ -139,7 +119,7 @@ class DataSourceViewSet(ModelViewSet):
                         "File type is not supported as a structured data s3_dir"
                     )
             data_source = data_source_serialized.save()
-            data_source.state = "error"
+            data_source.set_as_pending()
             s3_obj = data_source.s3_objects[0]["key"]
             _, file_name, _, _ = lib.break_s3_object(s3_obj)
             workdir = f"/tmp/{data_source.id}"
@@ -155,7 +135,7 @@ class DataSourceViewSet(ModelViewSet):
                     self.file_types,
                 )
             except Exception:
-                data_source.save()
+                data_source.set_as_error()
                 return Response(
                     self.serializer_class(data_source, allow_null=True).data, status=201
                 )
@@ -234,8 +214,6 @@ class DataSourceViewSet(ModelViewSet):
                 )
 
             elif data_source.type == "zip":
-                data_source.state = "pending"
-                data_source.save()
                 handle_zip_thread = threading.Thread(
                     target=lib.handle_zipped_data_source,
                     args=[data_source, request.user.organization.name],
@@ -243,19 +221,16 @@ class DataSourceViewSet(ModelViewSet):
                 handle_zip_thread.start()
 
             else:
-                data_source.state = "ready"
                 # not structured
                 lib.update_folder_hierarchy(
                     data_source=data_source,
                     org_name=data_source.dataset.organization.name,
                 )
+                data_source.set_as_ready()
 
-            data_source.save()
-            self.__monitor_datasource(
-                event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
-                user_ip=lib.get_client_ip(request),
-                datasource=data_source,
-                user=request.user,
+            handle_event(
+                MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                {"datasource": data_source, "view_request": request},
             )
 
             return Response(

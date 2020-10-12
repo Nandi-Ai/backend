@@ -7,6 +7,7 @@ from django.db import models
 from mainapp.settings import DELETE_DATASETS_FROM_DATABASE
 from mainapp.utils import lib, aws_service
 from mainapp.utils.dataset import delete_aws_resources_for_dataset
+from .dataset_user import DatasetUser
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +124,19 @@ class Dataset(models.Model):
             glue_table=glue_table,
         )
 
-    def get_limited_value(self):
+    @property
+    def permission_key(self):
         return self.permission_attributes.get("key")
+
+    def __filtered_dataset_users(self, permission):
+        return self.datasetuser_set.filter(permission=permission)
+
+    @property
+    def limited_dataset_users(self):
+        return self.__filtered_dataset_users(DatasetUser.LIMITED_ACCESS)
+
+    def has_pending_datasource(self):
+        return any(data_source.is_pending() for data_source in self.data_sources.all())
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"

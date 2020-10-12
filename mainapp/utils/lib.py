@@ -330,13 +330,13 @@ def create_glue_database(boto3_client, org_name, dataset):
     dataset.save()
 
 
+# This function should be running inside a thread! thus it's swallow errors
 def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_source):
     logger.info(
         f"processing cohort users for data_source {data_source.name}:{data_source.id} "
         f"in org {org_name} "
     )
-    data_source.state = "pending"
-    data_source.save()
+    data_source.set_as_pending()
     try:
         for dataset_user in data_source.dataset.datasetuser_set.all():
             logger.info(
@@ -345,7 +345,7 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                 f"in org {org_name} "
             )
             if dataset_user.permission == "limited_access":
-                limited = dataset_user.get_limited_value()
+                limited = dataset_user.permission_key
                 logger.info(
                     f"creating limited table for user {dataset_user.user.id} with limited {limited} "
                 )
@@ -361,28 +361,47 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                     limited=limited,
                     query=query,
                 )
-        data_source.state = "ready"
+        data_source.set_as_ready()
     except Exception as e:
         logger.exception(
             f"Failed processing user in the data source {data_source.name} ({data_source.id}) with error {e}"
         )
-        data_source.state = "error"
-
-    data_source.save()
+        data_source.set_as_error()
 
 
 @with_glue_client
 def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source):
     try:
+        # move the file that was uploaded by front-end to another place (_full)
         update_folder_hierarchy(data_source=data_source, org_name=org_name)
+
+        # create agg stat and limited (only if dataset default permission is limited)
         create_agg_stats(data_source=data_source, org_name=org_name)
-        limited = data_source.limited_value
+
+        # create limited table if default dataset permission is limited
+        limited = data_source.permission_key
         if limited:
             create_limited_glue_table(
                 data_source=data_source, org_name=org_name, limited=limited
             )
+
+        # create limited for limited users for dataset
+        for dataset_user in data_source.dataset.limited_dataset_users:
+            create_limited_glue_table(
+                data_source=data_source,
+                org_name=org_name,
+                limited=dataset_user.permission_key,
+            )
+
+        # process all connected studies into the data_source's dataset.
+        # create limited versions according to permission_attributes in the studies
+        for study_dataset in data_source.dataset.studydataset_set.all():
+            study_dataset.process()
+
+        # connect glue to the updated _full file.
         update_glue_table(data_source=data_source, org_name=org_name)
-        data_source.state = "ready"
+
+        data_source.set_as_ready()
         logger.info(
             f"Done processing data_source {data_source.name} ({data_source.id}) "
             f"in org {org_name} "
@@ -391,13 +410,14 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
         logger.exception(
             f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
         )
-        data_source.state = "error"
-
-    data_source.save()
+        data_source.set_as_error()
 
 
 @with_glue_client
 def create_glue_table(boto3_client, org_name, data_source):
+    """
+    wait for new data-source uploaded by front-end to be crawled by glue and then process it.
+    """
     create_glue_crawler(data_source=data_source, org_name=org_name)
 
     crawler_name = f"data_source-{data_source.id}"
@@ -429,8 +449,7 @@ def create_glue_table(boto3_client, org_name, data_source):
             f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
             f"had a failure after {max_retries} tries"
         )
-        data_source.state = "error"
-        data_source.save()
+        data_source.set_as_error()
 
     else:
         logger.debug(
@@ -445,8 +464,13 @@ def create_glue_table(boto3_client, org_name, data_source):
 
 
 def process_structured_data_source_in_background(org_name, data_source):
-    data_source.state = "pending"
-    data_source.save()
+    """
+    called when data-source was uploaded.
+    it will run a thread to process all of the data-source files in the bucket,
+    create limited/de-id/etc..
+    (if needed - depending on the dataset default permission, and related study(ies) to this dataset)
+    """
+    data_source.set_as_pending()
 
     create_glue_table_thread = threading.Thread(
         target=create_glue_table,
@@ -455,6 +479,8 @@ def process_structured_data_source_in_background(org_name, data_source):
     create_glue_table_thread.start()
 
 
+# This function should be running inside a thread!
+# It will call process_cohort_users which swallow errors
 def create_glue_tables_for_cohort(
     org_name, data_source, columns, data_filter, orig_data_source
 ):
@@ -474,9 +500,10 @@ def process_structured_cohort_in_background(
     """
     process data_source glue tables
     and create limited glue tables for limited users
+    each datasource will call create_glue_tables_for_cohort function will run inside a thread!
+    create_glue_tables_for_cohort will call process_cohort_users which swallow errors
     """
-    data_source.state = "pending"
-    data_source.save()
+    data_source.set_as_pending()
 
     create_glue_table_thread = threading.Thread(
         target=create_glue_tables_for_cohort,
@@ -491,37 +518,32 @@ def process_structured_cohort_in_background(
     create_glue_table_thread.start()
 
 
-def process_dataset_user(dataset_user):
-    dataset = dataset_user.dataset
-    organization = dataset.organization
-    organization_name = organization.name
-    if dataset_user.permission == "limited_access":
-        limited_value = dataset_user.get_limited_value()
+def create_limited_table_for_dataset(dataset, limited_value):
+    """
+    Run thread(s) to create limited table(s) for each datasource in the dataset.
+    Each datasource processing will run in each own thread
+    """
+    organization_name = dataset.organization.name
 
-        def thread(ds):
-            try:
-                return create_limited_glue_table(
-                    data_source=ds, org_name=organization_name, limited=limited_value
-                )
-            except Exception as e:
-                logger.exception(e)
+    def thread(ds):
+        ds.set_as_pending()
+        try:
+            create_limited_glue_table(
+                data_source=ds, org_name=organization_name, limited=limited_value
+            )
+            ds.set_as_ready()
+        except Exception as e:
+            logger.exception(e)
+            ds.set_as_error()
 
-        executor.map(thread, dataset.data_sources.all())
+    executor.map(thread, dataset.data_sources.all())
 
 
-def process_structured_data_sources_in_background(org_name, dataset):
+def process_structured_data_sources_in_background(dataset):
     if dataset.default_user_permission == "limited_access":
-        limited_value = dataset.get_limited_value()
-
-        def thread(ds):
-            try:
-                return create_limited_glue_table(
-                    data_source=ds, org_name=org_name, limited=limited_value
-                )
-            except Exception as e:
-                logger.exception(e)
-
-        executor.map(thread, dataset.data_sources.all())
+        create_limited_table_for_dataset(
+            dataset=dataset, limited_value=dataset.permission_key
+        )
 
 
 @with_s3_resource
@@ -624,6 +646,9 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
         f"creating limited table for data_source {data_source.id} limited={limited}"
     )
 
+    if not limited:
+        raise ValueError("Invalid or None limited value")
+
     dataset = data_source.dataset
     destination_glue_database = dataset.glue_database
     destination_glue_table = data_source.glue_table
@@ -638,7 +663,7 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
     # noinspection SqlNoDataSourceInspection
     ctas_query = (
         f'CREATE TABLE "{destination_glue_database}"."{data_source.dir}_limited_{limited}" '
-        f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dir}') "
+        f"WITH (format = 'TEXTFILE', field_delimiter=',', external_location = 's3://{destination_dir}') "
         f"AS {query};"
     )
 
@@ -664,7 +689,7 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
             f"Query string: {ctas_query}"
         ).with_traceback(e.__traceback__)
         logger.debug(f"This is the ctas_query {ctas_query}")
-        return ErrorResponse(f"There was an error executing this query", error=error)
+        raise error from e
 
 
 @with_s3_client
@@ -815,8 +840,7 @@ def handle_zipped_data_source(boto3_client, data_source, org_name):
         ]
     )
     shutil.rmtree(f"/tmp/{str(data_source.id)}")
-    data_source.state = "ready"
-    data_source.save()
+    data_source.set_as_ready()
 
 
 def calc_access_to_database(user, dataset):
@@ -835,7 +859,7 @@ def calc_access_to_database(user, dataset):
     elif dataset.state == "public":
         return "full access"
 
-    return "no permission"  # safe. includes archived dataset
+    return "no access"  # safe. includes archived dataset
 
 
 def load_tags(delete_removed_tags=True):

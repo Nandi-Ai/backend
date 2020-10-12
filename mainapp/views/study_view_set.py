@@ -9,13 +9,13 @@ from mainapp.exceptions import InvalidEc2Status, LaunchTemplateFailedError
 from mainapp.models import User, Study, Tag, Execution, Activity, StudyDataset
 from mainapp.serializers import StudySerializer
 from mainapp.utils import lib, aws_service
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
+from mainapp.utils.monitoring.monitor_events import MonitorEvents
+from mainapp.utils.monitoring import handle_event
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
 )
-from mainapp.utils.status_monitoring_event_map import status_monitoring_event_map
 from mainapp.utils.study_vm_service import (
     delete_study,
     STATUS_ARGS,
@@ -47,28 +47,6 @@ class StudyViewSet(ModelViewSet):
         )
 
         return user.related_studies.exclude(status__exact=Study.STUDY_DELETED)
-
-    def __monitor_study(self, study, user_ip, event_type, user, dataset=None):
-        ElasticsearchService.write_monitoring_event(
-            user_ip=user_ip,
-            study_name=study.name,
-            study_id=study.id,
-            event_type=event_type,
-            user_name=user.display_name,
-            environment_name=study.organization.name,
-            user_organization=user.organization.name,
-            dataset_id=dataset.id if dataset else "",
-            dataset_name=dataset.name if dataset else "",
-        )
-
-        dataset_log = f"and dataset {dataset.name}:{dataset.id}" if dataset else ""
-        logger.info(
-            f"Study Event: {event_type.value} "
-            f"on study {study.name}:{study.id} "
-            f"{dataset_log}"
-            f"by user {user.display_name} "
-            f" in org {study.organization.name}"
-        )
 
     @action(detail=True, methods=["get"])
     def get_study_per_organization(self, request, pk=None):
@@ -150,12 +128,6 @@ class StudyViewSet(ModelViewSet):
             study.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
 
             study.save()
-            self.__monitor_study(
-                event_type=MonitorEvents.EVENT_STUDY_CREATED,
-                user_ip=lib.get_client_ip(request),
-                user=request.user,
-                study=study,
-            )
 
             org_name = study.organization.name
 
@@ -176,6 +148,11 @@ class StudyViewSet(ModelViewSet):
                 )
             except LaunchTemplateFailedError as ce:
                 return ErrorResponse(f"Study workspace failed to create", ce)
+
+            handle_event(
+                MonitorEvents.EVENT_STUDY_CREATED,
+                {"study": study, "view_request": request},
+            )
 
             return Response(
                 self.serializer_class(study, allow_null=True).data, status=201
@@ -202,11 +179,7 @@ class StudyViewSet(ModelViewSet):
 
             datasets = study_updated["studydataset_set"]
 
-            monitor_kwargs = {
-                "user_ip": lib.get_client_ip(request),
-                "study": study,
-                "user": user,
-            }
+            monitor_kwargs = {"data": {"study": study, "user": user}}
 
             activity_kwargs = {"study": study, "user": request.user}
 
@@ -215,7 +188,8 @@ class StudyViewSet(ModelViewSet):
             diff_datasets = updated_datasets ^ existing_datasets
             for dataset in diff_datasets:
 
-                monitor_kwargs["dataset"] = dataset
+                monitor_kwargs["data"]["dataset"] = dataset
+                monitor_kwargs["data"]["view_request"] = request
                 activity_kwargs["dataset"] = dataset
 
                 if dataset in existing_datasets:
@@ -228,7 +202,7 @@ class StudyViewSet(ModelViewSet):
                     monitor_kwargs["event_type"] = MonitorEvents.EVENT_STUDY_ADD_DATASET
                     activity_kwargs["type"] = "dataset assignment"
 
-                self.__monitor_study(**monitor_kwargs)
+                handle_event(**monitor_kwargs)
                 Activity.objects.create(**activity_kwargs)
 
             if study.cover != request.data["cover"]:
@@ -271,21 +245,6 @@ class StudyViewSet(ModelViewSet):
             )
 
             status_args = STATUS_ARGS[status]
-
-            monitor_event = status_monitoring_event_map.get(
-                status_args["toggle_status"], None
-            )
-            if monitor_event:
-                ElasticsearchService.write_monitoring_event(
-                    event_type=monitor_event,
-                    execution_token=study.execution.token,
-                    study_id=study.id,
-                    study_name=study.name,
-                    user_organization=request.user.organization.name,
-                    user_ip=lib.get_client_ip(request),
-                    user_name=request.user.display_name,
-                    environment_name=study.organization.name,
-                )
 
             toggle_study_vm(
                 org_name=study.organization.name, study=study, **status_args

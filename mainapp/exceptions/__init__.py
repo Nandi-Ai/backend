@@ -30,3 +30,5 @@ from .settings_error import (
     InvalidOrganizationSettings,
     MissingOrganizationSettingKey,
 )
+
+from .monitoring_error import InvalidEventData

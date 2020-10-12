@@ -39,7 +39,7 @@ class Query(GenericAPIView):
 
             access = lib.calc_access_to_database(user, dataset)
 
-            if access == "no access":
+            if access in ["no access", "aggregated access"]:
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             # if access == "aggregated access":
@@ -61,11 +61,11 @@ class Query(GenericAPIView):
                     user=request.user, dataset=dataset
                 )[0]
                 glue_table = data_source.get_limited_glue_table_name(
-                    dataset_user.get_limited_value()
+                    dataset_user.permission_key
                 )
             elif access == "limited access":
                 glue_table = data_source.get_limited_glue_table_name(
-                    data_source.limited_value
+                    data_source.permission_key
                 )
             else:
                 glue_table = data_source.glue_table

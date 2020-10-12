@@ -10,8 +10,9 @@ from mainapp.models import Dataset, DataSource
 from mainapp.serializers import CohortSerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import lib, aws_service
-from mainapp.utils.elasticsearch_service import MonitorEvents, ElasticsearchService
 from mainapp.utils.lib import process_structured_cohort_in_background
+from mainapp.utils.monitoring import handle_event
+from mainapp.utils.monitoring.monitor_events import MonitorEvents
 from mainapp.utils.response_handler import (
     ErrorResponse,
     ForbiddenErrorResponse,
@@ -23,27 +24,6 @@ logger = logging.getLogger(__name__)
 
 class CreateCohort(GenericAPIView):
     serializer_class = CohortSerializer
-
-    def __monitor_cohort(self, event_type, user_ip, datasource, user):
-        ElasticsearchService.write_monitoring_event(
-            event_type=event_type,
-            user_ip=user_ip,
-            dataset_id=datasource.dataset.id,
-            dataset_name=datasource.dataset.name,
-            user_name=user.display_name,
-            datasource_id=datasource.id,
-            datasource_name=datasource.name,
-            environment_name=datasource.dataset.organization.name,
-            user_organization=user.organization.name,
-        )
-
-        logger.info(
-            f"Cohort Event: {event_type.value} "
-            f"on dataset {datasource.dataset.name}:{datasource.dataset.id} "
-            f"and datasource {datasource.name}:{datasource.id}"
-            f"by user {user.display_name} "
-            f"in org {datasource.dataset.organization}"
-        )
 
     def post(self, request):
         query_serialized = self.serializer_class(data=request.data)
@@ -176,11 +156,9 @@ class CreateCohort(GenericAPIView):
                     error=e,
                 )
 
-            self.__monitor_cohort(
-                event_type=MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
-                user_ip=lib.get_client_ip(request),
-                datasource=new_data_source,
-                user=request.user,
+            handle_event(
+                MonitorEvents.EVENT_DATASET_ADD_DATASOURCE,
+                {"datasource": data_source, "view_request": request},
             )
 
             new_data_source.ancestor = data_source
