@@ -311,6 +311,12 @@ class DataSourceViewSet(ModelViewSet):
             )
 
         else:
+            if (
+                "The fields name, dataset must make a unique set."
+                in data_source_serialized.errors["non_field_errors"]
+            ):
+                message = "You already have datasource with the same name. Please change the file name and upload again."
+                return BadRequestErrorResponse(message)
             return BadRequestErrorResponse(data_source_serialized.errors)
 
     def update(self, request, *args, **kwargs):
