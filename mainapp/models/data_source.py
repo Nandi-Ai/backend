@@ -24,6 +24,7 @@ from mainapp.utils.deidentification import (
 )
 
 logger = logging.getLogger(__name__)
+UNAVAILABLE_EXAMPLE = "*N/A*"
 
 
 class DataSource(models.Model):
@@ -178,7 +179,7 @@ class DataSource(models.Model):
                 )
                 examples.update(
                     {
-                        col_name: "*N/A*"
+                        col_name: UNAVAILABLE_EXAMPLE
                         for col_name in self.columns
                         if not columns_with_values.get(col_name)
                     }
@@ -189,7 +190,7 @@ class DataSource(models.Model):
                 f"Error {e} occurred while trying to fetch example values for Data Source "
                 f"{self.name}:{self.id}"
             )
-            examples = dict()
+            examples = {col_name: UNAVAILABLE_EXAMPLE for col_name in self.columns}
 
         return examples
 
