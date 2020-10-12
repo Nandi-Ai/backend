@@ -539,31 +539,38 @@ def create_glue_table(boto3_client, org_name, data_source, path):
     """
     wait for new data-source uploaded by front-end to be crawled by glue and then process it.
     """
-    create_glue_crawler(data_source=data_source, org_name=org_name, obj_path=path)
+
+    try:
+        create_glue_crawler(data_source=data_source, org_name=org_name, obj_path=path)
+    except boto3_client.exceptions.ClientError as ce:
+        logger.error(f"Failed to create glue crawler - {ce}")
+        return False
 
     crawler_name = f"data_source-{data_source.id}"
-
-    boto3_client.start_crawler(Name=crawler_name)
-    logger.info(
-        f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
-        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
-        f"was created and started successfully"
-    )
     crawler_ready = False
-    retries = MAX_RETRIES
 
-    while not crawler_ready and retries >= 0:
-        res = boto3_client.get_crawler(Name=crawler_name)
-        crawler_ready = True if res["Crawler"]["State"] == "READY" else False
-        sleep(5)
-        retries -= 1
+    try:
+        boto3_client.start_crawler(Name=crawler_name)
+        logger.info(
+            f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
+            f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
+            f"was created and started successfully"
+        )
+        retries = MAX_RETRIES
 
-    logger.info(
-        f"Is crawler for datasource {data_source.name}:{data_source.id} "
-        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
-        f"for org_name {org_name} has finished: {crawler_ready}"
-    )
-    boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
+        while not crawler_ready and retries >= 0:
+            res = boto3_client.get_crawler(Name=crawler_name)
+            crawler_ready = True if res["Crawler"]["State"] == "READY" else False
+            sleep(5)
+            retries -= 1
+
+        logger.info(
+            f"Is crawler for datasource {data_source.name}:{data_source.id} "
+            f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
+            f"for org_name {org_name} has finished: {crawler_ready}"
+        )
+    finally:
+        boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
 
     return crawler_ready
 
