@@ -39,7 +39,7 @@ class Query(GenericAPIView):
 
             access = lib.calc_access_to_database(user, dataset)
 
-            if access == "no access":
+            if access in ["no access", "aggregated access"]:
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             # if access == "aggregated access":

@@ -663,7 +663,7 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
     # noinspection SqlNoDataSourceInspection
     ctas_query = (
         f'CREATE TABLE "{destination_glue_database}"."{data_source.dir}_limited_{limited}" '
-        f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dir}') "
+        f"WITH (format = 'TEXTFILE', field_delimiter=',', external_location = 's3://{destination_dir}') "
         f"AS {query};"
     )
 
@@ -859,7 +859,7 @@ def calc_access_to_database(user, dataset):
     elif dataset.state == "public":
         return "full access"
 
-    return "no permission"  # safe. includes archived dataset
+    return "no access"  # safe. includes archived dataset
 
 
 def load_tags(delete_removed_tags=True):

@@ -1,5 +1,7 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import signals
+from django.dispatch import receiver
 
 from mainapp.utils.lib import create_limited_table_for_dataset
 
@@ -46,3 +48,8 @@ class StudyDataset(models.Model):
         """
         if self.permission == StudyDataset.LIMITED_ACCESS:
             create_limited_table_for_dataset(self.dataset, self.permission_key)
+
+
+@receiver(signals.post_save, sender=StudyDataset)
+def study_dataset_post_save(sender, instance, **kwargs):
+    instance.process()
