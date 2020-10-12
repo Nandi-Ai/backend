@@ -13,7 +13,7 @@ from rest_framework.viewsets import ModelViewSet
 from slugify import slugify
 
 from mainapp.models import Execution
-from mainapp.serializers import DataSourceSerializer
+from mainapp.serializers import DataSourceSerializer, DataSourceColumnsSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
 from mainapp.utils.deidentification import DeidentificationError
