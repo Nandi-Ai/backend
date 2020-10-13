@@ -17,6 +17,7 @@ from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
 from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
+from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
 from mainapp.utils.deidentification.common.functions import handle_method
 from mainapp.utils.lib import process_structured_data_sources_in_background
 from mainapp.utils.permissions import IsDatasetAdmin
@@ -49,7 +50,7 @@ class DatasetViewSet(ModelViewSet):
         ".jpeg": ["image/jpeg"],
         ".tiff": ["image/tiff"],
         ".png": ["image/png"],
-        ".bmp": ["image/bmp"],
+        ".bmp": ["image/bmp", "image/x-windows-bmp"],
     }
 
     # noinspection PyMethodMayBeStatic
@@ -97,6 +98,12 @@ class DatasetViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def methods(self, request, *args, **kwargs):
         dataset = self.get_object()
+        try:
+            ImageDeIdHelper(dataset).update_images_method_status()
+        except Exception as e:
+            logger.warning(
+                f"An unexpected error occurred when trying to update image status - {e}"
+            )
 
         return Response(MethodSerializer(dataset.methods, many=True).data, status=200)
 

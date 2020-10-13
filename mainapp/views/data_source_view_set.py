@@ -8,9 +8,8 @@ import pyreadstat
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-
-# noinspection PyPackageRequirements
 from slugify import slugify
+
 
 from mainapp.models import Execution
 from mainapp.serializers import DataSourceSerializer, DataSourceColumnsSerializer
@@ -42,6 +41,7 @@ class DataSourceViewSet(ModelViewSet):
         ".jpeg": ["image/jpeg"],
         ".tiff": ["image/tiff"],
         ".png": ["image/png"],
+        ".bmp": ["image/bmp", "image/x-windows-bmp"],
         ".csv": ["application/csv", "text/csv", "text/plain"],
         ".sav": ["application/octet-stream"],
         ".zsav": [],
