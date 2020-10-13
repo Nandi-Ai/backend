@@ -113,7 +113,7 @@ class DatasetViewSet(ModelViewSet):
 
         if not dataset.data_sources.all():
             logger.error(
-                f"Tried to add method for empty data set {dataset.name}:{dataset.id}"
+                f"Tried to add method for empty dataset {dataset.name}:{dataset.id}"
             )
             return BadRequestErrorResponse(
                 "Dataset must have data sources in order to create a method"
