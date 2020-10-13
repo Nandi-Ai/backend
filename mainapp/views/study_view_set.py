@@ -1,5 +1,7 @@
 import logging
 import uuid
+import os
+from mainapp import settings
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
