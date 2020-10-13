@@ -111,6 +111,14 @@ class DatasetViewSet(ModelViewSet):
     def add_method(self, request, *args, **kwargs):
         dataset = self.get_object()
 
+        if not dataset.data_sources.all():
+            logger.error(
+                f"Tried to add method for empty data set {dataset.name}:{dataset.id}"
+            )
+            return BadRequestErrorResponse(
+                "Dataset must have data sources in order to create a method"
+            )
+
         logger.info(f"Validating Method for Dataset {dataset.name}:{dataset.id}")
         method_serialized = MethodSerializer(data=request.data)
 
