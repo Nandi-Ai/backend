@@ -7,7 +7,7 @@ class FreeTextReplacement(DeidentificationAction):
 
     def __init__(self, data_source, dsrc_method, col, lynx_type, mapping):
         super().__init__(data_source, dsrc_method, col, lynx_type)
-        self.__mapping = mapping
+        self.__mapping = mapping.copy()
 
     def update_mapping(self, new_values):
         self.__mapping.update(new_values)
