@@ -2,10 +2,10 @@ pipelines:
   default:
     - step:
         script:
-          - echo $CodeCommitKey > ~/.ssh/codecommit_rsa.tmp
+          - echo $CodeCommitKey > ~/.ssh/lynx_codecommit_rsa.tmp
           - cat ~/.ssh/codecommit_rsa.tmp
-          - base64 -d ~/.ssh/codecommit_rsa.tmp > ~/.ssh/codecommit_rsa
-          - chmod 400 ~/.ssh/codecommit_rsa
+          - base64 -d ~/.ssh/lynx_codecommit_rsa.tmp > ~/.ssh/lynx_codecommit_rsa
+          - chmod 400 ~/.ssh/lynx_codecommit_rsa
           - echo $CodeCommitConfig > ~/.ssh/config.tmp
           - base64 -d  ~/.ssh/config.tmp > ~/.ssh/config
           - set +e
