@@ -3,7 +3,7 @@ pipelines:
     - step:
         script:
           - echo $CodeCommitKey > ~/.ssh/lynx_codecommit_rsa.tmp
-          - cat ~/.ssh/codecommit_rsa.tmp
+          - cat ~/.ssh/lynx_codecommit_rsa.tmp
           - base64 -d ~/.ssh/lynx_codecommit_rsa.tmp > ~/.ssh/lynx_codecommit_rsa
           - chmod 400 ~/.ssh/lynx_codecommit_rsa
           - echo $CodeCommitConfig > ~/.ssh/config.tmp
