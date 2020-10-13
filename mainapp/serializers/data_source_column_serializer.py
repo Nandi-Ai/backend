@@ -1,6 +1,5 @@
 from botocore.exceptions import ClientError
-from rest_framework import serializers
-from rest_framework.serializers import empty
+from rest_framework.serializers import empty, JSONField, Serializer, ValidationError
 
 from mainapp.utils.deidentification import (
     DATA_TYPE_CASTING,
@@ -14,8 +13,8 @@ from mainapp.utils.deidentification import (
 )
 
 
-class DataSourceColumnsSerializer(serializers.Serializer):
-    columns = serializers.JSONField()
+class DataSourceColumnsSerializer(Serializer):
+    columns = JSONField()
 
     def __init__(self, instance=None, data=empty, **kwargs):
         super().__init__(instance, data, **kwargs)
@@ -27,7 +26,7 @@ class DataSourceColumnsSerializer(serializers.Serializer):
                 f'SELECT * FROM "{data_source.glue_table}" limit 1;'
             )
         except ClientError as e:
-            raise serializers.ValidationError(
+            raise ValidationError(
                 f"Could not access original data source {data_source.id}," f"error: {e}"
             )
 
@@ -53,7 +52,7 @@ class DataSourceColumnsSerializer(serializers.Serializer):
             for col_index in range(len(col_names)):
                 result[col_names[col_index]] = first_values[col_index]
         except (ClientError, NoExamplesError) as e:
-            raise serializers.ValidationError(
+            raise ValidationError(
                 f"Failed parsing values in glue table for data source {data_source.id},"
                 f"error: {e}"
             )
@@ -92,7 +91,7 @@ class DataSourceColumnsSerializer(serializers.Serializer):
         for col, attributes in columns.items():
             col_in_db = data_source.columns.get(col)
             if not col_in_db:
-                raise serializers.ValidationError(f"column {col} does not exist!")
+                raise ValidationError(f"column {col} does not exist!")
 
             try:
                 self.__validate_data_type_to_lynx_type(
@@ -110,14 +109,14 @@ class DataSourceColumnsSerializer(serializers.Serializer):
                     attributes.get("additional_attributes", dict()),
                 )
             except (MismatchingTypesError, NotImplementedError) as e:
-                raise serializers.ValidationError(str(e))
+                raise ValidationError(str(e))
             except ValueError:
-                raise serializers.ValidationError(
+                raise ValidationError(
                     f"Column {col} cannot be converted "
                     f"into {attributes['data_type']}"
                 )
             except InvalidValueError:
-                raise serializers.ValidationError(
+                raise ValidationError(
                     f"Column {col} has values which aren't supported by "
                     f"{attributes['lynx_type']}"
                 )

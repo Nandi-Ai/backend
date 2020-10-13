@@ -1,6 +1,5 @@
 from django.db import transaction
-from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, ValidationError
 
 from mainapp.models import Method, DataSourceMethod
 from mainapp.serializers.data_source_method import DataSourceMethodSerializer
