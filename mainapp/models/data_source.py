@@ -7,8 +7,8 @@ from django.db import models
 from django.db.models import signals
 from django.dispatch import receiver
 
-from exceptions import BucketNotFound
 from mainapp.exceptions.limited_key_invalid_exception import LimitedKeyInvalidException
+from mainapp.exceptions.s3 import BucketNotFound
 from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
     delete_data_source_files_from_bucket,
