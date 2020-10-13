@@ -317,7 +317,7 @@ class DataSourceViewSet(ModelViewSet):
             # ):
             #     message = "You already have datasource with the same name. Please change the file name and upload again."
             #     return BadRequestErrorResponse(message)
-            return Response(data_source_serialized.errors, status=400)
+            return data_source_serialized.is_valid(raise_exception=True)
 
     def update(self, request, *args, **kwargs):
         serialized = self.serializer_class(data=request.data, allow_null=True)
