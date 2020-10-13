@@ -73,7 +73,7 @@ def create_sql_for_column(column):
     ):
         return f"""
             COUNT("{column_name_from_athena}") as {sql_as_column_name}_Count,
-            COUNT(DISTINCT "{column_name_from_athena}") as {sql_as_column_name}_Unique,
+            APPROX_DISTINCT("{column_name_from_athena}") as {sql_as_column_name}_Unique,
             AVG("{column_name_from_athena}") as {sql_as_column_name}_Average,
             APPROX_PERCENTILE("{column_name_from_athena}",0.25) as "{sql_as_column_name}_25%",
             APPROX_PERCENTILE("{column_name_from_athena}",0.50) as "{sql_as_column_name}_50%",
@@ -82,7 +82,7 @@ def create_sql_for_column(column):
 
     elif column_type_from_athena == "string":
         return f"""COUNT("{column_name_from_athena}") as {sql_as_column_name}_Count,
-                COUNT(DISTINCT "{column_name_from_athena}") as {sql_as_column_name}_Unique"""
+                APPROX_DISTINCT("{column_name_from_athena}") as {sql_as_column_name}_Unique"""
     else:
         raise UnsupportedColumnTypeError
 
