@@ -71,7 +71,7 @@ class StudySerializer(ModelSerializer):
                     )
                 if permission == "deid_access":
                     current_user = CurrentUserDefault()(self)
-                    if permission_attributes and permission_attributes.key:
+                    if permission_attributes and permission_attributes.get("key"):
                         # verify user is admin / full when explicitly selecting method
                         if current_user.permission(dataset_instance) not in [
                             "admin",
