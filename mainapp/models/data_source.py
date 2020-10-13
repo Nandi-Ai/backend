@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models import signals
 from django.dispatch import receiver
 
+from exceptions import BucketNotFound
 from mainapp.exceptions.limited_key_invalid_exception import LimitedKeyInvalidException
 from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
@@ -133,6 +134,7 @@ class DataSource(models.Model):
         query_result = (
             response_object["Body"].read().decode("utf-8").replace('"', "").split("\n")
         )
+
         col_names, example_values = (
             query_result[COL_NAME_ROW_INDEX].split(","),
             query_result[EXAMPLE_VALUES_ROW_INDEX].split(","),
@@ -185,7 +187,7 @@ class DataSource(models.Model):
                     }
                 )
 
-        except ClientError as e:
+        except (ClientError, BucketNotFound) as e:
             logger.error(
                 f"Error {e} occurred while trying to fetch example values for Data Source "
                 f"{self.name}:{self.id}"
