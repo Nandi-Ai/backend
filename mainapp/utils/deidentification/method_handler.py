@@ -36,7 +36,7 @@ class MethodHandler(object):
 
     def __fetch_data_object_from_glue(self):
         query_response = self.__data_source.dataset.query(
-            f"SELECT * FROM {self.__data_source.glue_table};"
+            f'SELECT * FROM "{self.__data_source.glue_table}";'
         )
         return self.__data_source.dataset.get_query_execution(
             query_response["QueryExecutionId"]
