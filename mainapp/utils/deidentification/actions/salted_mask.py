@@ -1,10 +1,7 @@
 import hashlib
-import logging
 
 from mainapp.utils.deidentification.actions.mask import Mask
 from mainapp.utils.deidentification.common.enums import Actions
-
-logger = logging.getLogger(__name__)
 
 
 class SaltedMask(Mask):

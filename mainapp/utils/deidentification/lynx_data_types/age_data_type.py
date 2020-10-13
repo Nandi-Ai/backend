@@ -1,5 +1,3 @@
-import logging
-
 from mainapp.utils.deidentification import (
     LynxDataTypeNames,
     DataTypes,
@@ -7,8 +5,6 @@ from mainapp.utils.deidentification import (
     GROUP_OVER_AGE_VALUE,
 )
 from mainapp.utils.deidentification.lynx_data_types.lynx_data_type import LynxDataType
-
-logger = logging.getLogger(__name__)
 
 
 class Age(LynxDataType):

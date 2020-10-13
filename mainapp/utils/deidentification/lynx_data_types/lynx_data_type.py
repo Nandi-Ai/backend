@@ -1,4 +1,3 @@
-import logging
 from abc import ABC, abstractmethod
 
 from mainapp.utils.deidentification.common.exceptions import (
@@ -6,8 +5,6 @@ from mainapp.utils.deidentification.common.exceptions import (
     MismatchingTypesError,
     UnsupportedActionArgumentError,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class LynxDataType(ABC):

@@ -1,5 +1,4 @@
 from IPy import IP
-import logging
 
 from mainapp.utils.deidentification.lynx_data_types.lynx_data_type import LynxDataType
 from mainapp.utils.deidentification import (
@@ -8,8 +7,6 @@ from mainapp.utils.deidentification import (
     Actions,
     InvalidValueError,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class IPAddress(LynxDataType):

@@ -1,11 +1,7 @@
-import logging
-
 from random import gauss
 
 from mainapp.utils.deidentification.actions.offset import Offset
 from mainapp.utils.deidentification.common.enums import Actions
-
-logger = logging.getLogger(__name__)
 
 
 class RandomOffset(Offset):

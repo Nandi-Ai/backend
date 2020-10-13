@@ -17,12 +17,6 @@ class MethodHandler(object):
         self.__dsrc_method = dsrc_method
         self.__method_id = self.__dsrc_method.method.id
         self.__deid_data_dir = f"{self.__data_source.dir}/lynx-storage/deid_access_{self.__method_id}_{self.__dsrc_index}"
-        self.__aws_access_key = ORG_VALUES[data_source.dataset.organization.name][
-            "AWS_ACCESS_KEY_ID"
-        ]
-        self.__aws_secret = ORG_VALUES[data_source.dataset.organization.name][
-            "AWS_SECRET_ACCESS_KEY"
-        ]
         self.__actions = {
             col: ACTIONS[col_attributes["action"]](
                 data_source=data_source,
@@ -126,8 +120,11 @@ class MethodHandler(object):
             f"Deidentifying data for Data Source {self.__data_source.name}:{self.__data_source.id}"
         )
 
+        aws_credentials = ORG_VALUES[self.__data_source.dataset.organization.name]
         s3 = s3fs.S3FileSystem(
-            anon=False, key=self.__aws_access_key, secret=self.__aws_secret
+            anon=False,
+            key=aws_credentials["AWS_ACCESS_KEY_ID"],
+            secret=aws_credentials["AWS_SECRET_ACCESS_KEY"],
         )
 
         deid_data_file = f"s3://{self.__data_source.bucket}/{self.__deid_data_dir}/{self.__data_source.name}"

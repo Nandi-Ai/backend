@@ -1,4 +1,3 @@
-import logging
 from email_validator import EmailSyntaxError, validate_email
 
 from mainapp.utils.deidentification import (
@@ -8,8 +7,6 @@ from mainapp.utils.deidentification import (
     InvalidValueError,
 )
 from mainapp.utils.deidentification.lynx_data_types.lynx_data_type import LynxDataType
-
-logger = logging.getLogger(__name__)
 
 
 class Email(LynxDataType):

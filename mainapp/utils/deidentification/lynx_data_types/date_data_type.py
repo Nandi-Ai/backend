@@ -1,5 +1,4 @@
 import datetime
-import logging
 
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
@@ -14,8 +13,6 @@ from mainapp.utils.deidentification.common.exceptions import (
     InvalidDeidentificationArguments,
 )
 from mainapp.utils.deidentification.lynx_data_types.lynx_data_type import LynxDataType
-
-logger = logging.getLogger(__name__)
 
 
 class Date(LynxDataType):
