@@ -14,7 +14,7 @@ from slugify import slugify
 
 from mainapp import resources, settings
 from mainapp.exceptions.s3 import TooManyBucketsException
-from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser
+from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser, Method
 from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
@@ -125,7 +125,7 @@ class DatasetViewSet(ModelViewSet):
         method_serialized.is_valid(raise_exception=True)
 
         for method in dataset.methods.all():
-            if method.state == "pending":
+            if method.state == Method.PENDING:
                 logger.warning(
                     "Aborting method creation due to running de identification process"
                 )
@@ -148,6 +148,8 @@ class DatasetViewSet(ModelViewSet):
                 try:
                     handle_method(dsrc_method, dsrc_method.data_source, dsrc_index)
                 except Exception as e:
+                    # If the code reached here, it means that an error was raised trying to create the method handler.
+                    # Meaning data source methods will never be invoked, so the method is discarded.
                     method.delete()
                     return BadRequestErrorResponse(str(e))
 

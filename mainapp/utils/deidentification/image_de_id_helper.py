@@ -6,6 +6,7 @@ from datetime import datetime
 from io import BytesIO
 
 from botocore.exceptions import ClientError
+from mainapp.models import DataSource, Method, DataSourceMethod
 from mainapp.utils.lib import break_s3_object
 from mainapp.utils import aws_service
 from mainapp.utils.deidentification.common.image_de_id_exceptions import (
@@ -31,9 +32,11 @@ class ImageDeIdHelper(object):
 
     def update_images_method_status(self):
         for method in self.__dataset.methods.all():
-            if method.state == "pending":
-                for dsrc_method in method.data_source_methods.filter(state="pending"):
-                    if dsrc_method.data_source.type == "images":
+            if method.state == Method.PENDING:
+                for dsrc_method in method.data_source_methods.filter(
+                    state=DataSourceMethod.PENDING
+                ):
+                    if dsrc_method.data_source.type == DataSource.IMAGES:
                         try:
                             self.__update_dsrc_method_status(dsrc_method, method)
                         except BaseImageDeIdHelperError as e:

@@ -1,6 +1,7 @@
+import logging
+
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class DataSourceMethod(models.Model):
     )
     included = models.BooleanField(default=True)
     attributes = JSONField(default=dict)
-    state = models.CharField(default="pending", blank=True, max_length=32)
+    state = models.CharField(default=PENDING, blank=True, max_length=32)
 
     class Meta:
         db_table = "data_source_methods"
@@ -35,21 +36,25 @@ class DataSourceMethod(models.Model):
     def __set_state(self, state):
         if self.state == state:
             logger.warning(
-                f"Human! Somewhere in your code you're trying to set the data-source-method {self.id} state "
+                f"Human! Somewhere in your code you're trying to set the data-source-method {self} state "
                 f"to {state} when it's already in {state} state."
             )
         else:
+            logger.info(f"DataSourceMethod {self} state was changed to {state}")
             self.state = state
             self.save()
 
     def set_as_pending(self):
-        self.__set_state(DataSourceMethod.PENDING)
+        self.__set_state(self.PENDING)
 
     def set_as_ready(self):
-        self.__set_state(DataSourceMethod.READY)
+        self.__set_state(self.READY)
 
     def set_as_error(self):
-        self.__set_state(DataSourceMethod.ERROR)
+        self.__set_state(self.ERROR)
 
     def is_ready(self):
-        return self.state == DataSourceMethod.READY
+        return self.state == self.READY
+
+    def __str__(self):
+        return f"<DataSourceMethod - Method:{self.method.id}, DataSource:{self.data_source.id}>"

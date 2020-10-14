@@ -1,5 +1,6 @@
 import logging
 
+from mainapp.models import DataSource
 from mainapp.utils import executor
 from mainapp.utils.deidentification.common.exceptions import (
     DeidentificationError,
@@ -36,8 +37,7 @@ def validate_action(method_action, column, data_source, dsrc_method, attributes)
             f"lynx data type {data_source.columns[column]['lynx_type']}"
         )
         raise DeidentificationError(uaae)
-    dsrc_method.state = "pending"
-    dsrc_method.save()
+    dsrc_method.set_as_pending()
 
 
 def handle_method(dsrc_method, data_source, data_source_index):
@@ -49,7 +49,7 @@ def handle_method(dsrc_method, data_source, data_source_index):
         return
 
     try:
-        if data_source.type == "structured":
+        if data_source.type == DataSource.STRUCTURED:
             logger.debug(
                 f"Going over column actions for Method {dsrc_method.method.name}:{dsrc_method.method.id} over "
                 f"{data_source.name}:{data_source.id}"
@@ -73,7 +73,7 @@ def handle_method(dsrc_method, data_source, data_source_index):
                     f"for Data Source {data_source.name}:{data_source.id}, error - {e}"
                 )
                 raise
-        elif data_source.type == "images":
+        elif data_source.type == DataSource.IMAGES:
             logger.info(
                 f"Handling Image De-id for Method {dsrc_method.method.name}:{dsrc_method.method.id} for "
                 f"{data_source.name}:{data_source.id}"

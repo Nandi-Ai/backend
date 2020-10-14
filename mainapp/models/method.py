@@ -5,6 +5,10 @@ from mainapp.models import DataSourceMethod
 
 
 class Method(models.Model):
+    READY = "ready"
+    PENDING = "pending"
+    ERROR = "error"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     dataset = models.ForeignKey(
@@ -28,15 +32,19 @@ class Method(models.Model):
     @property
     def state(self):
         data_source_methods = DataSourceMethod.objects.filter(method_id=self.id)
-        data_source_methods_states = {"error": 0, "pending": 0, "ready": 0}
+        data_source_methods_states = {self.ERROR: 0, self.PENDING: 0, self.READY: 0}
 
         for dsrc_method in data_source_methods:
             data_source_methods_states[dsrc_method.state] += 1
 
-        if data_source_methods_states["pending"]:
-            return "pending"
+        # If there's at least one pending data source method, the method is pending
+        if data_source_methods_states[self.PENDING]:
+            return self.PENDING
 
-        if not data_source_methods_states["ready"]:
-            return "error"
+        # If there aren't any ready or pending data source methods, all data source methods are errored, which means
+        # the method is errored
+        if not data_source_methods_states[self.READY]:
+            return self.ERROR
 
-        return "ready"
+        # Otherwise the method is ready
+        return self.READY

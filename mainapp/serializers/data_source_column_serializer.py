@@ -1,4 +1,5 @@
 from botocore.exceptions import ClientError
+from http import HTTPStatus
 from rest_framework.serializers import empty, JSONField, Serializer, ValidationError
 
 from mainapp.utils.deidentification import (
@@ -27,7 +28,9 @@ class DataSourceColumnsSerializer(Serializer):
             )
         except ClientError as e:
             raise ValidationError(
-                f"Could not access original data source {data_source.id}," f"error: {e}"
+                f"Could not access original data source {data_source.id},"
+                f"error: {e}",
+                code=HTTPStatus.INTERNAL_SERVER_ERROR,
             )
 
         try:
@@ -54,7 +57,8 @@ class DataSourceColumnsSerializer(Serializer):
         except (ClientError, NoExamplesError) as e:
             raise ValidationError(
                 f"Failed parsing values in glue table for data source {data_source.id},"
-                f"error: {e}"
+                f"error: {e}",
+                code=HTTPStatus.INTERNAL_SERVER_ERROR,
             )
 
         return result

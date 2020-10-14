@@ -142,8 +142,7 @@ class MethodHandler(object):
                 f"Method {self.__dsrc_method.method.name}:{self.__dsrc_method.method.id} has no actions for"
                 f"Data Source {self.__data_source.name}:{self.__data_source.id}"
             )
-            self.__dsrc_method.state = "ready"
-            self.__dsrc_method.save()
+            self.__dsrc_method.set_as_ready()
             return
 
         try:
@@ -173,7 +172,7 @@ class MethodHandler(object):
                 dsrc_index=self.__dsrc_index,
             )
 
-            self.__dsrc_method.state = "ready"
+            self.__dsrc_method.set_as_ready()
 
         except Exception as e:
             logger.exception(
@@ -181,6 +180,4 @@ class MethodHandler(object):
                 f"{self.__dsrc_method.method.name}: {self.__dsrc_method.method.id} "
                 f"on data source {self.__data_source.name}: {self.__data_source.id} - \nerror: {e}"
             )
-            self.__dsrc_method.state = "error"
-        finally:
-            self.__dsrc_method.save()
+            self.__dsrc_method.set_as_error()

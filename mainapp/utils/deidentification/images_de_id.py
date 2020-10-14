@@ -1,11 +1,11 @@
-import logging
 import json
+import logging
 
-from io import BytesIO
+from botocore.exceptions import ClientError
 from datetime import datetime
+from io import BytesIO
 
 from mainapp import settings
-from botocore.exceptions import ClientError
 from mainapp.utils import lib, aws_service
 from mainapp.utils.deidentification.common.image_de_id_exceptions import (
     LambdaInvocationError,

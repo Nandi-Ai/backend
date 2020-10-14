@@ -33,6 +33,11 @@ class DataSource(models.Model):
     PENDING = "pending"
     ERROR = "error"
 
+    STRUCTURED = "structured"
+    IMAGES = "images"
+    ZIP = "zip"
+    XML = "xml"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     dir = models.CharField(null=True, blank=True, max_length=255)
@@ -72,14 +77,10 @@ class DataSource(models.Model):
     @property
     def needs_deid(self):
         methods = list(self.dataset.methods.iterator())
-        if self.type != "structured" or not methods:
+        if self.type not in [self.STRUCTURED, self.IMAGES] or not methods:
             return False
 
-        for method in methods:
-            for dsrc_method in method.data_source_methods.iterator():
-                if dsrc_method.data_source.id == self.id:
-                    return False
-        return True
+        return not self.methods.exists()
 
     def generate_columns(self):
         column_types = self.dataset.get_columns_types(self.glue_table)
@@ -148,7 +149,7 @@ class DataSource(models.Model):
         return examples
 
     def example_values(self):
-        if self.type != "structured" or not self.columns:
+        if self.type != self.STRUCTURED or not self.columns:
             logger.warning(
                 f"Data Source {self.id} does not have any columns - Could not fetch example values"
             )
