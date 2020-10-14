@@ -7,7 +7,7 @@ class Offset(DeidentificationAction):
 
     def __init__(self, data_source, dsrc_method, col, lynx_type, interval):
         super().__init__(data_source, dsrc_method, col, lynx_type)
-        self.__interval = interval
+        self.__interval = float(interval)
 
     def _offset(self, value, interval, action_name=Actions.OFFSET.value):
         return self._lynx_type.deid(
