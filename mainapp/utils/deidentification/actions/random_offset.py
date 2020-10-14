@@ -9,7 +9,7 @@ class RandomOffset(Offset):
 
     def __init__(self, data_source, dsrc_method, col, lynx_type, std):
         super(Offset, self).__init__(data_source, dsrc_method, col, lynx_type)
-        self.__std = std
+        self.__std = float(std)
 
     def _deid(self, value):
         interval = max(min(3 * self.__std, gauss(0, self.__std)), -3 * self.__std)
