@@ -10,7 +10,7 @@ from mainapp.models.data_source import DataSource
 from mainapp.models.data_source_method import DataSourceMethod
 from mainapp.models.method import Method
 from mainapp.utils import aws_service
-from utils.deidentification.common.image_de_id_exceptions import (
+from mainapp.utils.deidentification.common.image_de_id_exceptions import (
     EmptyBucketError,
     UpdateJobProcessError,
     BaseImageDeIdHelperError,
