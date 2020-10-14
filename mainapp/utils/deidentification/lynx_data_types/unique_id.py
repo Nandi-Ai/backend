@@ -11,5 +11,8 @@ class UniqueIdentifier(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.UID.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return

@@ -12,6 +12,9 @@ class Number(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.NUMBER.value
 
+    def _get_fallback_value(self):
+        return float()
+
     def _validate(self, value):
         return
 

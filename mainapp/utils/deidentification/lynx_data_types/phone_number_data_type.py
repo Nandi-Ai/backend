@@ -10,5 +10,8 @@ class PhoneNumber(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.PHONE_NUMBER.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return

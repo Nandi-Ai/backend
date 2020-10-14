@@ -17,6 +17,9 @@ class Email(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.EMAIL.value
 
+    def _get_fallback_value(self):
+        return "fake@fake.com"
+
     def _validate(self, value):
         try:
             validate_email(value, check_deliverability=False)

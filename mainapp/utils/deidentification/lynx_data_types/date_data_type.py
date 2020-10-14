@@ -26,6 +26,9 @@ class Date(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.DATE.value
 
+    def _get_fallback_value(self):
+        return self.__convert_dt_to_string(datetime.datetime.now())
+
     def _validate(self, value):
         return
 

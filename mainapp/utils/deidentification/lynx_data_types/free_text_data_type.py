@@ -11,5 +11,8 @@ class FreeText(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.TEXT.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return

@@ -17,6 +17,9 @@ class Age(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.AGE.value
 
+    def _get_fallback_value(self):
+        return float()
+
     def _validate(self, value):
         return
 

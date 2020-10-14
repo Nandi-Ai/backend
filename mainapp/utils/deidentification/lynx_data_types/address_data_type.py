@@ -10,5 +10,8 @@ class Address(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.ADDRESS.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return

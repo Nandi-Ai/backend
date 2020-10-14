@@ -10,5 +10,8 @@ class VehicleIdentifier(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.VIDSN.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return
