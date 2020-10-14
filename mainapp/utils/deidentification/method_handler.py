@@ -56,7 +56,7 @@ class MethodHandler(object):
         )
         s3_client.put_object(
             Bucket=self.__data_source.bucket,
-            Key=f"{self.__deid_data_dir.rstrip(f'_{self.__dsrc_index}')}/",
+            Key=f"{self.__deid_data_dir[:-(1 + len(str(self.__dsrc_index)))]}/",
             ACL="private",
         )
 
