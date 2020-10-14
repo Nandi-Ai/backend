@@ -8,6 +8,7 @@ from mainapp.settings import DELETE_DATASETS_FROM_DATABASE
 from mainapp.utils import lib, aws_service
 from mainapp.utils.dataset import delete_aws_resources_for_dataset
 from .dataset_user import DatasetUser
+from .study import Study
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class Dataset(models.Model):
         ("none", "none"),
         ("aggregated_access", "aggregated_access"),
         ("limited_access", "limited_access"),
+        ("deid_access", "deid_access"),
     )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
@@ -137,6 +139,43 @@ class Dataset(models.Model):
 
     def has_pending_datasource(self):
         return any(data_source.is_pending() for data_source in self.data_sources.all())
+
+    @property
+    def study_datasets(self):
+        for studydataset in self.studydataset_set.all():
+            if studydataset.study.status is not Study.STUDY_DELETED:
+                yield studydataset
+        return
+
+    def calc_access_to_database(self, user):
+        if user in self.users.all():
+            dataset_user = DatasetUser.objects.filter(user=user, dataset=self).first()
+
+            return {
+                "permission": dataset_user.permission,
+                "key": dataset_user.permission_key,
+            }
+
+        if self.state == "private":
+            permission = user.permission(self)
+            if permission == "aggregated_access":
+                return {"permission": "aggregated access", "key": None}
+            elif permission in ["admin", "full_access"]:
+                return {"permission": "full access", "key": None}
+            # user not aggregated and not full or admin
+            else:
+                if self.default_user_permission == "aggregated_access":
+                    return {"permission": "aggregated access", "key": None}
+                elif self.default_user_permission == "limited_access":
+                    return {"permission": "limited access", "key": self.permission_key}
+                elif self.default_user_permission == "no access":
+                    return {"permission": "no access", "key": None}
+
+        if self.state == "public":
+            return {"permission": "full access", "key": None}
+
+        # safe. includes archived dataset
+        return {"permission": "no access", "key": None}
 
     def __str__(self):
         return f"<Dataset id={self.id} name={self.name}>"

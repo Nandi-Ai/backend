@@ -40,6 +40,7 @@ class RequestViewSet(ModelViewSet):
                     "aggregated_access",
                     "full_access",
                     "limited_access",
+                    "deid_access",
                 ]
 
                 if "dataset" not in request_data:

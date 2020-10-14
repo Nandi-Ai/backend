@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 class DatasetUser(models.Model):
     LIMITED_ACCESS = "limited_access"
-    possible_user_permission_for_dataset = ((LIMITED_ACCESS, "limited_access"),)
+    DEID_ACCESS = "deid_access"
+    possible_user_permission_for_dataset = (
+        (LIMITED_ACCESS, "limited_access"),
+        (DEID_ACCESS, "deid_access"),
+    )
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE)
     user = models.ForeignKey("User", on_delete=models.CASCADE)
     permission = models.CharField(

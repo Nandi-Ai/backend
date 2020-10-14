@@ -29,6 +29,9 @@ from mainapp.exceptions import (
     MaxExecutionReactedError,
     InvalidExecutionId,
     QueryExecutionError,
+    GlueTableFetchError,
+    GlueTableMigrationError,
+    GlueError,
 )
 from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.utils import aws_service, statistics, devexpress_filtering, executor
@@ -54,10 +57,12 @@ class PrivilegePath(Enum):
     FULL = "full_access"
     AGG_STATS = "aggregated_access"
     LIMITED = "limited_access"
+    DEID = "deid_access"
 
 
 LYNX_STORAGE_DIR = "lynx-storage"
 UNSUPPORTED_CHARS = [".", ",", ":", "[", "]"]
+MAX_RETRIES = 500
 
 
 def break_s3_object(obj):
@@ -369,8 +374,7 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
         data_source.set_as_error()
 
 
-@with_glue_client
-def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source):
+def process_datasource_glue_and_bucket_data(org_name, data_source):
     try:
         # move the file that was uploaded by front-end to another place (_full)
         update_folder_hierarchy(data_source=data_source, org_name=org_name)
@@ -395,17 +399,37 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
 
         # process all connected studies into the data_source's dataset.
         # create limited versions according to permission_attributes in the studies
-        for study_dataset in data_source.dataset.studydataset_set.all():
+        for study_dataset in data_source.dataset.study_datasets:
             study_dataset.process()
 
-        # connect glue to the updated _full file.
-        update_glue_table(data_source=data_source, org_name=org_name)
+        new_table_name = f"{data_source.dir}_full"
+
+        try:
+            # connect glue to the updated _full file.
+            update_glue_table(
+                data_source=data_source,
+                org_name=org_name,
+                source_table=data_source.glue_table,
+                target_table=new_table_name,
+                path=f"{data_source.dataset.bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}",
+            )
+        except GlueError as ge:
+            logger.exception(
+                f"An Error while trying to update glue table for {data_source.id}"
+            )
+            return ErrorResponse(str(ge))
+
+        data_source.glue_table = new_table_name
+        data_source.save()
+
+        data_source.generate_columns()
 
         data_source.set_as_ready()
         logger.info(
             f"Done processing data_source {data_source.name} ({data_source.id}) "
             f"in org {org_name} "
         )
+
     except Exception as e:
         logger.exception(
             f"Failed uploading the data source {data_source.name} ({data_source.id}) with error {e}"
@@ -413,41 +437,17 @@ def process_datasource_glue_and_bucket_data(boto3_client, org_name, data_source)
         data_source.set_as_error()
 
 
-@with_glue_client
-def create_glue_table(boto3_client, org_name, data_source):
-    """
-    wait for new data-source uploaded by front-end to be crawled by glue and then process it.
-    """
-    create_glue_crawler(data_source=data_source, org_name=org_name)
+def create_full_data_glue_table(org_name, data_source):
+    path, _, _, _ = break_s3_object(data_source.s3_objects[0]["key"])
 
-    crawler_name = f"data_source-{data_source.id}"
-
-    boto3_client.start_crawler(Name=crawler_name)
-    logger.info(
-        f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
-        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
-        f"was created and started successfully"
+    crawler_ready = create_glue_table(
+        org_name=org_name, data_source=data_source, path=path
     )
-    crawler_ready = False
-    max_retries = 500
-    retries = max_retries
 
-    while not crawler_ready and retries >= 0:
-        res = boto3_client.get_crawler(Name=crawler_name)
-        crawler_ready = True if res["Crawler"]["State"] == "READY" else False
-        sleep(5)
-        retries -= 1
-
-    logger.info(
-        f"Is crawler for datasource {data_source.name}:{data_source.id} "
-        f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
-        f"for org_name {org_name} has finished: {crawler_ready}"
-    )
-    boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
     if not crawler_ready:
         logger.warning(
             f"The crawler for data_source {data_source.name}:{data_source.id} in org {org_name} "
-            f"had a failure after {max_retries} tries"
+            f"had a failure after {MAX_RETRIES} tries"
         )
         data_source.set_as_error()
 
@@ -463,6 +463,118 @@ def create_glue_table(boto3_client, org_name, data_source):
         )
 
 
+@with_glue_client
+def delete_if_table_exists(boto3_client, data_source, org_name, table_to_check):
+    try:
+        boto3_client.get_table(
+            DatabaseName=data_source.dataset.glue_database, Name=table_to_check
+        )
+    except boto3_client.exceptions.EntityNotFoundException:
+        return
+
+    boto3_client.delete_table(
+        DatabaseName=data_source.dataset.glue_database, Name=table_to_check
+    )
+
+
+def create_deid_glue_table(data_source, deid, dsrc_index):
+    orig_path = f"{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.DEID.value}_{deid}_{dsrc_index}"
+    post_path = orig_path.rstrip(f"_{dsrc_index}")
+
+    crawler_ready = create_glue_table(
+        org_name=data_source.dataset.organization.name,
+        data_source=data_source,
+        path=orig_path,
+    )
+
+    if not crawler_ready:
+        raise GlueError(
+            f"Glue crawler for data source {data_source.id} did not finish properly"
+        )
+
+    deid_table_name = str(deid).replace("-", "_")
+
+    delete_if_table_exists(
+        data_source=data_source,
+        org_name=data_source.dataset.organization.name,
+        table_to_check=f"{data_source.dir}_deid_{deid_table_name}",
+    )
+
+    logger.info(
+        f"Moving Data Source {data_source.id}:{data_source.name} from {orig_path} to {post_path}"
+    )
+    update_deid_hierarchy(
+        org_name=data_source.dataset.organization.name,
+        bucket=data_source.dataset.bucket,
+        pre_path=orig_path,
+        post_path=post_path,
+    )
+
+    update_glue_table(
+        data_source=data_source,
+        org_name=data_source.dataset.organization.name,
+        source_table=f"{PrivilegePath.DEID.value}_{deid_table_name}_{dsrc_index}",
+        target_table=f"{data_source.dir}_deid_{deid_table_name}",
+        path=f"{data_source.dataset.bucket}/{post_path}",
+    )
+
+
+@with_s3_resource
+def update_deid_hierarchy(boto3_client, org_name, bucket, pre_path, post_path):
+    for s3_obj in boto3_client.Bucket(bucket).objects.filter(Prefix=pre_path):
+        src_path = s3_obj.key
+        if not src_path.endswith("/"):
+            file_name = src_path.split("/")[-1]
+            dest_file_path = post_path + "/" + file_name
+            copy_path = bucket + "/" + src_path
+            logger.info(f"Moving {file_name} from {pre_path} to {post_path}")
+            boto3_client.Object(bucket, dest_file_path).copy_from(CopySource=copy_path)
+            boto3_client.Object(bucket, src_path).delete()
+    logger.info(f"Deleting temporary directory {pre_path} from {bucket}")
+    boto3_client.Object(bucket, f"{pre_path}/").delete()
+
+
+@with_glue_client
+def create_glue_table(boto3_client, org_name, data_source, path):
+    """
+    wait for new data-source uploaded by front-end to be crawled by glue and then process it.
+    """
+
+    try:
+        create_glue_crawler(data_source=data_source, org_name=org_name, obj_path=path)
+    except boto3_client.exceptions.ClientError as ce:
+        logger.error(f"Failed to create glue crawler - {ce}")
+        return False
+
+    crawler_name = f"data_source-{data_source.id}"
+    crawler_ready = False
+
+    try:
+        boto3_client.start_crawler(Name=crawler_name)
+        logger.info(
+            f"Glue database crawler for datasource {data_source.name}:{data_source.id} "
+            f"in dataset {data_source.dataset.name}:{data_source.dataset.id} for org_name {org_name} "
+            f"was created and started successfully"
+        )
+        retries = MAX_RETRIES
+
+        while not crawler_ready and retries >= 0:
+            res = boto3_client.get_crawler(Name=crawler_name)
+            crawler_ready = True if res["Crawler"]["State"] == "READY" else False
+            sleep(5)
+            retries -= 1
+
+        logger.info(
+            f"Is crawler for datasource {data_source.name}:{data_source.id} "
+            f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
+            f"for org_name {org_name} has finished: {crawler_ready}"
+        )
+    finally:
+        boto3_client.delete_crawler(Name="data_source-" + str(data_source.id))
+
+    return crawler_ready
+
+
 def process_structured_data_source_in_background(org_name, data_source):
     """
     called when data-source was uploaded.
@@ -473,7 +585,7 @@ def process_structured_data_source_in_background(org_name, data_source):
     data_source.set_as_pending()
 
     create_glue_table_thread = threading.Thread(
-        target=create_glue_table,
+        target=create_full_data_glue_table,
         kwargs={"org_name": org_name, "data_source": data_source},
     )  # also setting the data_source state to ready when it's done
     create_glue_table_thread.start()
@@ -564,42 +676,38 @@ def determine_data_source_s3_object_from_execution_id(
 
 
 @with_glue_client
-def update_glue_table(boto3_client, data_source, org_name):
-    # get data from current table
+def update_glue_table(
+    boto3_client, data_source, org_name, source_table, target_table, path
+):
     try:
         response = boto3_client.get_table(
-            DatabaseName=data_source.dataset.glue_database, Name=data_source.glue_table
+            DatabaseName=data_source.dataset.glue_database, Name=source_table
         )
-    except Exception as e:
-        return ErrorResponse("Error fetching current glue table", e)
+    except Exception:
+        raise GlueTableFetchError(data_source.dataset.glue_database, source_table)
 
-    new_table_name = f"{data_source.dir}_full"
     table_input = response["Table"]
-    table_input["Name"] = new_table_name
+    table_input["Name"] = target_table
 
-    table_input.pop("CreatedBy")
-    table_input.pop("CreateTime")
-    table_input.pop("UpdateTime")
-    table_input.pop("IsRegisteredWithLakeFormation")
-    table_input.pop("DatabaseName")
-    table_input["StorageDescriptor"][
-        "Location"
-    ] = f"s3://lynx-dataset-{data_source.dataset.id}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}/"
+    table_input.pop("CreatedBy", None)
+    table_input.pop("CreateTime", None)
+    table_input.pop("UpdateTime", None)
+    table_input.pop("IsRegisteredWithLakeFormation", None)
+    table_input.pop("DatabaseName", None)
 
+    table_input["StorageDescriptor"]["Location"] = f"s3://{path}/"
     try:
         boto3_client.create_table(
             DatabaseName=data_source.dataset.glue_database, TableInput=table_input
         )
 
         boto3_client.delete_table(
-            DatabaseName=data_source.dataset.glue_database, Name=data_source.glue_table
+            DatabaseName=data_source.dataset.glue_database, Name=source_table
         )
-
-    except Exception as e:
-        return ErrorResponse("Error migrating glue table", e)
-
-    data_source.glue_table = new_table_name
-    data_source.save()
+    except Exception:
+        raise GlueTableMigrationError(
+            data_source.dataset.glue_database, source_table, target_table
+        )
 
 
 @with_s3_resource
@@ -787,16 +895,13 @@ def calculate_statistics(data_source, query_from_front=None):
 
 
 @organization_dependent
-def create_glue_crawler(org_settings, data_source, org_name):
+def create_glue_crawler(org_settings, data_source, org_name, obj_path):
     logger.info(
         f"Started create_glue_crawler for datasource {data_source.name}:{data_source.id} "
         f"in dataset {data_source.dataset.name}:{data_source.dataset.id} in org {org_name}"
     )
     glue_client = aws_service.create_glue_client(org_name=org_name)
 
-    path, file_name, file_name_no_ext, ext = break_s3_object(
-        data_source.s3_objects[0]["key"]
-    )
     glue_client.create_crawler(
         Name="data_source-" + str(data_source.id),
         Role=org_settings["AWS_GLUE_SERVICE_ROLE"],
@@ -804,7 +909,10 @@ def create_glue_crawler(org_settings, data_source, org_name):
         Description="",
         Targets={
             "S3Targets": [
-                {"Path": f"s3://{data_source.dataset.bucket}/{path}/", "Exclusions": []}
+                {
+                    "Path": f"s3://{data_source.dataset.bucket}/{obj_path}/",
+                    "Exclusions": [],
+                }
             ]
         },
         SchemaChangePolicy={
@@ -841,25 +949,6 @@ def handle_zipped_data_source(boto3_client, data_source, org_name):
     )
     shutil.rmtree(f"/tmp/{str(data_source.id)}")
     data_source.set_as_ready()
-
-
-def calc_access_to_database(user, dataset):
-    if dataset.state == "private":
-        if user.permission(dataset) == "aggregated_access":
-            return "aggregated access"
-        elif user.permission(dataset) in ["admin", "full_access"]:
-            return "full access"
-        else:  # user not aggregated and not full or admin
-            if dataset.default_user_permission == "aggregated_access":
-                return "aggregated access"
-            elif dataset.default_user_permission == "limited_access":
-                return "limited access"
-            elif dataset.default_user_permission == "no access":
-                return "no access"
-    elif dataset.state == "public":
-        return "full access"
-
-    return "no access"  # safe. includes archived dataset
 
 
 def load_tags(delete_removed_tags=True):

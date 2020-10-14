@@ -149,4 +149,9 @@ class DatasetSerializer(ModelSerializer):
         )
         data["aggregated_users"] = aggregated_users_serializer.data
 
+        user_created_serializer = UserSerializer(
+            instance.user_created, many=False, read_only=False
+        )
+        data["user_created"] = user_created_serializer.data
+
         return data
