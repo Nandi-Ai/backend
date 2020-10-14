@@ -227,7 +227,7 @@ class DataSource(models.Model):
         return f"{self.dir}_limited_{limited}"
 
     def __get_deid_glue_table_name(self, deid):
-        return f"{self.dir}_deid_{deid}"
+        return f"{self.dir}_deid_{deid.replace('-', '_')}"
 
     def get_glue_table(self, permission, key):
         if permission == "limited_access":
