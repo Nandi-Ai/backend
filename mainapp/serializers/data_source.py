@@ -5,7 +5,6 @@ from mainapp.models import DataSource
 
 class DataSourceSerializer(ModelSerializer):
     is_column_present = BooleanField(write_only=True)
-    # get_unique_together_validators = CharField(validators=["get_unique_together_validators"])
 
     def is_column_present(self, obj):
         return obj.get("is_column_present")
