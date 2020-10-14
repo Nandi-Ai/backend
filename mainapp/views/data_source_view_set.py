@@ -12,11 +12,15 @@ from rest_framework.viewsets import ModelViewSet
 # noinspection PyPackageRequirements
 from slugify import slugify
 
-from mainapp.models import Execution
-from mainapp.serializers import DataSourceSerializer
+
+from mainapp.models import Execution, DataSource, Method
+from mainapp.serializers import DataSourceSerializer, DataSourceColumnsSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
+from mainapp.utils.deidentification import DeidentificationError
+from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
 from mainapp.utils.lib import process_structured_data_source_in_background
+from mainapp.utils.permissions import IsDataSourceAdmin
 from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.response_handler import (
     ErrorResponse,
@@ -32,11 +36,14 @@ class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
     filter_fields = ("dataset",)
+    permission_classes = [IsDataSourceAdmin]
+    ADMIN_PROTECTED_ENDPOINTS = ["example", "columns"]
     file_types = {
         ".jpg": ["image/jpeg"],
         ".jpeg": ["image/jpeg"],
         ".tiff": ["image/tiff"],
         ".png": ["image/png"],
+        ".bmp": ["image/bmp", "image/x-windows-bmp"],
         ".csv": ["application/csv", "text/csv", "text/plain"],
         ".sav": ["application/octet-stream"],
         ".zsav": [],
@@ -70,11 +77,73 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
+    @action(detail=True, methods=["get"])
+    def example(self, request, *args, **kwargs):
+        data_source = self.get_object()
+        return Response({str(data_source.id): data_source.example_values()})
+
+    @action(detail=True, methods=["put"])
+    def columns(self, request, *args, **kwargs):
+        data_source = self.get_object()
+
+        if data_source.type != DataSource.STRUCTURED:
+            logger.error(
+                f"Data Source {data_source.name}:{data_source.id} was sent to 'columns' endpoint even "
+                f"though it isn't structured"
+            )
+            return BadRequestErrorResponse(
+                "Only structured data sources support column updates"
+            )
+
+        for method in data_source.methods.all():
+            if method.state == Method.PENDING:
+                logger.warning(
+                    "Aborting column configuration due to running de identification process"
+                )
+                return BadRequestErrorResponse(
+                    "Data source is currently being De-identified, please try again later"
+                )
+
+        logger.info(f"Validating columns for {data_source.name}:{data_source.id}")
+        columns_serialized = DataSourceColumnsSerializer(
+            data={"columns": request.data}, context={"data_source": data_source}
+        )
+
+        columns_serialized.is_valid(raise_exception=True)
+
+        logger.info(
+            f"Fetching methods for Data Source {data_source.name}:{data_source.id}"
+        )
+        data_source.columns = request.data
+        data_source.save()
+
+        changed_columns = columns_serialized.get_changed_columns()
+        if data_source.methods:
+            dsrc_index = 0
+            for dsrc_method in data_source.methods.all():
+                dsrc_index += 1
+                try:
+                    if any([col in dsrc_method.attributes for col in changed_columns]):
+                        handle_method(dsrc_method, data_source, dsrc_index)
+                except DeidentificationError as de:
+                    return BadRequestErrorResponse(str(de))
+                except Exception:
+                    dsrc_method.set_as_error()
+
+        return Response(
+            self.serializer_class(data_source, allow_null=True).data, status=201
+        )
+
     def get_queryset(self):
         return self.request.user.data_sources
 
     def create(self, request, *args, **kwargs):
-        ds_types = ["structured", "images", "zip", "xml"]
+        ds_types = [
+            DataSource.STRUCTURED,
+            DataSource.IMAGES,
+            DataSource.ZIP,
+            DataSource.XML,
+        ]
         data_source_serialized = self.serializer_class(
             data=request.data, allow_null=True
         )
@@ -102,7 +171,11 @@ class DataSourceViewSet(ModelViewSet):
                 if not isinstance(data_source_data["s3_objects"], list):
                     return ForbiddenErrorResponse("s3 objects must be a (json) list")
 
-            if data_source_data["type"] in ["zip", "structured" "xml"]:
+            if data_source_data.get("type") in [
+                DataSource.ZIP,
+                DataSource.STRUCTURED,
+                DataSource.XML,
+            ]:
                 if "s3_objects" not in data_source_data:
                     logger.exception("s3_objects field must be included")
 
@@ -145,7 +218,7 @@ class DataSourceViewSet(ModelViewSet):
             )
             data_source.save()
 
-            if data_source.type == "structured":
+            if data_source.type == DataSource.STRUCTURED:
                 # set initial glue table value
                 data_source.glue_table = data_source.dir.translate(
                     {ord(c): "_" for c in "!@#$%^&*()[]{};:,./<>?\|`~-=_+\ "}
@@ -213,7 +286,7 @@ class DataSourceViewSet(ModelViewSet):
                     org_name=dataset.organization.name, data_source=data_source
                 )
 
-            elif data_source.type == "zip":
+            elif data_source.type == DataSource.ZIP:
                 handle_zip_thread = threading.Thread(
                     target=lib.handle_zipped_data_source,
                     args=[data_source, request.user.organization.name],

@@ -40,6 +40,7 @@ class RequestViewSet(ModelViewSet):
                     "aggregated_access",
                     "full_access",
                     "limited_access",
+                    "deid_access",
                 ]
 
                 if "dataset" not in request_data:
@@ -82,6 +83,12 @@ class RequestViewSet(ModelViewSet):
                     if not math.isnan(key) and not key > 0:
                         return BadRequestErrorResponse(
                             f"Limited value must be valid positive whole number: {permission_request_types}"
+                        )
+
+                if requested_permission == "deid_access":
+                    if "permission_attributes" in request_data:
+                        return BadRequestErrorResponse(
+                            f"requesting de-id can't be with permission_attributes"
                         )
 
                 # the logic validations:
