@@ -7,7 +7,7 @@ from io import BytesIO
 
 from mainapp import settings
 from mainapp.utils import lib, aws_service
-from utils.deidentification.image_de_id.image_de_id_exceptions import (
+from mainapp.utils.deidentification.image_de_id.image_de_id_exceptions import (
     LambdaInvocationError,
     UploadBatchProcessError,
     BaseImageDeIdError,
