@@ -1,0 +1,16 @@
+pipelines:
+  default:
+    - step:
+        script:
+          - echo $CodeCommitKey > ~/.ssh/lynx_codecommit_rsa.tmp
+          - cat ~/.ssh/lynx_codecommit_rsa.tmp
+          - base64 -d ~/.ssh/lynx_codecommit_rsa.tmp > ~/.ssh/lynx_codecommit_rsa
+          - chmod 400 ~/.ssh/lynx_codecommit_rsa
+          - echo $CodeCommitConfig > ~/.ssh/config.tmp
+          - base64 -d  ~/.ssh/config.tmp > ~/.ssh/config
+          - set +e
+          - ssh -o StrictHostKeyChecking=no $CodeCommitHost
+          - set -e
+          - git remote add codecommit ssh://$CodeCommitRepo
+          - git push codecommit $BITBUCKET_BRANCH
+
