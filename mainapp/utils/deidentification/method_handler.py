@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class MethodHandler(object):
+
+    __DEID_LOG_INTERVAL = 1000
+
     def __init__(self, data_source, dsrc_method, data_source_index):
         self.__dsrc_index = data_source_index
         self.__data_source = data_source
@@ -133,9 +136,16 @@ class MethodHandler(object):
         )
 
         deid_data_file = f"s3://{self.__data_source.bucket}/{self.__deid_data_dir}/{self.__data_source.name}"
+        deid_counter = 0
         with smart_open.open(
             deid_data_file, "wb", transport_params={"session": output_file_session}
         ) as deid_result:
+            if not deid_counter:
+                logger.debug(
+                    f"De Identification is in progress for method "
+                    f"{self.__dsrc_method.method.id} on data source {self.__data_source.id}"
+                )
+            deid_counter = (deid_counter + 1) % self.__DEID_LOG_INTERVAL
             deid_result.write(self.__encode_deid_row(column_name_row))
             for data_row in data_stream._raw_stream:
                 deid_row = self.__deidentify_row(data_row, columns)
