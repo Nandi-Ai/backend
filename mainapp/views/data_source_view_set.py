@@ -148,7 +148,7 @@ class DataSourceViewSet(ModelViewSet):
             data=request.data, allow_null=True
         )
 
-        if data_source_serialized.is_valid():
+        if data_source_serialized.is_valid(raise_exception=True):
             data_source_data = data_source_serialized.validated_data
             dataset = data_source_data["dataset"]
 
@@ -309,15 +309,6 @@ class DataSourceViewSet(ModelViewSet):
             return Response(
                 self.serializer_class(data_source, allow_null=True).data, status=201
             )
-
-        else:
-            # if (
-            #     "The fields name, dataset must make a unique set."
-            #     in data_source_serialized.errors["non_field_errors"]
-            # ):
-            #     message = "You already have datasource with the same name. Please change the file name and upload again."
-            #     return BadRequestErrorResponse(message)
-            return data_source_serialized.is_valid(raise_exception=True)
 
     def update(self, request, *args, **kwargs):
         serialized = self.serializer_class(data=request.data, allow_null=True)
