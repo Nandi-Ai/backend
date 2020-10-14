@@ -1,5 +1,6 @@
+from boto3 import Session
 import logging
-import s3fs
+import smart_open
 
 from . import ACTIONS, LYNX_DATA_TYPES
 from mainapp.settings import ORG_VALUES
@@ -125,14 +126,16 @@ class MethodHandler(object):
         )
 
         aws_credentials = ORG_VALUES[self.__data_source.dataset.organization.name]
-        s3 = s3fs.S3FileSystem(
-            anon=False,
-            key=aws_credentials["AWS_ACCESS_KEY_ID"],
-            secret=aws_credentials["AWS_SECRET_ACCESS_KEY"],
+
+        output_file_session = Session(
+            aws_access_key_id=aws_credentials["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=aws_credentials["AWS_SECRET_ACCESS_KEY"],
         )
 
         deid_data_file = f"s3://{self.__data_source.bucket}/{self.__deid_data_dir}/{self.__data_source.name}"
-        with s3.open(deid_data_file, "wb") as deid_result:
+        with smart_open.open(
+            deid_data_file, "wb", transport_params={"session": output_file_session}
+        ) as deid_result:
             deid_result.write(self.__encode_deid_row(column_name_row))
             for data_row in data_stream._raw_stream:
                 deid_row = self.__deidentify_row(data_row, columns)
