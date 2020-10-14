@@ -5,7 +5,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
 from mainapp.exceptions import BucketNotFound
-from mainapp.models import Dataset, DataSource, DatasetUser
+from mainapp.models import Dataset, DataSource
 from mainapp.serializers import QuerySerializer
 from mainapp.utils import devexpress_filtering
 from mainapp.utils import lib
@@ -37,9 +37,11 @@ class Query(GenericAPIView):
                     error=e,
                 )
 
-            access = lib.calc_access_to_database(user, dataset)
+            access = dataset.calc_access_to_database(user)
 
-            if access in ["no access", "aggregated access"]:
+            permission = access["permission"]
+
+            if permission in ["no access", "aggregated access"]:
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             # if access == "aggregated access":
@@ -55,24 +57,7 @@ class Query(GenericAPIView):
                     error=e,
                 )
 
-            users = dataset.users.all()
-            if request.user in users:
-                dataset_user = DatasetUser.objects.filter(
-                    user=request.user, dataset=dataset
-                )[0]
-                permission_key = dataset_user.permission_key()
-                if dataset_user.permission == "limited_access":
-                    glue_table = data_source.get_limited_glue_table_name(permission_key)
-
-                elif dataset_user.permission == "deid_access":
-                    glue_table = data_source.get_deid_glue_table_name(permission_key)
-
-            elif access == "limited access":
-                glue_table = data_source.get_limited_glue_table_name(
-                    data_source.permission_key
-                )
-            else:
-                glue_table = data_source.glue_table
+            glue_table = data_source.get_glue_table(permission, access["key"])
 
             if query_serialized.validated_data["query"]:
 

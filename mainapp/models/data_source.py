@@ -197,13 +197,6 @@ class DataSource(models.Model):
 
         return examples
 
-    # TODO: Change to properties
-    def get_limited_glue_table_name(self, limited):
-        return f"{self.dir}_limited_{limited}"
-
-    def get_deid_glue_table_name(self, deid):
-        return f"{self.dir}_deid_{deid}"
-
     def __set_state(self, state):
         if self.state == state:
             logger.warning(
@@ -229,6 +222,20 @@ class DataSource(models.Model):
 
     def is_pending(self):
         return self.state == DataSource.PENDING
+
+    def __get_limited_glue_table_name(self, limited):
+        return f"{self.dir}_limited_{limited}"
+
+    def __get_deid_glue_table_name(self, deid):
+        return f"{self.dir}_deid_{deid}"
+
+    def get_glue_table(self, permission, key):
+        if permission == "limited_access":
+            return self.__get_limited_glue_table_name(key)
+        elif permission == "deid_access":
+            return self.__get_deid_glue_table_name(key)
+        else:
+            return self.glue_table
 
 
 @receiver(signals.pre_delete, sender=DataSource)

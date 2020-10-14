@@ -951,25 +951,6 @@ def handle_zipped_data_source(boto3_client, data_source, org_name):
     data_source.set_as_ready()
 
 
-def calc_access_to_database(user, dataset):
-    if dataset.state == "private":
-        if user.permission(dataset) == "aggregated_access":
-            return "aggregated access"
-        elif user.permission(dataset) in ["admin", "full_access"]:
-            return "full access"
-        else:  # user not aggregated and not full or admin
-            if dataset.default_user_permission == "aggregated_access":
-                return "aggregated access"
-            elif dataset.default_user_permission == "limited_access":
-                return "limited access"
-            elif dataset.default_user_permission == "no access":
-                return "no access"
-    elif dataset.state == "public":
-        return "full access"
-
-    return "no access"  # safe. includes archived dataset
-
-
 def load_tags(delete_removed_tags=True):
     with open("tags.json") as f:
         tags = json.load(f)
