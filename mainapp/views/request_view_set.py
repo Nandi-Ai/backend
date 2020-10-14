@@ -85,12 +85,6 @@ class RequestViewSet(ModelViewSet):
                             f"Limited value must be valid positive whole number: {permission_request_types}"
                         )
 
-                if requested_permission == "deid_access":
-                    if "permission_attributes" in request_data:
-                        return BadRequestErrorResponse(
-                            f"requesting de-id can't be with permission_attributes"
-                        )
-
                 # the logic validations:
                 current_user_permission = request.user.permission(dataset)
 
