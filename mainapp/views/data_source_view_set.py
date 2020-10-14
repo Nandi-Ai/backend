@@ -171,13 +171,13 @@ class DataSourceViewSet(ModelViewSet):
             if not isinstance(data_source_data["s3_objects"], list):
                 return ForbiddenErrorResponse("s3 objects must be a (json) list")
 
-            if data_source_data.get("type") in [
-                DataSource.ZIP,
-                DataSource.STRUCTURED,
-                DataSource.XML,
-            ]:
-                if "s3_objects" not in data_source_data:
-                    logger.exception("s3_objects field must be included")
+        if data_source_data.get("type") in [
+            DataSource.ZIP,
+            DataSource.STRUCTURED,
+            DataSource.XML,
+        ]:
+            if "s3_objects" not in data_source_data:
+                logger.exception("s3_objects field must be included")
 
             if len(data_source_data["s3_objects"]) != 1:
                 return BadRequestErrorResponse(
@@ -214,7 +214,7 @@ class DataSourceViewSet(ModelViewSet):
             )
 
         data_source.programmatic_name = (
-            f"{slugify(data_source.name)}-{str(data_source.id).split('-')[0]}"
+            slugify(data_source.name) + "-" + str(data_source.id).split("-")[0]
         )
         data_source.save()
 
@@ -226,48 +226,48 @@ class DataSourceViewSet(ModelViewSet):
             s3_obj = data_source.s3_objects[0]["key"]
             path, file_name, file_name_no_ext, ext = lib.break_s3_object(s3_obj)
 
-        if ext in ["sav", "zsav"]:  # convert to csv
-            s3_client = aws_service.create_s3_client(
-                org_name=data_source.dataset.organization.name
-            )
-            workdir = f"/tmp/{data_source.id}"
-            os.makedirs(workdir)
-            try:
-                s3_storage.download_file(
-                    s3_client=s3_client,
-                    bucket_name=data_source.dataset.bucket,
-                    s3_object=s3_obj,
-                    file_path=os.path.join(workdir, file_name),
+            if ext in ["sav", "zsav"]:  # convert to csv
+                s3_client = aws_service.create_s3_client(
+                    org_name=data_source.dataset.organization.name
                 )
-            except Exception as e:
-                return ErrorResponse(
-                    f"There was an error to download the file {file_name} with error",
-                    error=e,
-                )
+                workdir = f"/tmp/{data_source.id}"
+                os.makedirs(workdir)
+                try:
+                    s3_storage.download_file(
+                        s3_client=s3_client,
+                        bucket_name=data_source.dataset.bucket,
+                        s3_object=s3_obj,
+                        file_path=os.path.join(workdir, file_name),
+                    )
+                except Exception as e:
+                    return ErrorResponse(
+                        f"There was an error to download the file {file_name} with error",
+                        error=e,
+                    )
 
-            df, meta = pyreadstat.read_sav(workdir + "/" + file_name)
-            csv_path_and_file = workdir + "/" + file_name_no_ext + ".csv"
-            df.to_csv(csv_path_and_file)
-            try:
-                s3_storage.upload_file(
-                    s3_client=s3_client,
-                    csv_path_and_file=csv_path_and_file,
-                    bucket_name=data_source.dataset.bucket,
-                    file_path=os.path.join(path, f"{file_name_no_ext}.csv"),
+                df, meta = pyreadstat.read_sav(workdir + "/" + file_name)
+                csv_path_and_file = workdir + "/" + file_name_no_ext + ".csv"
+                df.to_csv(csv_path_and_file)
+                try:
+                    s3_storage.upload_file(
+                        s3_client=s3_client,
+                        csv_path_and_file=csv_path_and_file,
+                        bucket_name=data_source.dataset.bucket,
+                        file_path=os.path.join(path, f"{file_name_no_ext}.csv"),
+                    )
+                except Exception as e:
+                    return ErrorResponse(
+                        f"There was an error to upload the file {file_name} with error",
+                        error=e,
+                    )
+                data_source.s3_objects.pop()
+                data_source.s3_objects.append(
+                    {
+                        "key": path + "/" + file_name_no_ext + ".csv",
+                        "size": os.path.getsize(csv_path_and_file),
+                    }
                 )
-            except Exception as e:
-                return ErrorResponse(
-                    f"There was an error to upload the file {file_name} with error",
-                    error=e,
-                )
-            data_source.s3_objects.pop()
-            data_source.s3_objects.append(
-                {
-                    "key": path + "/" + file_name_no_ext + ".csv",
-                    "size": os.path.getsize(csv_path_and_file),
-                }
-            )
-            shutil.rmtree(workdir)
+                shutil.rmtree(workdir)
 
             try:
                 if request.data["is_column_present"]:
