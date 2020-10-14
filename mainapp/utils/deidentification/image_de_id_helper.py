@@ -6,9 +6,11 @@ from datetime import datetime
 from io import BytesIO
 
 from botocore.exceptions import ClientError
-from mainapp.models import Method, DataSourceMethod
+from mainapp.models.data_source import DataSource
+from mainapp.models.data_source_method import DataSourceMethod
+from mainapp.models.method import Method
 from mainapp.utils import aws_service
-from mainapp.utils.deidentification.image_de_id.image_de_id_exceptions import (
+from utils.deidentification.common.image_de_id_exceptions import (
     EmptyBucketError,
     UpdateJobProcessError,
     BaseImageDeIdHelperError,
@@ -36,7 +38,7 @@ class ImageDeIdHelper(object):
                 for dsrc_method in method.data_source_methods.filter(
                     state=DataSourceMethod.PENDING
                 ):
-                    if dsrc_method.data_source.type == dsrc_method.data_source.IMAGES:
+                    if dsrc_method.data_source.type == DataSource.IMAGES:
                         try:
                             self.__update_dsrc_method_status(dsrc_method, method)
                         except BaseImageDeIdHelperError as e:

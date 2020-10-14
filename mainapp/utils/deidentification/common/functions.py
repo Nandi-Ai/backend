@@ -9,7 +9,7 @@ from mainapp.utils.deidentification.common.exceptions import (
 )
 from mainapp.utils.deidentification import LYNX_DATA_TYPES
 from mainapp.utils.deidentification.method_handler import MethodHandler
-from mainapp.utils.deidentification.image_de_id import ImageDeId
+from mainapp.utils.deidentification.images_de_id import ImageDeId
 
 logger = logging.getLogger(__name__)
 
