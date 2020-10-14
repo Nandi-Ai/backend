@@ -141,7 +141,7 @@ class MethodHandler(object):
             deid_data_file, "wb", transport_params={"session": output_file_session}
         ) as deid_result:
             if not deid_counter:
-                logger.debug(
+                logger.info(
                     f"De Identification is in progress for method "
                     f"{self.__dsrc_method.method.id} on data source {self.__data_source.id}"
                 )
