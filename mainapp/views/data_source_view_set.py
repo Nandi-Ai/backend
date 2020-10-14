@@ -18,7 +18,7 @@ from mainapp.serializers import DataSourceSerializer, DataSourceColumnsSerialize
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
 from mainapp.utils.deidentification import DeidentificationError
-from mainapp.utils.deidentification.common.functions import handle_method
+from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
 from mainapp.utils.lib import process_structured_data_source_in_background
 from mainapp.utils.permissions import IsDataSourceAdmin
 from mainapp.utils.monitoring import handle_event, MonitorEvents

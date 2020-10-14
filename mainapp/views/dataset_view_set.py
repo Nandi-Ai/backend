@@ -17,7 +17,7 @@ from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser, Method
 from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
-from mainapp.utils.deidentification.common.functions import handle_method
+from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
 from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
 from mainapp.utils.lib import process_structured_data_sources_in_background
 from mainapp.utils.permissions import IsDatasetAdmin
