@@ -94,8 +94,12 @@ class MethodHandler(object):
                 final_actions[col] = (action, len(deid_row) - 1)
                 continue
 
-            deid_value = action.deid(original_value)
-            if deid_value or not original_value:
+            try:
+                deid_value = action.deid(original_value)
+                if deid_value or not original_value:
+                    deid_row.append(deid_value)
+            except Exception:
+                deid_value = action.deid(action.get_fallback_value())
                 deid_row.append(deid_value)
 
             replacement_cache[original_value] = deid_value or str()
