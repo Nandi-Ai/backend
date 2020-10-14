@@ -153,7 +153,7 @@ class Dataset(models.Model):
 
             return {
                 "permission": dataset_user.permission,
-                "key": dataset_user.permission_key(),
+                "key": dataset_user.permission_key,
             }
 
         if self.state == "private":
