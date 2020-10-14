@@ -31,6 +31,9 @@ class ZipCode(LynxDataType):
         "893",
     ]
 
+    def _get_fallback_value(self):
+        return "00000"
+
     def _validate(self, value):
         return
 

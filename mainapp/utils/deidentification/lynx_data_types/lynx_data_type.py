@@ -29,6 +29,11 @@ class LynxDataType(ABC):
                 "Lynx Data Types must support only specific actions!"
             )
 
+        if not getattr(cls, "_get_fallback_value"):
+            raise NotImplementedError(
+                "Lynx Data Types must implement a `_get_fallback_value` method"
+            )
+
     @classmethod
     def validate_type(cls, data_type):
         cls.__validate_basics()
@@ -80,6 +85,9 @@ class LynxDataType(ABC):
     @classmethod
     def group_over_age(cls, value, **kwargs):
         return value
+
+    def get_fallback_value(self):
+        return getattr(self, "_get_fallback_value")()
 
     def validate_value(self, value):
         self.__validate_basics()

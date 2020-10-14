@@ -7,5 +7,8 @@ class Boolean(LynxDataType):
     _SUPPORTED_ACTIONS = {Actions.OMIT.value: None}
     _TYPE_NAME = LynxDataTypeNames.BOOLEAN.value
 
+    def _get_fallback_value(self):
+        return bool()
+
     def _validate(self, value):
         return

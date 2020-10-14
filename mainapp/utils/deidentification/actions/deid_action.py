@@ -33,6 +33,9 @@ class DeidentificationAction(ABC):
             "Every De-Identification action must implement a deid method!"
         )
 
+    def get_fallback_value(self):
+        return self._lynx_type.get_fallback_value()
+
     def deid(self, value):
         if self._dsrc_method.method.group_age_over:
             value = self._lynx_type.group_over_age(value)

@@ -7,5 +7,8 @@ class WebUniversalResourceLocator(LynxDataType):
     _SUPPORTED_ACTIONS = {Actions.OMIT.value: None}
     _TYPE_NAME = LynxDataTypeNames.WURL.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return

@@ -11,5 +11,8 @@ class SocialSecurityNumber(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.SSN.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return

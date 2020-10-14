@@ -37,14 +37,10 @@ class Method(models.Model):
         for dsrc_method in data_source_methods:
             data_source_methods_states[dsrc_method.state] += 1
 
-        # If there's at least one pending data source method, the method is pending
+        if data_source_methods_states[self.ERROR]:
+            return self.ERROR
+
         if data_source_methods_states[self.PENDING]:
             return self.PENDING
 
-        # If there aren't any ready or pending data source methods, all data source methods are errored, which means
-        # the method is errored
-        if not data_source_methods_states[self.READY]:
-            return self.ERROR
-
-        # Otherwise the method is ready
         return self.READY

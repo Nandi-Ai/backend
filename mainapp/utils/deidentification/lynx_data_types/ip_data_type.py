@@ -17,6 +17,9 @@ class IPAddress(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.IP_ADDRESS.value
 
+    def _get_fallback_value(self):
+        return "127.0.0.1"
+
     def _validate(self, value):
         try:
             IP(value)

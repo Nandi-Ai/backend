@@ -11,5 +11,8 @@ class CertificateOrLicenseNumber(LynxDataType):
     }
     _TYPE_NAME = LynxDataTypeNames.CERTIFICATE_NUMBER.value
 
+    def _get_fallback_value(self):
+        return str()
+
     def _validate(self, value):
         return
