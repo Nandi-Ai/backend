@@ -214,7 +214,7 @@ class DataSourceViewSet(ModelViewSet):
             )
 
         data_source.programmatic_name = (
-            slugify(data_source.name) + "-" + str(data_source.id).split("-")[0]
+            f"{slugify(data_source.name)}-{str(data_source.id).split('-')[0]}"
         )
         data_source.save()
 
