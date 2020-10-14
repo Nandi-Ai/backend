@@ -109,9 +109,7 @@ class DataSourceViewSet(ModelViewSet):
             data={"columns": request.data}, context={"data_source": data_source}
         )
 
-        if not columns_serialized.is_valid():
-            logger.exception(f"Columns are invalid for Data Source {data_source.id}")
-            return BadRequestErrorResponse(columns_serialized.errors)
+        columns_serialized.is_valid(raise_exception=True)
 
         logger.info(
             f"Fetching methods for Data Source {data_source.name}:{data_source.id}"

@@ -197,6 +197,7 @@ class DataSource(models.Model):
 
         return examples
 
+    # TODO: Change to properties
     def get_limited_glue_table_name(self, limited):
         return f"{self.dir}_limited_{limited}"
 

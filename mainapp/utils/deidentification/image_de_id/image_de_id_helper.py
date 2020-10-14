@@ -7,14 +7,14 @@ from io import BytesIO
 
 from botocore.exceptions import ClientError
 from mainapp.models import DataSource, Method, DataSourceMethod
-from mainapp.utils.lib import break_s3_object
 from mainapp.utils import aws_service
-from mainapp.utils.deidentification.common.image_de_id_exceptions import (
+from mainapp.utils.deidentification.image_de_id.image_de_id_exceptions import (
     EmptyBucketError,
     UpdateJobProcessError,
     BaseImageDeIdHelperError,
     NoObjectContentError,
 )
+from mainapp.utils.lib import break_s3_object
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class ImageDeIdHelper(object):
                         except BaseImageDeIdHelperError as e:
                             dsrc_method.set_as_error()
 
-                            logger.warning(
+                            logger.exception(
                                 f"Could not update method {method.id} and dsrc {dsrc_method.id}",
                                 e,
                             )

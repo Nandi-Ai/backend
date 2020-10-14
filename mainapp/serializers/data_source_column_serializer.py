@@ -95,8 +95,7 @@ class DataSourceColumnsSerializer(Serializer):
         for col, attributes in columns.items():
             col_in_db = data_source.columns.get(col)
             if not col_in_db:
-                raise ValidationError(f"column {col} does not exist!")
-
+                raise ValidationError({col: ["Column does not exist!"]})
             try:
                 self.__validate_data_type_to_lynx_type(
                     col,
@@ -113,15 +112,21 @@ class DataSourceColumnsSerializer(Serializer):
                     attributes.get("additional_attributes", dict()),
                 )
             except (MismatchingTypesError, NotImplementedError) as e:
-                raise ValidationError(str(e))
+                raise ValidationError({col: [str(e)]})
             except ValueError:
                 raise ValidationError(
-                    f"Column {col} cannot be converted "
-                    f"into {attributes['data_type']}"
+                    {
+                        col: [
+                            f"Column could not be converted into {attributes['data_type']}"
+                        ]
+                    }
                 )
             except InvalidValueError:
                 raise ValidationError(
-                    f"Column {col} has values which aren't supported by "
-                    f"{attributes['lynx_type']}"
+                    {
+                        col: [
+                            f"Column has values which are not supported by {attributes['lynx_type']}"
+                        ]
+                    }
                 )
         return data
