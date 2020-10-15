@@ -60,8 +60,8 @@ class LynxDataType(ABC):
 
     @staticmethod
     def _number_offset(number_in_string, interval):
-        int_val = int(number_in_string)
         float_val = float(number_in_string)
+        int_val = int(float_val)
         return str(max(int_val, float_val) + interval)
 
     @classmethod
