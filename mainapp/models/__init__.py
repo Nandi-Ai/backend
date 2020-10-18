@@ -13,3 +13,4 @@ from .study import Study
 from .study_dataset import StudyDataset
 from .tag import Tag
 from .user import User, UserManager
+from .machine_type import MachineType

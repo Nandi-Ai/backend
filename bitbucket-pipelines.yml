@@ -13,4 +13,3 @@ pipelines:
           - set -e
           - git remote add codecommit ssh://$CodeCommitRepo
           - git push codecommit $BITBUCKET_BRANCH
-
