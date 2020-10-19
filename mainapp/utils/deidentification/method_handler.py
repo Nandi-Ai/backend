@@ -100,11 +100,13 @@ class MethodHandler(object):
 
             try:
                 deid_value = action.deid(original_value)
-                if deid_value or not original_value:
+                if deid_value is not None:
                     deid_row.append(deid_value)
+
             except Exception:
                 deid_value = action.deid(action.get_fallback_value())
-                deid_row.append(deid_value)
+                if deid_value is not None:
+                    deid_row.append(deid_value)
 
             replacement_cache[original_value] = deid_value or str()
 

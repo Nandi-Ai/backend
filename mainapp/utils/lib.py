@@ -560,7 +560,7 @@ def create_glue_table(boto3_client, org_name, data_source, path):
 
         while not crawler_ready and retries >= 0:
             res = boto3_client.get_crawler(Name=crawler_name)
-            crawler_ready = True if res["Crawler"]["State"] == "READY" else False
+            crawler_ready = res["Crawler"]["State"] == "READY"
             sleep(5)
             retries -= 1
 
