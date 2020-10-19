@@ -108,7 +108,8 @@ class MethodHandler(object):
                 if deid_value is not None:
                     deid_row.append(deid_value)
 
-            replacement_cache[original_value] = deid_value or str()
+            if not str(original_value).isspace():
+                replacement_cache[original_value] = deid_value or str()
 
         for col, action_data in final_actions.items():
             original_value = data_row[columns[col]]
