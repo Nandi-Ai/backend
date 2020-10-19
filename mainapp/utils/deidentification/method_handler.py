@@ -108,7 +108,7 @@ class MethodHandler(object):
                 if deid_value is not None:
                     deid_row.append(deid_value)
 
-            if not str(original_value).isspace():
+            if str(original_value) and not str(original_value).isspace():
                 replacement_cache[original_value] = deid_value or str()
 
         for col, action_data in final_actions.items():
