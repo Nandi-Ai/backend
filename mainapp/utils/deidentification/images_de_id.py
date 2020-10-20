@@ -44,7 +44,6 @@ class ImageDeId(object):
             self.__dsrc_method.set_as_error()
 
     def delete(self):
-        s3_client = aws_service.create_s3_client(org_name=self.__org_name)
         logger.info(
             f"Deleting method files for DataSourceMethod {self.__dsrc_method.method.id}"
         )
