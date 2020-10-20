@@ -9,13 +9,13 @@ from mainapp.utils.lib import create_limited_table_for_dataset
 class StudyDataset(models.Model):
     FULL_ACCESS = "full_access"
     LIMITED_ACCESS = "limited_access"
-    DEIDENTIFIED = "deid_access"
+    DE_IDENTIFIED = "deid_access"
     SYNTHETIC = "synthetic_access"
     AGGREGATED_ACCESS = "aggregated_access"
     possible_dataset_permission_for_study = (
         (FULL_ACCESS, "full_access"),
         (LIMITED_ACCESS, "limited_access"),
-        (DEIDENTIFIED, "deid_access"),
+        (DE_IDENTIFIED, "deid_access"),
         (SYNTHETIC, "synthetic_access"),
         (AGGREGATED_ACCESS, "aggregated_access"),
     )

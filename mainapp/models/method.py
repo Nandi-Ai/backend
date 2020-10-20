@@ -57,7 +57,7 @@ def remove_studies(sender, instance, using, **kwargs):
     When method is being delete, remove the dataset from all de-id studies belong to this method
     """
     for study_dataset in StudyDataset.objects.filter(
-        permission=StudyDataset.DEIDENTIFIED, dataset=instance.dataset
+        permission=StudyDataset.DE_IDENTIFIED, dataset=instance.dataset
     ):
         # without str it does NOT working
         if str(study_dataset.permission_key) == str(instance.id):
