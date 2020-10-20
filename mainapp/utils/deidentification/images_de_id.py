@@ -54,7 +54,7 @@ class ImageDeId(object):
             bucket = s3_resource.Bucket(self.__data_source.bucket)
             # this will actually not raise any error if location not found
             bucket.objects.filter(Prefix=self.__destination_location).delete()
-        except Exception as e:
+        except ClientError as e:
             logger.exception(
                 f"Error deleting method files for DataSourceMethod {self.__dsrc_method.method.id}",
                 e,
