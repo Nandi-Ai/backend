@@ -1,7 +1,6 @@
 import logging
 
 from rest_framework import mixins, viewsets
-from rest_framework.permissions import IsAuthenticated
 
 from mainapp.models import Method
 from mainapp.serializers import MethodSerializer
@@ -14,4 +13,4 @@ class MethodViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
     serializer_class = MethodSerializer
     queryset = Method.objects.filter()
     http_method_names = ["delete", "head"]
-    permission_classes = [IsAuthenticated, IsMethodAdmin]
+    permission_classes = [IsMethodAdmin]
