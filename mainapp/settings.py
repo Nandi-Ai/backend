@@ -145,12 +145,13 @@ DELETE_DATASETS_FROM_DATABASE = False
 ENV = os.getenv("ENV", "local")
 
 if ENV != "local":
-    aws_response = requests.get(
-        "http://169.254.169.254/latest/dynamic/instance-identity/document"
-    )
-    aws_response_json = aws_response.json()
-    ssm_client = boto3.client("ssm", region_name=aws_response_json["region"])
+#    aws_response = requests.get(
+#        "http://169.254.169.254/latest/dynamic/instance-identity/document"
+#    )
+#    aws_response_json = aws_response.json()
+#    ssm_client = boto3.client("ssm", region_name=aws_response_json["region"])
 
+    ssm_client = boto3.client("ssm", region_name="us-east-1")
     response = ssm_client.get_parameter(Name=f"/lynx/be/{ENV}", WithDecryption=True)
 
     value = json.loads(response["Parameter"]["Value"])
