@@ -1,4 +1,5 @@
 from django.db import transaction
+from rest_framework.fields import CurrentUserDefault
 from rest_framework.serializers import ModelSerializer
 
 from mainapp.models import Study, StudyDataset, Dataset
@@ -8,7 +9,10 @@ from mainapp.serializers.user import UserSerializer
 
 class StudySerializer(ModelSerializer):
     datasets = StudyDatasetSerializer(
-        source="studydataset_set", many=True, read_only=False
+        source="studydataset_set",
+        many=True,
+        read_only=False,
+        default=CurrentUserDefault(),
     )
 
     class Meta:
@@ -65,6 +69,36 @@ class StudySerializer(ModelSerializer):
                     raise Exception(
                         "Dataset's organization doesn't match the study organization"
                     )
+                if permission == "deid_access":
+                    current_user = CurrentUserDefault()(self)
+                    if permission_attributes and permission_attributes.get("key"):
+                        # verify user is admin / full when explicitly selecting method
+                        if current_user.permission(dataset_instance) not in [
+                            "admin",
+                            "full_access",
+                        ]:
+                            raise Exception(
+                                "No permission for user to add this dataset permission"
+                            )
+                    else:
+                        user_dataset_permission = dataset_instance.datasetuser_set.filter(
+                            user=current_user.id
+                        )
+                        if not user_dataset_permission:
+                            raise Exception(
+                                f"User have no permission for dataset {dataset_instance.id}"
+                            )
+
+                        permission_attributes = (
+                            user_dataset_permission.first().permission_attributes
+                        )
+                        if (
+                            not permission_attributes
+                            or "key" not in permission_attributes
+                        ):
+                            raise Exception(
+                                f"Missing permission attributes for user in dataset {dataset_instance.id}"
+                            )
 
                 StudyDataset.objects.create(
                     study=instance,

@@ -37,15 +37,17 @@ class RunQuery(GenericAPIView):
 
             query_string = query_serialized.validated_data["query_string"]
 
-            access = lib.calc_access_to_database(execution.real_user, dataset)
+            access = dataset.calc_access_to_database(execution.real_user)
 
-            if access == "aggregated access":
+            permission = access["permission"]
+
+            if permission == "aggregated access":
                 if not lib.is_aggregated(query_string):
                     return ErrorResponse(
                         "This is not an aggregated query. Only aggregated queries are allowed"
                     )
 
-            if access == "no access":
+            if permission == "no access":
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             org_name = dataset.organization.name

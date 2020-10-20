@@ -68,6 +68,10 @@ def create_route53_client(*args, **kwargs):
     return create_client(service_name="route53", *args, **kwargs)
 
 
+def create_lambda_client(*args, **kwargs):
+    return create_client(service_name="lambda", *args, **kwargs)
+
+
 def create_ec2_resource(*args, **kwargs):
     return create_resource(service_name="ec2", *args, **kwargs)
 

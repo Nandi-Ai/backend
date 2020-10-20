@@ -58,9 +58,11 @@ class CreateCohort(GenericAPIView):
                     f"Datasource not found or does not have permissions", error=e
                 )
 
-            access = lib.calc_access_to_database(user, dataset)
+            access = dataset.calc_access_to_database(user)
 
-            if access == "no access":
+            permission = access["permission"]
+
+            if permission == "no access":
                 return ForbiddenErrorResponse(f"No permission to query this dataset")
 
             limit = query_serialized.validated_data["limit"]
