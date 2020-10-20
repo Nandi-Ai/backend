@@ -11,6 +11,7 @@ from .get_execution_config import GetExecutionConfig
 from .get_execution_user import GetExecutionUser
 from .get_static_sts import GetStaticSTS
 from .handle_dataset_access_request import HandleDatasetAccessRequest
+from .method_view_set import MethodViewSet
 from .my_requests_view_set import MyRequestsViewSet
 from .organization_view_set import OrganizationViewSet
 from .query import Query

@@ -12,3 +12,8 @@ class IsDatasetAdmin(IsAuthenticated):
 class IsDataSourceAdmin(IsDatasetAdmin):
     def has_object_permission(self, request, view, obj):
         return super().has_object_permission(request, view, obj.dataset)
+
+
+class IsMethodAdmin(IsAuthenticated):
+    def has_object_permission(self, request, view, obj):
+        return request.user.permission(obj.dataset) == "admin"
