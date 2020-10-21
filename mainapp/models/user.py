@@ -8,7 +8,14 @@ from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.db.utils import IntegrityError
 
-from mainapp.models import Organization, DataSource, Study, Dataset, Request
+from mainapp.models import (
+    Organization,
+    DataSource,
+    Study,
+    Dataset,
+    Request,
+    DatasetUser,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +224,8 @@ class User(AbstractBaseUser, PermissionsMixin):
             return "full_access"
         if self in dataset.aggregated_users.all():
             return "aggregated_access"
-        dataset_user = dataset.users.filter(user=self, dataset=dataset)
-        if dataset_user:
-            return dataset_user.permission
+        dataset_user = DatasetUser.objects
+        if dataset_user.all():
+            return dataset_user.get(user_id=self.id, dataset_id=dataset.id).permission
+        return dataset.default_user_permission
         # this function can also return None.....

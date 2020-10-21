@@ -63,10 +63,10 @@ class DataSource(models.Model):
 
     def get_user_role(self, user_permission):
         dataset = self.dataset
-        if user_permission["permission"] in [
+        if user_permission["permission"].replace("_", " ") in [
             "full access",
             "aggregated access",
-            "limited_access",
+            "limited access",
         ]:
             return f"lynx-dataset-{dataset.id}"
         return f"lynx-deid-{user_permission['key']}"
