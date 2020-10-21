@@ -6,7 +6,6 @@ from .data_source_view_set import DataSourceViewSet
 from .dataset_view_set import DatasetViewSet
 from .documentation_view_set import DocumentationViewSet
 from .dummy import Dummy
-from .get_dataset_sts import GetDatasetSTS
 from .get_execution import GetExecution
 from .get_execution_config import GetExecutionConfig
 from .get_execution_user import GetExecutionUser

@@ -1,10 +1,12 @@
+from botocore.exceptions import ClientError
+
 import json
 import logging
 import os
+import pyreadstat
 import shutil
 import threading
 
-import pyreadstat
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -12,11 +14,11 @@ from rest_framework.viewsets import ModelViewSet
 # noinspection PyPackageRequirements
 from slugify import slugify
 
-
 from mainapp.models import Execution, DataSource, Method
 from mainapp.serializers import DataSourceSerializer, DataSourceColumnsSerializer
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
+from mainapp.utils.aws_utils.sts_service import assume_role
 from mainapp.utils.deidentification import DeidentificationError
 from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
 from mainapp.utils.lib import process_structured_data_source_in_background
@@ -81,6 +83,43 @@ class DataSourceViewSet(ModelViewSet):
     def example(self, request, *args, **kwargs):
         data_source = self.get_object()
         return Response({str(data_source.id): data_source.example_values()})
+
+    @action(detail=True, methods=["get"])
+    def get_read_sts(self, request, *args, **kwargs):
+        data_source = self.get_object()
+
+        if data_source.type not in [DataSource.XML, DataSource.IMAGES]:
+            logger.warning(
+                f"Can not have sts permission for this data-source {data_source.name}:{data_source.id}"
+            )
+            return ForbiddenErrorResponse(
+                "You can't have sts permission for this data-source"
+            )
+
+        dataset = data_source.dataset
+        user_permission = dataset.calc_access_to_database(request.user)
+        role_name = data_source.get_user_role(user_permission)
+
+        try:
+            sts_response = assume_role(
+                org_name=dataset.organization.name, role_name=role_name
+            )
+            logger.info(
+                f"Generated STS credentials for Dataset: {dataset.name}:{dataset.id} in org {dataset.organization.name}"
+            )
+        except ClientError as e:
+            message = f"Could not assume role for role_name {role_name} with dataset_id {dataset.id}"
+            logger.exception(message)
+            return ErrorResponse(message=message, error=e)
+
+        return Response(
+            {
+                "bucket": dataset.bucket,
+                "region": dataset.region,
+                "aws_sts_creds": sts_response["Credentials"],
+                "location": data_source.get_location(user_permission),
+            }
+        )
 
     @action(detail=True, methods=["put"])
     def columns(self, request, *args, **kwargs):

@@ -72,3 +72,7 @@ def with_iam_resource(func):
 
 def with_route53_client(func):
     return with_client(client=aws_service.create_route53_client)(func)
+
+
+def with_sts_client(func):
+    return with_client(client=aws_service.create_sts_client)(func)

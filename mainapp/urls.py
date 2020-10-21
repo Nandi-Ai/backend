@@ -54,11 +54,6 @@ urlpatterns = [
     ),
     url(r"^me/?$", views.CurrentUserView.as_view(), name="me"),
     url(
-        r"^get_dataset_sts/(?P<dataset_id>[^/]+)/?$",
-        views.GetDatasetSTS.as_view(),
-        name="get_dataset_sts",
-    ),  # for frontend
-    url(
         r"^get_execution/?$", views.GetExecution.as_view(), name="get_execution"
     ),  # for frontend
     url(

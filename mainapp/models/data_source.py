@@ -9,6 +9,7 @@ from django.dispatch import receiver
 
 from mainapp.exceptions.limited_key_invalid_exception import LimitedKeyInvalidException
 from mainapp.exceptions.s3 import BucketNotFound
+from mainapp.utils.lib import LYNX_STORAGE_DIR
 from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
     delete_data_source_files_from_bucket,
@@ -59,6 +60,22 @@ class DataSource(models.Model):
     class Meta:
         db_table = "data_sources"
         unique_together = (("name", "dataset"),)
+
+    def get_user_role(self, user_permission):
+        dataset = self.dataset
+        if user_permission["permission"] in [
+            "full access",
+            "aggregated access",
+            "limited_access",
+        ]:
+            return f"lynx-dataset-{dataset.id}"
+        return f"lynx-deid-{user_permission['key']}"
+
+    def get_location(self, user_permission):
+        location = f"{self.dir}/{LYNX_STORAGE_DIR}/{user_permission['permission'].replace(' ', '_')}"
+        if user_permission.get("key"):
+            location = f"{location}_{user_permission['key']}"
+        return location
 
     @property
     def bucket(self):
