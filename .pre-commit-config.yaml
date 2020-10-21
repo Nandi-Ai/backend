@@ -39,7 +39,7 @@ repos:
       files: ^(requirements.*\.txt)$
       stages: [manual]
 -   repo: https://github.com/hakancelik96/unimport
-    rev: 0.2.7
+    rev: v0.2.7
     hooks:
     - id: unimport
       args: [-r, --include-star-import]
