@@ -224,8 +224,11 @@ class User(AbstractBaseUser, PermissionsMixin):
             return "full_access"
         if self in dataset.aggregated_users.all():
             return "aggregated_access"
-        dataset_user = DatasetUser.objects
-        if dataset_user.all():
-            return dataset_user.get(user_id=self.id, dataset_id=dataset.id).permission
+        try:
+            return DatasetUser.objects.get(
+                user_id=self.id, dataset_id=dataset.id
+            ).permission
+        except DatasetUser.DoesNotExist:
+            pass
         return dataset.default_user_permission
         # this function can also return None.....
