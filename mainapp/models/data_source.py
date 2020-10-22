@@ -247,7 +247,9 @@ class DataSource(models.Model):
         return f"{self.dir}_deid_{deid.replace('-', '_')}"
 
     def get_glue_table(self, permission, key):
-        if permission == "limited access":
+        # TODO remove "permission = permission.replace(" ", "_")" line after switching to enum
+        permission = permission.replace(" ", "_")
+        if permission == "limited_access":
             return self.__get_limited_glue_table_name(key)
         elif permission == "deid_access":
             return self.__get_deid_glue_table_name(key)
