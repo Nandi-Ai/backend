@@ -4,7 +4,7 @@ import uuid
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
-from mainapp.settings import DELETE_DATASETS_FROM_DATABASE
+from mainapp.settings import DELETE_DATASETS_FROM_DATABASE, ORG_VALUES
 from mainapp.utils import lib, aws_service
 from mainapp.utils.dataset import delete_aws_resources_for_dataset
 from .dataset_user import DatasetUser
@@ -146,6 +146,10 @@ class Dataset(models.Model):
             if studydataset.study.status is not Study.STUDY_DELETED:
                 yield studydataset
         return
+
+    @property
+    def region(self):
+        return ORG_VALUES[self.organization.name]["AWS_REGION"]
 
     def calc_access_to_database(self, user):
         if user in self.users.all():

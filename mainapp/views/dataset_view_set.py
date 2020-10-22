@@ -1,10 +1,11 @@
+from botocore.exceptions import ClientError
+
 import json
 import logging
 import os
 import time
 import uuid
 
-import botocore.exceptions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -17,6 +18,7 @@ from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser, Method
 from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
+from mainapp.utils.aws_utils.sts_service import assume_role
 from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
 from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
 from mainapp.utils.lib import process_structured_data_sources_in_background
@@ -43,6 +45,7 @@ class DatasetViewSet(ModelViewSet):
         "add_method",
         "update",
         "destroy",
+        "get_write_sts",
     ]
     filter_fields = ("ancestor",)
     file_types = {
@@ -157,6 +160,33 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(MethodSerializer(method).data, status=201)
 
+    @action(detail=True, methods=["get"])
+    def get_write_sts(self, request, *args, **kwargs):
+        dataset = self.get_object()
+
+        role_name = f"lynx-dataset-{dataset.id}"
+
+        try:
+            sts_response = assume_role(
+                org_name=dataset.organization.name, role_name=role_name
+            )
+            logger.info(
+                f"Generated STS credentials for Dataset: {dataset.name}:{dataset.id} in org {dataset.organization.name}"
+            )
+        except ClientError as e:
+            message = f"Could not assume role for role_name {role_name} with dataset_id {dataset.id}"
+            logger.exception(message)
+            return ErrorResponse(message=message, error=e)
+
+        return Response(
+            {
+                "bucket": dataset.bucket,
+                "region": dataset.region,
+                "aws_sts_creds": sts_response["Credentials"],
+                "location": dataset.bucket,
+            }
+        )
+
     def get_queryset(self):
         return self.request.user.datasets.exclude(is_deleted=True)
 
@@ -209,7 +239,7 @@ class DatasetViewSet(ModelViewSet):
                 )
             except TooManyBucketsException as e:
                 return ErrorResponse(error=e)
-            except botocore.exceptions.ClientError as e:
+            except ClientError as e:
                 error = Exception(
                     f"Could not create s3 bucket {dataset.bucket} with following error"
                 ).with_traceback(e.__traceback__)
@@ -221,7 +251,7 @@ class DatasetViewSet(ModelViewSet):
                 lib.set_policy_clear_athena_history(
                     s3_bucket=dataset.bucket, s3_client=s3
                 )
-            except botocore.exceptions.ClientError as e:
+            except ClientError as e:
                 error = Exception(
                     f"The bucket {dataset.bucket} does not exist or the user does not have the relevant permissions"
                 ).with_traceback(e.__traceback__)
@@ -245,7 +275,7 @@ class DatasetViewSet(ModelViewSet):
             try:
                 lib.create_glue_database(org_name=org_name, dataset=dataset)
                 time.sleep(1)  # wait for the bucket to be created
-            except botocore.exceptions.ClientError as e:
+            except ClientError as e:
                 error = Exception(
                     f"Could not create glue client with following error"
                 ).with_traceback(e.__traceback__)
