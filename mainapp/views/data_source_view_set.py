@@ -7,6 +7,7 @@ import pyreadstat
 import shutil
 import threading
 
+from rest_framework import decorators
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -38,8 +39,6 @@ class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
     filter_fields = ("dataset",)
-    permission_classes = [IsDataSourceAdmin]
-    ADMIN_PROTECTED_ENDPOINTS = ["example", "columns"]
     file_types = {
         ".jpg": ["image/jpeg"],
         ".jpeg": ["image/jpeg"],
@@ -79,6 +78,7 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
+    @decorators.permission_classes(IsDataSourceAdmin)
     @action(detail=True, methods=["get"])
     def example(self, request, *args, **kwargs):
         data_source = self.get_object()
@@ -121,6 +121,7 @@ class DataSourceViewSet(ModelViewSet):
             }
         )
 
+    @decorators.permission_classes(IsDataSourceAdmin)
     @action(detail=True, methods=["put"])
     def columns(self, request, *args, **kwargs):
         data_source = self.get_object()
