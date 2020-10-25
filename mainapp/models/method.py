@@ -52,9 +52,9 @@ class Method(models.Model):
 
 
 @receiver(signals.pre_delete, sender=Method)
-def remove_studies(sender, instance, using, **kwargs):
+def remove_dataset_from_studies(sender, instance, using, **kwargs):
     """
-    When method is being delete, remove the dataset from all de-id studies belong to this method
+    When method is being deleted, remove the dataset from all studies that have de-id permission with this method
     """
     for study_dataset in StudyDataset.objects.filter(
         permission=StudyDataset.DE_IDENTIFIED, dataset=instance.dataset
