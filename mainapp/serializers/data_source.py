@@ -18,18 +18,24 @@ class DataSourceSerializer(ModelSerializer):
 
     def validate(self, attrs):
         try:
-            DataSource.objects.get(name=attrs["name"], dataset=attrs["dataset"])
+            datasource = DataSource.objects.get(
+                name=attrs["name"], dataset=attrs["dataset"]
+            )
         except DataSource.DoesNotExist:
             pass
         else:
-            raise ValidationError(
-                {
-                    "name": [
-                        "You already have datasource with the same name. Please change the file name and upload again."
-                    ]
-                }
-            )
+            if not self.datasource_exists(str(datasource.id)):
+                raise ValidationError(
+                    {
+                        "name": [
+                            "You already have datasource with the same name. Please change the file name and upload again."
+                        ]
+                    }
+                )
         return attrs
+
+    def datasource_exists(self, datasource_id):
+        return datasource_id == self.initial_data["id"]
 
     class Meta:
         model = DataSource
