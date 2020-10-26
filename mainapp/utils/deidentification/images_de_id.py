@@ -1,9 +1,9 @@
 import json
 import logging
-
-from botocore.exceptions import ClientError
 from datetime import datetime
 from io import BytesIO
+
+from botocore.exceptions import ClientError
 
 from mainapp import settings
 from mainapp.utils import lib, aws_service
@@ -12,7 +12,6 @@ from mainapp.utils.deidentification.common.image_de_id_exceptions import (
     UploadBatchProcessError,
     BaseImageDeIdError,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +23,7 @@ class ImageDeId(object):
         self.__dataset_id = data_source.dataset.id
         self.__dsrc_method = dsrc_method
         self.__job_id = str(dsrc_method.method.id)
+
         self.__destination_location = (
             f"{data_source.dir}/lynx-storage/deid_access_{dsrc_method.method.id}"
         )
@@ -42,6 +42,40 @@ class ImageDeId(object):
         except BaseImageDeIdError as e:
             logger.exception(f"Failed to process De-id image", e)
             self.__dsrc_method.set_as_error()
+
+    def delete(self):
+        logger.info(
+            f"Deleting method files for DataSourceMethod {self.__dsrc_method.method.id}"
+        )
+
+        # delete folder in bucket
+        try:
+            s3_resource = aws_service.create_s3_resource(org_name=self.__org_name)
+            bucket = s3_resource.Bucket(self.__data_source.bucket)
+            # this will actually not raise any error if location not found
+            bucket.objects.filter(Prefix=self.__destination_location).delete()
+        except ClientError as e:
+            logger.exception(
+                f"Error deleting method files for DataSourceMethod {self.__dsrc_method.method.id}",
+                e,
+            )
+
+        # delete glue table
+        glue_client = aws_service.create_glue_client(org_name=self.__org_name)
+        try:
+            glue_client.delete_table(
+                DatabaseName=self.__data_source.dataset.glue_database,
+                Name=self.__dsrc_method.get_glue_table(),
+            )
+        except glue_client.exceptions.EntityNotFoundException as e:
+            logger.warning(
+                f"Glue Table Not Found for DataSourceMethod {self.__dsrc_method.method.id}"
+            )
+        except Exception as e:
+            logger.exception(
+                f"Error deleting glue table for DataSourceMethod {self.__dsrc_method.method.id}",
+                e,
+            )
 
     def __generate_job_processing_update_status(self):
         logger.info(
