@@ -1,0 +1,53 @@
+version: 0.2
+
+
+
+env:
+
+  variables:
+
+      DOCKER_IMAGE: "lynx-be"
+
+      DOCKER_REGISTRY: "858916640373.dkr.ecr.us-east-1.amazonaws.com"
+
+      AWS_REGION: "us-east-1"
+
+      ECS_CLUSTER: "maya-ecs-cluster"
+
+      ECS_TASK: "lynx-be"
+
+      ECS_SERVICE: "backend"
+
+      MIGRATION: "no"
+
+
+
+phases:
+
+  pre_build:
+
+    commands:
+
+      - DATE=$(date +%Y%m%d%H%M)
+
+      - $(aws ecr get-login --no-include-email --region ${AWS_REGION} )
+
+      - docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DATE} -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest .
+
+  build:
+
+    commands:
+
+      - docker images
+
+      - docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest
+
+      - docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DATE}
+
+  post_build:
+
+    commands:
+
+      - aws ecs update-service  --region ${AWS_REGION} --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --task-definition ${ECS_TASK} --force-new-deployment
+
+
