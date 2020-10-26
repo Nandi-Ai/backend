@@ -17,14 +17,12 @@ class DataSourceSerializer(ModelSerializer):
         return list()
 
     def validate(self, attrs):
-        try:
-            datasource = DataSource.objects.get(
-                name=attrs["name"], dataset=attrs["dataset"]
-            )
-        except DataSource.DoesNotExist:
-            pass
-        else:
-            if not self.datasource_exists(str(datasource.id)):
+        if not self.instance:
+            try:
+                DataSource.objects.get(name=attrs["name"], dataset=attrs["dataset"])
+            except DataSource.DoesNotExist:
+                pass
+            else:
                 raise ValidationError(
                     {
                         "name": [
@@ -33,9 +31,6 @@ class DataSourceSerializer(ModelSerializer):
                     }
                 )
         return attrs
-
-    def datasource_exists(self, datasource_id):
-        return datasource_id == self.initial_data["id"]
 
     class Meta:
         model = DataSource

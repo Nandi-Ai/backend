@@ -349,16 +349,17 @@ class DataSourceViewSet(ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        serialized = self.serializer_class(data=request.data, allow_null=True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if serialized.is_valid():  # if not valid super will handle it
-            dataset = serialized.validated_data["dataset"]
-            # TODO to check if that even possible since the get_queryset should already handle filtering it..
-            # TODO if does can remove the update method
-            if dataset not in request.user.datasets.all():
-                return NotFoundErrorResponse(
-                    f"Dataset {dataset} does not exist or does not belong to the user"
-                )
+        dataset = serializer.validated_data["dataset"]
+        # TODO to check if that even possible since the get_queryset should already handle filtering it..
+        # TODO if does can remove the update method
+        if dataset not in request.user.datasets.all():
+            return NotFoundErrorResponse(
+                f"Dataset {dataset} does not exist or does not belong to the user"
+            )
 
         return super(self.__class__, self).update(request=self.request)
 
