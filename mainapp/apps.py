@@ -23,3 +23,10 @@ class MyAppConfig(AppConfig):
             logger.info(f"Server logging-level is {LOGGING['root']['level']}")
         else:
             logger.info("Could not determine LOGGING root logging level")
+
+        # In practice, signal handlers are usually defined in a signals submodule of the application they relate to.
+        # Signal receivers are connected in the ready() method of your application configuration class.
+        # If you’re using the receiver() decorator, import the signals submodule inside ready().
+        # https://docs.djangoproject.com/en/3.1/topics/signals/
+        # noinspection PyUnresolvedReferences
+        import mainapp.signals  # unimport:skip
