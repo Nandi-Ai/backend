@@ -103,7 +103,7 @@ class StudyViewSet(ModelViewSet):
                 )
 
             organization = (
-                req_datasets[0]["dataset"].organizaion
+                req_datasets[0]["dataset"].organization
                 if req_datasets
                 else request.user.organization
             )
