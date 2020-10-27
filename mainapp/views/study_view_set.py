@@ -102,12 +102,15 @@ class StudyViewSet(ModelViewSet):
                     f"Not all datasets are related to the current user {request.user.id}"
                 )
 
-            # set the study organization same as the first dataset
-            first_dataset_organization = req_datasets[0]["dataset"].organization
+            organization = (
+                req_datasets[0]["dataset"].organizaion
+                if req_datasets
+                else request.user.organization
+            )
 
             study = Study.objects.create(
                 name=study_name,
-                organization=first_dataset_organization,
+                organization=organization,
                 cover=study_serialized.validated_data.get("cover"),
                 status=Study.VM_CREATING,
             )
@@ -116,7 +119,10 @@ class StudyViewSet(ModelViewSet):
             req_users = study_serialized.validated_data["users"]
 
             study_datasets = map(
-                lambda x: StudyDataset.objects.create(study=study, **x), req_datasets
+                lambda study_dataset: StudyDataset.objects.create(
+                    study=study, **study_dataset
+                ),
+                req_datasets,
             )
             study.studydataset_set.set(study_datasets)
 

@@ -7,6 +7,7 @@ import pyreadstat
 import shutil
 import threading
 
+from rest_framework import decorators
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -38,8 +39,6 @@ class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
     filter_fields = ("dataset",)
-    permission_classes = [IsDataSourceAdmin]
-    ADMIN_PROTECTED_ENDPOINTS = ["example", "columns"]
     file_types = {
         ".jpg": ["image/jpeg"],
         ".jpeg": ["image/jpeg"],
@@ -79,6 +78,7 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
+    @decorators.permission_classes(IsDataSourceAdmin)
     @action(detail=True, methods=["get"])
     def example(self, request, *args, **kwargs):
         data_source = self.get_object()
@@ -121,6 +121,7 @@ class DataSourceViewSet(ModelViewSet):
             }
         )
 
+    @decorators.permission_classes(IsDataSourceAdmin)
     @action(detail=True, methods=["put"])
     def columns(self, request, *args, **kwargs):
         data_source = self.get_object()
@@ -349,16 +350,17 @@ class DataSourceViewSet(ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        serialized = self.serializer_class(data=request.data, allow_null=True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if serialized.is_valid():  # if not valid super will handle it
-            dataset = serialized.validated_data["dataset"]
-            # TODO to check if that even possible since the get_queryset should already handle filtering it..
-            # TODO if does can remove the update method
-            if dataset not in request.user.datasets.all():
-                return NotFoundErrorResponse(
-                    f"Dataset {dataset} does not exist or does not belong to the user"
-                )
+        dataset = serializer.validated_data["dataset"]
+        # TODO to check if that even possible since the get_queryset should already handle filtering it..
+        # TODO if does can remove the update method
+        if dataset not in request.user.datasets.all():
+            return NotFoundErrorResponse(
+                f"Dataset {dataset} does not exist or does not belong to the user"
+            )
 
         return super(self.__class__, self).update(request=self.request)
 

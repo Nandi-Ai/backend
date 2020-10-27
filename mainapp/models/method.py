@@ -1,7 +1,8 @@
 import uuid
 
 from django.db import models
-from mainapp.models import DataSourceMethod
+
+from .data_source_method import DataSourceMethod
 
 
 class Method(models.Model):

@@ -56,5 +56,8 @@ class DataSourceMethod(models.Model):
     def is_ready(self):
         return self.state == self.READY
 
+    def get_glue_table(self):
+        return self.data_source.get_glue_table("deid_access", str(self.method.id))
+
     def __str__(self):
         return f"<DataSourceMethod - Method:{self.method.id}, DataSource:{self.data_source.id}>"

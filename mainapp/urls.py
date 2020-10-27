@@ -43,6 +43,7 @@ router.register(r"activities", views.ActivityViewSet, "activities")
 router.register(r"requests", views.RequestViewSet, "requests")
 router.register(r"my_requests", views.MyRequestsViewSet, "my_requests")
 router.register(r"documentation", views.DocumentationViewSet, "documentation")
+router.register(r"methods", views.MethodViewSet, "methods")
 
 urlpatterns = [
     url("", include(router.urls)),

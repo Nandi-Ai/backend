@@ -154,7 +154,7 @@ class MethodHandler(object):
                 deid_row = self.__deidentify_row(data_row, columns)
                 deid_result.write(self.__encode_deid_row(deid_row))
 
-        logger.info(f"Uploaded Deidentified file to {deid_data_file}")
+        logger.info(f"Uploaded De-identified file to {deid_data_file}")
 
     def apply(self):
         if not self.__actions:
@@ -182,7 +182,7 @@ class MethodHandler(object):
             self.__communicate_with_bucket(data_stream, column_name_row)
 
             logger.info(
-                f"Creating Deidentified glue table for Data Source {self.__data_source.name}:{self.__data_source.id} "
+                f"Creating De-identified glue table for Data Source {self.__data_source.name}:{self.__data_source.id} "
                 f"for Method {self.__dsrc_method.method.name}:{self.__dsrc_method.method.name}"
             )
 
