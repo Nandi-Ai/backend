@@ -50,6 +50,3 @@ phases:
 
       - aws ecs update-service  --region ${AWS_REGION} --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --task-definition ${ECS_TASK} --force-new-deployment
 
-artifacts:
-  files:
-    - 'target/artifact.zip'
