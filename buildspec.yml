@@ -44,9 +44,24 @@ phases:
 
       - docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DATE}
 
-  post_build:
+      - apt-get install jq -y
 
-    commands:
+      - ContainerName="${DOCKER_IMAGE}"
 
-      - aws ecs update-service  --region ${AWS_REGION} --cluster ${ECS_CLUSTER} --service ${ECS_SERVICE} --task-definition ${ECS_TASK} --force-new-deployment
+      - ImageURI="${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest"
 
+      - printf '[{"name":"CONTAINER_NAME","imageUri":"IMAGE_URI"}]' > imagedefinitions.json
+
+      - sed -i -e "s|CONTAINER_NAME|$ContainerName|g" imagedefinitions.json
+
+      - sed -i -e "s|IMAGE_URI|$ImageURI|g" imagedefinitions.json
+
+      - cat imagedefinitions.json
+
+artifacts:
+
+  files:
+
+    - '**/*'
+
+  name: lynx-be
