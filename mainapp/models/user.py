@@ -157,19 +157,25 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def datasets(self):
-        discoverable_datasets = (
-            Dataset.objects.exclude(is_discoverable=False)
-            | self.full_access_datasets.filter(is_discoverable=False)
-            | self.aggregated_datasets.filter(is_discoverable=False)
-            | self.admin_datasets.filter(is_discoverable=False)
-            | self.permitted_datasets.filter(is_discoverable=False)
-        ).distinct()
-        not_archived_datasets = (
-            Dataset.objects.exclude(state="archived")
-            | self.admin_datasets.filter(state="archived")
-        ).distinct()
+        if self.is_execution:
+            execution = self.the_execution.last()
+            study = Study.objects.filter(execution=execution).last()
+            return study.datasets.filter(is_deleted=False).all()
 
-        return discoverable_datasets & not_archived_datasets
+        else:
+            discoverable_datasets = (
+                Dataset.objects.exclude(is_discoverable=False)
+                | self.full_access_datasets.filter(is_discoverable=False)
+                | self.aggregated_datasets.filter(is_discoverable=False)
+                | self.admin_datasets.filter(is_discoverable=False)
+                | self.permitted_datasets.filter(is_discoverable=False)
+            ).distinct()
+            not_archived_datasets = (
+                Dataset.objects.exclude(state="archived")
+                | self.admin_datasets.filter(state="archived")
+            ).distinct()
+
+            return discoverable_datasets & not_archived_datasets
 
     @property
     def requests_for_me(self):

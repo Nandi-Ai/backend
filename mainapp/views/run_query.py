@@ -79,7 +79,7 @@ class RunQuery(GenericAPIView):
 
             logger.info(
                 f"Running Query for Activity: {query_string} on dataset: {dataset.name}:{dataset.id} "
-                f"in org {dataset.organization} by user: {request.user.display_name}"
+                f"in org {dataset.organization.name} by user: {request.user.display_name}"
             )
 
             return Response({"query_execution_id": response["QueryExecutionId"]})
