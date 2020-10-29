@@ -6,8 +6,6 @@ import os
 import pyreadstat
 import shutil
 import threading
-
-from rest_framework import decorators
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -78,8 +76,7 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
-    @decorators.permission_classes(IsDataSourceAdmin)
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsDataSourceAdmin], methods=["get"])
     def example(self, request, *args, **kwargs):
         data_source = self.get_object()
         return Response({str(data_source.id): data_source.example_values()})
@@ -121,8 +118,7 @@ class DataSourceViewSet(ModelViewSet):
             }
         )
 
-    @decorators.permission_classes(IsDataSourceAdmin)
-    @action(detail=True, methods=["put"])
+    @action(detail=True, permission_classes=[IsDataSourceAdmin], methods=["put"])
     def columns(self, request, *args, **kwargs):
         data_source = self.get_object()
 

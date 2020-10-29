@@ -32,6 +32,8 @@ from mainapp.utils.response_handler import (
     BadRequestErrorResponse,
     ConflictErrorResponse,
 )
+from mainapp.models import Study
+from mainapp.utils.aws_service import create_sts_client
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +82,64 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(DatasetSerializer(dataset).data, status=200)
 
-    @decorators.permission_classes(IsDatasetAdmin)
     @action(detail=True, methods=["get"])
+    def execution_sts(self, request, pk=None):  # call from execution user
+        dataset = self.get_object()
+        if not request.user.is_execution:
+            return BadRequestErrorResponse("Requested user is not an execution user !")
+        execution = request.user.the_execution.last()
+
+        try:
+            query_id = request.query_params["query_execution_id"]
+        except KeyError as e:
+            return BadRequestErrorResponse(
+                "Missing execution result id in request for sts", error=e
+            )
+
+        try:
+            study = Study.objects.filter(execution=execution).last()
+        except Study.DoesNotExist:
+            return ErrorResponse("This is not the execution of any study")
+
+        if study not in dataset.studies.all():
+            return ForbiddenErrorResponse(
+                "The user is not permitted to query this dataset"
+            )
+
+        org_name = study.organization.name
+        sts_client = create_sts_client(org_name=org_name)
+
+        role_to_assume = {
+            "RoleArn": f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{dataset.bucket}",
+            "RoleSessionName": f"session_{uuid.uuid4()}",
+            "DurationSeconds": 900,
+            "Policy": json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": ["s3:GetObject", "s3:GetObjectAcl"],
+                            "Resource": f"arn:aws:s3:::{dataset.bucket}/temp_execution_results/{query_id}.csv",
+                        }
+                    ],
+                }
+            ),
+        }
+
+        try:
+            response = sts_client.assume_role(**role_to_assume)
+        except ClientError as e:
+            return ErrorResponse(
+                f"Unexpected error. Server was not able to complete this request.",
+                error=e,
+            )
+
+        return Response(
+            {"aws_sts_creds": response["Credentials"], "bucket": dataset.bucket}
+        )
+
+    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
     def data_source_examples(self, request, *args, **kwargs):
         dataset = self.get_object()
         data_sources = dataset.data_sources
@@ -91,8 +149,7 @@ class DatasetViewSet(ModelViewSet):
         }
         return Response(data_source_examples)
 
-    @decorators.permission_classes(IsDatasetAdmin)
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
     def methods(self, request, *args, **kwargs):
         dataset = self.get_object()
         try:
@@ -104,8 +161,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(MethodSerializer(dataset.methods, many=True).data, status=200)
 
-    @decorators.permission_classes(IsDatasetAdmin)
-    @action(detail=True, methods=["post"])
+    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["post"])
     def add_method(self, request, *args, **kwargs):
         dataset = self.get_object()
 
@@ -155,8 +211,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(MethodSerializer(method).data, status=201)
 
-    @decorators.permission_classes(IsDatasetAdmin)
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
     def get_write_sts(self, request, *args, **kwargs):
         dataset = self.get_object()
 

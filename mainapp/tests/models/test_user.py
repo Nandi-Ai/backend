@@ -20,7 +20,7 @@ class UserTest(TestCase):
             first_login=False,
             organization=self.organization,
             cognito_id="1234",
-            is_execution=True,
+            is_execution=False,
         )
         return admin_user
 
@@ -34,7 +34,7 @@ class UserTest(TestCase):
             first_login=False,
             organization=self.organization,
             cognito_id="1324",
-            is_execution=True,
+            is_execution=False,
         )
         return agg_user
 
