@@ -6,8 +6,8 @@ import os
 import time
 import uuid
 
-from rest_framework import decorators
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 class DatasetViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     serializer_class = DatasetSerializer
+    permission_classes = [IsDatasetAdmin]
     filter_fields = ("ancestor",)
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -49,6 +50,9 @@ class DatasetViewSet(ModelViewSet):
         ".png": ["image/png"],
         ".bmp": ["image/bmp", "image/x-windows-bmp"],
     }
+
+    def get_queryset(self):
+        return self.request.user.datasets.exclude(is_deleted=True)
 
     # noinspection PyMethodMayBeStatic
     def logic_validate(
@@ -66,7 +70,7 @@ class DatasetViewSet(ModelViewSet):
                     "default_user_permission must be none or aggregated"
                 )
 
-    @action(detail=True, methods=["put"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["put"])
     def starred(self, request, *args, **kwargs):
         dataset = self.get_object()
         dataset.starred_users.add(request.user)
@@ -74,7 +78,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(DatasetSerializer(dataset).data, status=200)
 
-    @action(detail=True, methods=["put"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["put"])
     def unstarred(self, request, *args, **kwargs):
         dataset = self.get_object()
         dataset.starred_users.remove(request.user)
@@ -149,7 +153,7 @@ class DatasetViewSet(ModelViewSet):
         }
         return Response(data_source_examples)
 
-    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
+    @action(detail=True, methods=["get"])
     def methods(self, request, *args, **kwargs):
         dataset = self.get_object()
         try:
@@ -161,7 +165,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(MethodSerializer(dataset.methods, many=True).data, status=200)
 
-    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["post"])
+    @action(detail=True, methods=["post"])
     def add_method(self, request, *args, **kwargs):
         dataset = self.get_object()
 
@@ -211,7 +215,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(MethodSerializer(method).data, status=201)
 
-    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
+    @action(detail=True, methods=["get"])
     def get_write_sts(self, request, *args, **kwargs):
         dataset = self.get_object()
 
@@ -237,9 +241,6 @@ class DatasetViewSet(ModelViewSet):
                 "location": dataset.bucket,
             }
         )
-
-    def get_queryset(self):
-        return self.request.user.datasets.exclude(is_deleted=True)
 
     def create(self, request, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -530,7 +531,6 @@ class DatasetViewSet(ModelViewSet):
         else:
             return BadRequestErrorResponse(f"Bad Request: {dataset_serialized.errors}")
 
-    @decorators.permission_classes(IsDatasetAdmin)
     def update(self, request, *args, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
 
@@ -734,7 +734,6 @@ class DatasetViewSet(ModelViewSet):
 
         return result
 
-    @decorators.permission_classes(IsDatasetAdmin)
     def destroy(self, request, *args, **kwargs):
         dataset = self.get_object()
 

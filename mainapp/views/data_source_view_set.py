@@ -7,6 +7,7 @@ import pyreadstat
 import shutil
 import threading
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
+    permission_classes = [IsDataSourceAdmin]
     filter_fields = ("dataset",)
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -50,7 +52,7 @@ class DataSourceViewSet(ModelViewSet):
         ".xml": ["text/html", "text/xml"],
     }
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def statistics(self, request, *args, **kwargs):
         data_source = self.get_object()
         if not data_source.is_ready():
@@ -76,12 +78,12 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
-    @action(detail=True, permission_classes=[IsDataSourceAdmin], methods=["get"])
+    @action(detail=True, methods=["get"])
     def example(self, request, *args, **kwargs):
         data_source = self.get_object()
         return Response({str(data_source.id): data_source.example_values()})
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def get_read_sts(self, request, *args, **kwargs):
         data_source = self.get_object()
 
@@ -118,7 +120,7 @@ class DataSourceViewSet(ModelViewSet):
             }
         )
 
-    @action(detail=True, permission_classes=[IsDataSourceAdmin], methods=["put"])
+    @action(detail=True, methods=["put"])
     def columns(self, request, *args, **kwargs):
         data_source = self.get_object()
 

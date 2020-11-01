@@ -24,12 +24,14 @@ from mainapp.utils.study_vm_service import (
     toggle_study_vm,
     setup_study_workspace,
 )
+from mainapp.utils.permissions import IsStudyAdmin, IsStudyExecution
 
 logger = logging.getLogger(__name__)
 
 
 class StudyViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
+    permission_classes = [IsStudyAdmin]
     filter_fields = ("user_created",)
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -240,7 +242,12 @@ class StudyViewSet(ModelViewSet):
         delete_study(study)
         return Response(status=204)
 
-    @action(detail=True, methods=["post"], url_path="instance/(?P<status>[^/.]+)")
+    @action(
+        detail=True,
+        permission_classes=[IsStudyExecution],
+        methods=["post"],
+        url_path="instance/(?P<status>[^/.]+)",
+    )
     def instance(self, request, status, pk=None):
         study = self.get_object()
         try:
