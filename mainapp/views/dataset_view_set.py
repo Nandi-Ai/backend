@@ -86,7 +86,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(DatasetSerializer(dataset).data, status=200)
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def execution_sts(self, request, pk=None):  # call from execution user
         dataset = self.get_object()
         if not request.user.is_execution:
