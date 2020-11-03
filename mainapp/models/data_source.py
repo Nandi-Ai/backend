@@ -63,13 +63,15 @@ class DataSource(models.Model):
 
     def get_user_role(self, user_permission):
         dataset = self.dataset
-        if user_permission["permission"].replace("_", " ") in [
-            "full access",
-            "aggregated access",
-            "limited access",
-        ]:
+        permission = user_permission["permission"].replace("_", " ")
+        if permission == "full access":
             return f"lynx-dataset-{dataset.id}"
-        return f"lynx-deid-{user_permission['key']}"
+        if permission == "aggregated access":
+            return f"lynx-aggregated-access-{dataset.id}"
+        if permission == "limited access":
+            return f"lynx-limited-access-{user_permission['key']}-{dataset.id}"
+        if user_permission["permission"] == "deid_access":
+            return f"lynx-deid-access-{user_permission['key']}"
 
     def get_location(self, user_permission):
         location = f"{self.dir}/{LYNX_STORAGE_DIR}/{user_permission['permission'].replace(' ', '_')}"

@@ -13,7 +13,8 @@ from .glue_error import (
     GlueTableFetchError,
     GlueTableMigrationError,
 )
-from .iam_error import RoleNotFound, PolicyNotFound
+from .iam_error import RoleNotFound, PolicyNotFound, CreateRoleError, PutPolicyError
+
 from .query_execution_error import (
     QueryExecutionError,
     InvalidExecutionId,

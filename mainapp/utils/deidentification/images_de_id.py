@@ -12,6 +12,7 @@ from mainapp.utils.deidentification.common.image_de_id_exceptions import (
     UploadBatchProcessError,
     BaseImageDeIdError,
 )
+from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,13 @@ class ImageDeId(object):
 
             for image in self.__data_source.s3_objects:
                 self.__invoke_deid_image_lambda(data_source=image)
+
+            create_dataset_permission_access_role(
+                org_name=self.__org_name,
+                role_name=self.__dsrc_method.role_name,
+                location=f"{self.__data_source.dataset.bucket}/{self.__destination_location}",
+                bucket=self.__data_source.dataset.bucket,
+            )
         except BaseImageDeIdError as e:
             logger.exception(f"Failed to process De-id image", e)
             self.__dsrc_method.set_as_error()

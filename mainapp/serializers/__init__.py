@@ -3,6 +3,7 @@ from .cohort import CohortSerializer
 from .data_source import DataSourceSerializer
 from .data_source_method import DataSourceMethodSerializer
 from .data_source_column_serializer import DataSourceColumnsSerializer
+from .read_sts_serializer import ReadStsSerializer
 from .dataset import DatasetSerializer
 from .dataset_uploaded import DatasetUploadedSerializer
 from .documentation import DocumentationSerializer

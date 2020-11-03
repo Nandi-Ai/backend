@@ -1,14 +1,9 @@
 import json
 import logging
 import re
-
-from datetime import datetime
 from io import BytesIO
 
 from botocore.exceptions import ClientError
-from mainapp.models.data_source import DataSource
-from mainapp.models.data_source_method import DataSourceMethod
-from mainapp.models.method import Method
 from mainapp.utils import aws_service
 from mainapp.utils.deidentification.common.image_de_id_exceptions import (
     EmptyBucketError,
@@ -22,72 +17,81 @@ logger = logging.getLogger(__name__)
 
 
 class ImageDeIdHelper(object):
-    __METHOD_TIME_THRESHOLD = 40
+    __FAILED_IMAGES_THRESHOLD = 0.3
 
-    def __init__(self, dataset):
-        self.__dataset = dataset
+    def __init__(self, dsrc_method):
+        self.__dsrc_method = dsrc_method
         self.__s3_resource = aws_service.create_s3_resource(
-            org_name=dataset.organization.name
+            org_name=self.__dsrc_method.data_source.dataset.organization.name
         )
         self.__s3_client = self.__s3_resource.meta.client
-        self.__source_bucket = dataset.bucket
+        self.__source_bucket = self.__dsrc_method.data_source.dataset.bucket
 
-    def update_images_method_status(self):
-        for method in self.__dataset.methods.all():
-            if method.state == Method.PENDING:
-                for dsrc_method in method.data_source_methods.filter(
-                    state=DataSourceMethod.PENDING
-                ):
-                    if dsrc_method.data_source.type == DataSource.IMAGES:
-                        try:
-                            self.__update_dsrc_method_status(dsrc_method, method)
-                        except BaseImageDeIdHelperError as e:
-                            dsrc_method.set_as_error()
+    def get_images_method_status(self):
+        try:
+            return self.__get_dsrc_method_status(
+                self.__dsrc_method, self.__dsrc_method.method
+            )
+        except BaseImageDeIdHelperError as e:
+            self.__dsrc_method.set_as_error()
 
-                            logger.exception(
-                                f"Could not update method {method.id} and dsrc {dsrc_method.id}",
-                                e,
-                            )
+            logger.exception(
+                f"Could not update method {self.__dsrc_method.method.id} and dsrc {self.__dsrc_method.id}",
+                e,
+            )
 
-    def __update_dsrc_method_status(self, dsrc_method, method):
+    def __get_dsrc_method_status(self, dsrc_method, method):
         job_id_file_name = f"{dsrc_method.data_source.id}-image-job-processing.json"
         destination_location = f"{dsrc_method.data_source.dir}/lynx-storage/status_deid_access_{method.id}_json"
         bucket_content = self.__list_bucket_objects(destination_location)
+        total_image_count = len(dsrc_method.data_source.s3_objects)
 
         successful_processed_images = self.__get_successful_images(bucket_content)
+        fail_processed_images = len(self.__get_failed_images(bucket_content))
 
-        if successful_processed_images == len(dsrc_method.data_source.s3_objects):
-            job_status = "Completed"
-            dsrc_method.set_as_ready()
-            logger.info(
-                f"Image De-id Method {dsrc_method.data_source.id} ready. Please look for job_processed_status"
-                f"{job_id_file_name}"
+        if dsrc_method.state == dsrc_method.PENDING:
+            if successful_processed_images == total_image_count:
+                job_status = "Completed"
+                dsrc_method.set_as_ready()
+                logger.info(
+                    f"Image De-id Method {dsrc_method.data_source.id} ready. Please look for job_processed_status"
+                    f"{job_id_file_name}"
+                )
+            else:
+                job_status = self.__validate_status(
+                    total_image_count,
+                    fail_processed_images,
+                    job_id_file_name,
+                    dsrc_method,
+                )
+
+            self.__create_json_job_process_content(
+                destination_location=destination_location,
+                job_id_file_name=job_id_file_name,
+                job_processed_status=job_status,
+                processed_images_list=bucket_content,
+                successful_processed_images=successful_processed_images,
             )
-        else:
-            job_status = self.__validate_status(method, dsrc_method, job_id_file_name)
+        return {
+            "total_images": total_image_count,
+            "success": successful_processed_images,
+            "failure": fail_processed_images,
+        }
 
-        self.__create_json_job_process_content(
-            destination_location=destination_location,
-            job_id_file_name=job_id_file_name,
-            job_processed_status=job_status,
-            processed_images_list=bucket_content,
-            successful_processed_images=successful_processed_images,
-        )
-
-    def __validate_status(self, method, dsrc_method, job_id_file_name):
-        method_time_creation = datetime.strptime(
-            str(method.created_at.replace(tzinfo=None)), "%Y-%m-%d %H:%M:%S.%f"
-        )
-        time_diff_minutes = (
-            datetime.now() - method_time_creation
-        ).total_seconds() // 60
-        if time_diff_minutes > self.__METHOD_TIME_THRESHOLD:
+    def __validate_status(
+        self, total_image_count, fail_processed_images, job_id_file_name, dsrc_method
+    ):
+        if fail_processed_images / total_image_count > self.__FAILED_IMAGES_THRESHOLD:
             logger.warning(
                 f"Image De-id Method {dsrc_method.data_source.id} failed. Please look for "
                 f"job_processed_status {job_id_file_name}"
             )
             dsrc_method.set_as_error()
             return "Failed"
+        dsrc_method.set_as_ready()
+        return (
+            f"Ready. {fail_processed_images}/{total_image_count} failed de-id process"
+        )
 
     def __create_json_job_process_content(
         self,

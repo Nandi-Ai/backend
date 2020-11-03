@@ -15,14 +15,17 @@ from rest_framework.viewsets import ModelViewSet
 from slugify import slugify
 
 from mainapp import resources, settings
+from mainapp.exceptions.iam_error import CreateRoleError
 from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser, Method
 from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.aws_utils.sts_service import assume_role
 from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
-from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
-from mainapp.utils.lib import process_structured_data_sources_in_background
+from mainapp.utils.lib import (
+    process_structured_data_sources_in_background,
+    PrivilegePath,
+)
 from mainapp.utils.permissions import IsDatasetAdmin
 from mainapp.utils.monitoring.monitor_events import MonitorEvents
 from mainapp.utils.monitoring import handle_event
@@ -34,6 +37,7 @@ from mainapp.utils.response_handler import (
 )
 from mainapp.models import Study
 from mainapp.utils.aws_service import create_sts_client
+from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
 
 logger = logging.getLogger(__name__)
 
@@ -157,12 +161,6 @@ class DatasetViewSet(ModelViewSet):
     @action(detail=True, methods=["get"])
     def methods(self, request, *args, **kwargs):
         dataset = self.get_object()
-        try:
-            ImageDeIdHelper(dataset).update_images_method_status()
-        except Exception as e:
-            logger.warning(
-                f"An unexpected error occurred when trying to update image status - {e}"
-            )
 
         return Response(MethodSerializer(dataset.methods, many=True).data, status=200)
 
@@ -426,6 +424,24 @@ class DatasetViewSet(ModelViewSet):
                     f"Unexpected error. Server was not able to complete this request.",
                     error=error,
                 )
+
+            permissions = [PrivilegePath.FULL.value, PrivilegePath.AGG_STATS.value]
+            for permission in permissions:
+                try:
+                    create_dataset_permission_access_role(
+                        org_name=org_name,
+                        role_name=f"lynx-{permission.replace('_', '-')}-{dataset.id}",
+                        location=f"{dataset.bucket}/*/lynx-storage/{permission}",
+                        bucket=dataset.bucket,
+                    )
+                except CreateRoleError as e:
+                    error = Exception(
+                        f"The server can't process your request due to unexpected internal error"
+                    ).with_traceback(e.__traceback__)
+                    return ErrorResponse(
+                        f"Unexpected error. Server was not able to complete this request.",
+                        error=error,
+                    )
 
             dataset.save()
 
