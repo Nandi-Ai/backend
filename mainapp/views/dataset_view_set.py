@@ -121,7 +121,8 @@ class DatasetViewSet(ModelViewSet):
                             "Effect": "Allow",
                             "Action": ["s3:GetObject", "s3:GetObjectAcl"],
                             "Resource": f"arn:aws:s3:::{dataset.bucket}/temp_execution_results/{query_id}.csv",
-                        }
+                        },
+                        {"Effect": "Allow", "Action": ["kms:Decrypt"], "Resource": "*"},
                     ],
                 }
             ),
