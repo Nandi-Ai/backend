@@ -6,8 +6,18 @@ from mainapp.models import Study, StudyDataset, Dataset
 from mainapp.serializers.study_dataset import StudyDatasetSerializer
 from mainapp.serializers.user import UserSerializer
 
+from mainapp.exceptions.serializers_error import PermissionException, InvalidDataset
+
 
 class StudySerializer(ModelSerializer):
+    # mapping for admin and full access only.
+    # if study permission is agg, no matter what permission the user has - he can go in
+    # any other permission - only if the user and study permission have the same permission (and keys)
+    __STUDY_DATASET_PERMISSION_MAPPING = {
+        "admin": ["full_access", "deid_access", "limited_access"],
+        "full_access": ["limited_access"],
+    }
+
     datasets = StudyDatasetSerializer(
         source="studydataset_set",
         many=True,
@@ -50,61 +60,49 @@ class StudySerializer(ModelSerializer):
         }
         for dataset in self.initial_data.get("datasets"):
             dataset_id = dataset.get("dataset")
-            permission = dataset.get("permission")
-            permission_attributes = dataset.get("permission_attributes")
+            try:
+                dataset_instance = Dataset.objects.get(id=dataset_id)
+            except Dataset.DoesNotExist:
+                raise InvalidDataset(dataset_id)
+
+            current_user = CurrentUserDefault()(self)
+            user_dataset_permission = current_user.permission(dataset_instance)
+            user_dataset_permission_attributes = current_user.permission_attributes(
+                dataset_instance
+            )
+            user_requested_permission = dataset.get("permission")
+            user_requested_permission_attributes = dataset.get(
+                "permission_attributes", dict()
+            )
+
+            if not self.__is_authorized(
+                user_requested_permission,
+                user_requested_permission_attributes,
+                user_dataset_permission,
+                user_dataset_permission_attributes,
+            ):
+                raise PermissionException(user_dataset_permission)
+
             try:
                 study_dataset = StudyDataset.objects.get(
                     dataset=dataset_id, study=instance
                 )
                 prev_datasets.pop(dataset_id)
-                study_dataset.permission = permission
-                study_dataset.permission_attributes = permission_attributes
+                study_dataset.permission = user_requested_permission
+                study_dataset.permission_attributes = (
+                    user_requested_permission_attributes
+                )
                 study_dataset.save()
             except StudyDataset.DoesNotExist:
-                try:
-                    dataset_instance = Dataset.objects.get(id=dataset_id)
-                except Dataset.DoesNotExist:
-                    raise Exception(f"Dataset instance {dataset_id} not exist")
                 if dataset_instance.organization != instance.organization:
                     raise Exception(
                         "Dataset's organization doesn't match the study organization"
                     )
-                if permission == "deid_access":
-                    current_user = CurrentUserDefault()(self)
-                    if permission_attributes and permission_attributes.get("key"):
-                        # verify user is admin / full when explicitly selecting method
-                        if current_user.permission(dataset_instance) not in [
-                            "admin",
-                            "full_access",
-                        ]:
-                            raise Exception(
-                                "No permission for user to add this dataset permission"
-                            )
-                    else:
-                        user_dataset_permission = dataset_instance.datasetuser_set.filter(
-                            user=current_user.id
-                        )
-                        if not user_dataset_permission:
-                            raise Exception(
-                                f"User have no permission for dataset {dataset_instance.id}"
-                            )
-
-                        permission_attributes = (
-                            user_dataset_permission.first().permission_attributes
-                        )
-                        if (
-                            not permission_attributes
-                            or "key" not in permission_attributes
-                        ):
-                            raise Exception(
-                                f"Missing permission attributes for user in dataset {dataset_instance.id}"
-                            )
-
                 StudyDataset.objects.create(
                     study=instance,
                     dataset=dataset_instance,
-                    permission=permission,
-                    permission_attributes=permission_attributes,
+                    permission=user_requested_permission,
+                    permission_attributes=user_requested_permission_attributes,
                 )
 
         if len(prev_datasets) > 0:
@@ -122,3 +120,21 @@ class StudySerializer(ModelSerializer):
         data["users"] = users_serializer.data
 
         return data
+
+    def __is_authorized(
+        self,
+        user_requested_permission,
+        user_requested_permission_attributes,
+        user_dataset_permission,
+        user_dataset_permission_attributes,
+    ):
+        if user_requested_permission == "aggregated_access":
+            return True
+        if user_requested_permission == user_dataset_permission:
+            return (
+                user_dataset_permission_attributes
+                == user_requested_permission_attributes.get("key")
+            )
+        return user_requested_permission in self.__STUDY_DATASET_PERMISSION_MAPPING.get(
+            user_dataset_permission, list()
+        )

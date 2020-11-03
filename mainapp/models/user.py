@@ -238,3 +238,12 @@ class User(AbstractBaseUser, PermissionsMixin):
             pass
         return dataset.default_user_permission
         # this function can also return None.....
+
+    def permission_attributes(self, dataset):
+        try:
+            return DatasetUser.objects.get(
+                user_id=self.id, dataset_id=dataset.id
+            ).permission_attributes.get("key")
+        except DatasetUser.DoesNotExist:
+            if dataset.permission_attributes:
+                return dataset.permission_attributes.get("key")

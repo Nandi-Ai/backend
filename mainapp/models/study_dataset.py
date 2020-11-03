@@ -40,7 +40,8 @@ class StudyDataset(models.Model):
 
     @property
     def permission_key(self):
-        return self.permission_attributes.get("key")
+        if self.permission_attributes:
+            return self.permission_attributes.get("key")
 
     def process(self):
         """
