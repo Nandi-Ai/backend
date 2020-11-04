@@ -85,4 +85,4 @@ def create_iam_resource(*args, **kwargs):
 
 
 def create_quicksight_client(*args, **kwargs):
-    return create_resource(service_name="quicksight", *args, **kwargs)
+    return create_client(service_name="quicksight", *args, **kwargs)
