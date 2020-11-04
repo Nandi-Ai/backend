@@ -6,8 +6,8 @@ import os
 import time
 import uuid
 
-from rest_framework import decorators
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
@@ -15,14 +15,17 @@ from rest_framework.viewsets import ModelViewSet
 from slugify import slugify
 
 from mainapp import resources, settings
+from mainapp.exceptions.iam_error import CreateRoleError
 from mainapp.exceptions.s3 import TooManyBucketsException
 from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser, Method
 from mainapp.serializers import DatasetSerializer, MethodSerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.aws_utils.sts_service import assume_role
 from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
-from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
-from mainapp.utils.lib import process_structured_data_sources_in_background
+from mainapp.utils.lib import (
+    process_structured_data_sources_in_background,
+    PrivilegePath,
+)
 from mainapp.utils.permissions import IsDatasetAdmin
 from mainapp.utils.monitoring.monitor_events import MonitorEvents
 from mainapp.utils.monitoring import handle_event
@@ -34,6 +37,7 @@ from mainapp.utils.response_handler import (
 )
 from mainapp.models import Study
 from mainapp.utils.aws_service import create_sts_client
+from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +45,7 @@ logger = logging.getLogger(__name__)
 class DatasetViewSet(ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     serializer_class = DatasetSerializer
+    permission_classes = [IsDatasetAdmin]
     filter_fields = ("ancestor",)
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -49,6 +54,9 @@ class DatasetViewSet(ModelViewSet):
         ".png": ["image/png"],
         ".bmp": ["image/bmp", "image/x-windows-bmp"],
     }
+
+    def get_queryset(self):
+        return self.request.user.datasets.exclude(is_deleted=True)
 
     # noinspection PyMethodMayBeStatic
     def logic_validate(
@@ -66,7 +74,7 @@ class DatasetViewSet(ModelViewSet):
                     "default_user_permission must be none or aggregated"
                 )
 
-    @action(detail=True, methods=["put"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["put"])
     def starred(self, request, *args, **kwargs):
         dataset = self.get_object()
         dataset.starred_users.add(request.user)
@@ -74,7 +82,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(DatasetSerializer(dataset).data, status=200)
 
-    @action(detail=True, methods=["put"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["put"])
     def unstarred(self, request, *args, **kwargs):
         dataset = self.get_object()
         dataset.starred_users.remove(request.user)
@@ -82,7 +90,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(DatasetSerializer(dataset).data, status=200)
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def execution_sts(self, request, pk=None):  # call from execution user
         dataset = self.get_object()
         if not request.user.is_execution:
@@ -150,19 +158,13 @@ class DatasetViewSet(ModelViewSet):
         }
         return Response(data_source_examples)
 
-    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
+    @action(detail=True, methods=["get"])
     def methods(self, request, *args, **kwargs):
         dataset = self.get_object()
-        try:
-            ImageDeIdHelper(dataset).update_images_method_status()
-        except Exception as e:
-            logger.warning(
-                f"An unexpected error occurred when trying to update image status - {e}"
-            )
 
         return Response(MethodSerializer(dataset.methods, many=True).data, status=200)
 
-    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["post"])
+    @action(detail=True, methods=["post"])
     def add_method(self, request, *args, **kwargs):
         dataset = self.get_object()
 
@@ -212,7 +214,7 @@ class DatasetViewSet(ModelViewSet):
 
         return Response(MethodSerializer(method).data, status=201)
 
-    @action(detail=True, permission_classes=[IsDatasetAdmin], methods=["get"])
+    @action(detail=True, methods=["get"])
     def get_write_sts(self, request, *args, **kwargs):
         dataset = self.get_object()
 
@@ -238,9 +240,6 @@ class DatasetViewSet(ModelViewSet):
                 "location": dataset.bucket,
             }
         )
-
-    def get_queryset(self):
-        return self.request.user.datasets.exclude(is_deleted=True)
 
     def create(self, request, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
@@ -426,6 +425,24 @@ class DatasetViewSet(ModelViewSet):
                     error=error,
                 )
 
+            permissions = [PrivilegePath.FULL.value, PrivilegePath.AGG_STATS.value]
+            for permission in permissions:
+                try:
+                    create_dataset_permission_access_role(
+                        org_name=org_name,
+                        role_name=f"lynx-{permission.replace('_', '-')}-{dataset.id}",
+                        location=f"{dataset.bucket}/*/lynx-storage/{permission}",
+                        bucket=dataset.bucket,
+                    )
+                except CreateRoleError as e:
+                    error = Exception(
+                        f"The server can't process your request due to unexpected internal error"
+                    ).with_traceback(e.__traceback__)
+                    return ErrorResponse(
+                        f"Unexpected error. Server was not able to complete this request.",
+                        error=error,
+                    )
+
             dataset.save()
 
             dataset.description = dataset_data["description"]
@@ -531,7 +548,6 @@ class DatasetViewSet(ModelViewSet):
         else:
             return BadRequestErrorResponse(f"Bad Request: {dataset_serialized.errors}")
 
-    @decorators.permission_classes(IsDatasetAdmin)
     def update(self, request, *args, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
 
@@ -735,7 +751,6 @@ class DatasetViewSet(ModelViewSet):
 
         return result
 
-    @decorators.permission_classes(IsDatasetAdmin)
     def destroy(self, request, *args, **kwargs):
         dataset = self.get_object()
 

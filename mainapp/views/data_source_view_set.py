@@ -7,20 +7,27 @@ import pyreadstat
 import shutil
 import threading
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 # noinspection PyPackageRequirements
 from slugify import slugify
-
 from mainapp.models import Execution, DataSource, Method
-from mainapp.serializers import DataSourceSerializer, DataSourceColumnsSerializer
+from mainapp.serializers import (
+    DataSourceSerializer,
+    DataSourceColumnsSerializer,
+    ReadStsSerializer,
+)
 from mainapp.utils import statistics, lib, aws_service
 from mainapp.utils.aws_utils import s3_storage
 from mainapp.utils.aws_utils.sts_service import assume_role
 from mainapp.utils.deidentification import DeidentificationError
 from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
-from mainapp.utils.lib import process_structured_data_source_in_background
+from mainapp.utils.lib import (
+    process_structured_data_source_in_background,
+    PrivilegePath,
+)
 from mainapp.utils.permissions import IsDataSourceAdmin
 from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.response_handler import (
@@ -36,6 +43,7 @@ logger = logging.getLogger(__name__)
 class DataSourceViewSet(ModelViewSet):
     serializer_class = DataSourceSerializer
     http_method_names = ["get", "head", "post", "put", "delete"]
+    permission_classes = [IsDataSourceAdmin]
     filter_fields = ("dataset",)
     file_types = {
         ".jpg": ["image/jpeg"],
@@ -50,7 +58,7 @@ class DataSourceViewSet(ModelViewSet):
         ".xml": ["text/html", "text/xml"],
     }
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def statistics(self, request, *args, **kwargs):
         data_source = self.get_object()
         if not data_source.is_ready():
@@ -76,14 +84,16 @@ class DataSourceViewSet(ModelViewSet):
 
         return Response(final_result)
 
-    @action(detail=True, permission_classes=[IsDataSourceAdmin], methods=["get"])
+    @action(detail=True, methods=["get"])
     def example(self, request, *args, **kwargs):
         data_source = self.get_object()
         return Response({str(data_source.id): data_source.example_values()})
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def get_read_sts(self, request, *args, **kwargs):
         data_source = self.get_object()
+        dataset = data_source.dataset
+        org_name = dataset.organization.name
 
         if data_source.type not in [DataSource.XML, DataSource.IMAGES]:
             logger.warning(
@@ -93,14 +103,17 @@ class DataSourceViewSet(ModelViewSet):
                 "You can't have sts permission for this data-source"
             )
 
-        dataset = data_source.dataset
-        user_permission = dataset.calc_access_to_database(request.user)
+        permission_serialized_data = ReadStsSerializer(data=request.query_params)
+        permission_serialized_data.is_valid(raise_exception=True)
+        permission = permission_serialized_data.validated_data.get("permission")
+        user_permission = self.__get_image_permission(
+            permission, request.user, data_source, dataset
+        )
+
         role_name = data_source.get_user_role(user_permission)
 
         try:
-            sts_response = assume_role(
-                org_name=dataset.organization.name, role_name=role_name
-            )
+            sts_response = assume_role(org_name=org_name, role_name=role_name)
             logger.info(
                 f"Generated STS credentials for Dataset: {dataset.name}:{dataset.id} in org {dataset.organization.name}"
             )
@@ -118,7 +131,7 @@ class DataSourceViewSet(ModelViewSet):
             }
         )
 
-    @action(detail=True, permission_classes=[IsDataSourceAdmin], methods=["put"])
+    @action(detail=True, methods=["put"])
     def columns(self, request, *args, **kwargs):
         data_source = self.get_object()
 
@@ -359,6 +372,30 @@ class DataSourceViewSet(ModelViewSet):
             )
 
         return super(self.__class__, self).update(request=self.request)
+
+    def __get_image_permission(self, permission, user, data_source, dataset):
+        db_access = dataset.calc_access_to_database(user)
+        db_permission = db_access["permission"]
+
+        if data_source.type == DataSource.STRUCTURED:
+            return db_access
+
+        permission = permission or db_permission
+
+        if permission in [
+            PrivilegePath.LIMITED.value,
+            PrivilegePath.AGG_STATS.value,
+            PrivilegePath.FULL.value,
+        ]:
+            return {"permission": PrivilegePath.FULL.value, "key": None}
+        elif permission == PrivilegePath.DEID.value:
+            return {
+                "permission": PrivilegePath.DEID.value,
+                "key": str(
+                    data_source.methods.get(data_source_id=data_source.id).method_id
+                ),
+            }
+        return db_access
 
     # def destroy(self, request, *args, **kwargs): #now handling by a signal
     #     data_source = self.get_object()

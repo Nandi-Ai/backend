@@ -13,7 +13,8 @@ from .glue_error import (
     GlueTableFetchError,
     GlueTableMigrationError,
 )
-from .iam_error import RoleNotFound, PolicyNotFound
+from .iam_error import RoleNotFound, PolicyNotFound, CreateRoleError, PutPolicyError
+
 from .query_execution_error import (
     QueryExecutionError,
     InvalidExecutionId,
@@ -35,5 +36,7 @@ from .settings_error import (
     InvalidOrganizationSettings,
     MissingOrganizationSettingKey,
 )
+
+from .quicksite_error import GetDashboardError
 
 from .monitoring_error import InvalidEventData

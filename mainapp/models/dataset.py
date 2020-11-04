@@ -128,7 +128,8 @@ class Dataset(models.Model):
 
     @property
     def permission_key(self):
-        return self.permission_attributes.get("key")
+        if self.permission_attributes:
+            return self.permission_attributes.get("key")
 
     def __filtered_dataset_users(self, permission):
         return self.datasetuser_set.filter(permission=permission)
@@ -152,6 +153,9 @@ class Dataset(models.Model):
         return ORG_VALUES[self.organization.name]["AWS_REGION"]
 
     def calc_access_to_database(self, user):
+        # this function calculates version of data_source of user
+        # first if block is relevent for de-id and limited permissions
+
         if user in self.users.all():
             dataset_user = DatasetUser.objects.filter(user=user, dataset=self).first()
 

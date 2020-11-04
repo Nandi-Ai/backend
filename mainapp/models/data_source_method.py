@@ -2,6 +2,8 @@ import logging
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from mainapp.models import DataSource
+from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +58,22 @@ class DataSourceMethod(models.Model):
     def is_ready(self):
         return self.state == self.READY
 
+    @property
+    def role_name(self):
+        return f"lynx-deid-access-{self.method_id}"
+
     def get_glue_table(self):
         return self.data_source.get_glue_table("deid_access", str(self.method.id))
 
     def __str__(self):
         return f"<DataSourceMethod - Method:{self.method.id}, DataSource:{self.data_source.id}>"
+
+    @property
+    def processed_images_status(self):
+        if self.data_source.type == DataSource.IMAGES:
+            try:
+                return ImageDeIdHelper(self).get_images_method_status()
+            except Exception as e:
+                logger.warning(
+                    f"An unexpected error occurred when trying to update image status - {e}"
+                )

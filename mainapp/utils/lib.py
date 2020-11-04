@@ -11,7 +11,6 @@ from datetime import datetime as dt, timedelta as td
 from enum import Enum
 from time import sleep
 
-import botocore
 import botocore.exceptions
 import magic
 import sqlparse
@@ -49,6 +48,7 @@ from mainapp.utils.response_handler import (
     ErrorResponse,
     UnimplementedErrorResponse,
 )
+from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
 
 logger = logging.getLogger(__name__)
 
@@ -649,6 +649,21 @@ def create_limited_table_for_dataset(dataset, limited_value):
             ds.set_as_error()
 
     executor.map(thread, dataset.data_sources.all())
+
+    org_name = dataset.organization.name
+    role_name = f"lynx-limited-access-{limited_value}-{dataset.id}"
+    iam_client = aws_service.create_iam_client(org_name=org_name)
+
+    try:
+        waiter = iam_client.get_waiter("role_exists")
+        waiter.wait(RoleName=role_name, WaiterConfig={"Delay": 0, "MaxAttempts": 1})
+    except botocore.exceptions.WaiterError:
+        create_dataset_permission_access_role(
+            org_name=org_name,
+            role_name=role_name,
+            location=f"{dataset.bucket}/*/lynx-storage/limited_access_{limited_value}",
+            bucket=dataset.bucket,
+        )
 
 
 def process_structured_data_sources_in_background(dataset):
