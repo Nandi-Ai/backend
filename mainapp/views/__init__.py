@@ -19,6 +19,7 @@ from .quicksight import (
     QuickSightActivitiesDashboard,
     QuickSightChallenges,
     QuickSightActivitiesClalitDashboard,
+    QuickSightCNHDashboard,
 )
 from .request_view_set import RequestViewSet
 from .run_query import RunQuery

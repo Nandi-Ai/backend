@@ -82,3 +82,7 @@ def create_s3_resource(*args, **kwargs):
 
 def create_iam_resource(*args, **kwargs):
     return create_resource(service_name="iam", *args, **kwargs)
+
+
+def create_quicksight_client(*args, **kwargs):
+    return create_resource(service_name="quicksight", *args, **kwargs)

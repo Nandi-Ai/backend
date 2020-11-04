@@ -37,4 +37,6 @@ from .settings_error import (
     MissingOrganizationSettingKey,
 )
 
+from .quicksite_error import GetDashboardError
+
 from .monitoring_error import InvalidEventData
