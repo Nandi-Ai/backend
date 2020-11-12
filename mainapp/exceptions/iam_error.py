@@ -1,15 +1,3 @@
-class PolicyNotFound(Exception):
-    def __init__(self, policy):
-        super().__init__(f"Bucket {policy} was not found")
-        self.policy = policy
-
-
-class RoleNotFound(Exception):
-    def __init__(self, role):
-        super().__init__(f"Bucket {role} was not found")
-        self.role = role
-
-
 class PutPolicyError(Exception):
     def __init__(self, role_name, policy_name, error=None):
         super().__init__(

@@ -1,18 +1,23 @@
 import json
 import logging
+
+from botocore.exceptions import ClientError
 from datetime import datetime
 from io import BytesIO
 
-from botocore.exceptions import ClientError
-
-from mainapp import settings
-from mainapp.utils import lib, aws_service
+from mainapp.settings import IMAGE_DE_ID_FUNCTION_NAME
+from mainapp.utils.aws_service import (
+    create_glue_client,
+    create_lambda_client,
+    create_s3_client,
+    create_s3_resource,
+)
 from mainapp.utils.deidentification.common.image_de_id_exceptions import (
     LambdaInvocationError,
     UploadBatchProcessError,
     BaseImageDeIdError,
 )
-from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
+from mainapp.utils.lib import break_s3_object
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +31,11 @@ class ImageDeId(object):
         self.__job_id = str(dsrc_method.method.id)
 
         self.__destination_location = (
-            f"{data_source.dir}/lynx-storage/deid_access_{dsrc_method.method.id}"
+            f"{data_source.dir_path}/lynx-storage/deid_access_{dsrc_method.method.id}"
         )
         self.__source_bucket = data_source.dataset.bucket
         self.__job_id_file_name = f"{self.__data_source.id}-image-job-processing.json"
-        self.__json_destination_bucket = f"{data_source.dir}/lynx-storage/status_deid_access_{dsrc_method.method.id}_json"
+        self.__json_destination_bucket = f"{data_source.dir_path}/lynx-storage/status_deid_access_{dsrc_method.method.id}_json"
 
     def image_de_identification(self):
         try:
@@ -41,12 +46,6 @@ class ImageDeId(object):
             for image in self.__data_source.s3_objects:
                 self.__invoke_deid_image_lambda(data_source=image)
 
-            create_dataset_permission_access_role(
-                org_name=self.__org_name,
-                role_name=self.__dsrc_method.role_name,
-                location=f"{self.__data_source.dataset.bucket}/{self.__destination_location}",
-                bucket=self.__data_source.dataset.bucket,
-            )
         except BaseImageDeIdError as e:
             logger.exception(f"Failed to process De-id image", e)
             self.__dsrc_method.set_as_error()
@@ -58,7 +57,7 @@ class ImageDeId(object):
 
         # delete folder in bucket
         try:
-            s3_resource = aws_service.create_s3_resource(org_name=self.__org_name)
+            s3_resource = create_s3_resource(org_name=self.__org_name)
             bucket = s3_resource.Bucket(self.__data_source.bucket)
             # this will actually not raise any error if location not found
             bucket.objects.filter(Prefix=self.__destination_location).delete()
@@ -69,7 +68,7 @@ class ImageDeId(object):
             )
 
         # delete glue table
-        glue_client = aws_service.create_glue_client(org_name=self.__org_name)
+        glue_client = create_glue_client(org_name=self.__org_name)
         try:
             glue_client.delete_table(
                 DatabaseName=self.__data_source.dataset.glue_database,
@@ -92,7 +91,7 @@ class ImageDeId(object):
             f"Data Source {self.__data_source.name}:{self.__data_source.id}"
         )
         image_s3_obj = self.__data_source.s3_objects[0]["key"]
-        bucket_path, image_name, _, _ = lib.break_s3_object(image_s3_obj)
+        bucket_path, image_name, _, _ = break_s3_object(image_s3_obj)
 
         job_status = "setup"
         date = str(datetime.now())
@@ -109,7 +108,7 @@ class ImageDeId(object):
         return upload_status
 
     def __upload_job_update(self, job_process_json):
-        s3_client = aws_service.create_s3_client(org_name=self.__org_name)
+        s3_client = create_s3_client(org_name=self.__org_name)
 
         try:
             logger.info(
@@ -133,7 +132,7 @@ class ImageDeId(object):
 
     def __invoke_deid_image_lambda(self, data_source):
         image_s3_obj = data_source["key"]
-        bucket_path, image_name, _, _ = lib.break_s3_object(image_s3_obj)
+        _, image_name, _, _ = break_s3_object(image_s3_obj)
 
         payload = {
             "source_bucket": self.__source_bucket,
@@ -143,7 +142,7 @@ class ImageDeId(object):
             "input_image_name": image_name,
         }
 
-        lambda_client = aws_service.create_lambda_client(org_name=self.__org_name)
+        lambda_client = create_lambda_client(org_name=self.__org_name)
 
         logger.info(
             f"Invoking Lambda function for image_object {image_s3_obj} and image_name {image_name} "
@@ -153,7 +152,7 @@ class ImageDeId(object):
 
         try:
             lambda_client.invoke(
-                FunctionName=settings.IMAGE_DE_ID_FUNCTION_NAME,
+                FunctionName=IMAGE_DE_ID_FUNCTION_NAME,
                 InvocationType="Event",
                 LogType="Tail",
                 Payload=bytes(json.dumps(payload), "utf-8"),

@@ -8,15 +8,16 @@ from mainapp.exceptions import (
     UnsupportedColumnTypeError,
 )
 from mainapp.utils import aws_service
+from mainapp.utils.aws_utils.s3_storage import TEMP_EXECUTION_DIR
 
 
-def count_all_values_query(query, glue_database, bucket_name, org_name):
+def count_all_values_query(query, glue_database, dataset_dir, org_name):
     client = aws_service.create_athena_client(org_name=org_name)
     response = client.start_query_execution(
         QueryString=query,
         QueryExecutionContext={"Database": glue_database},
         ResultConfiguration={
-            "OutputLocation": "s3://" + bucket_name + "/temp_execution_results"
+            "OutputLocation": f"s3://{dataset_dir}/{TEMP_EXECUTION_DIR}"
         },
     )
     return get_result_query(client, response)

@@ -62,7 +62,7 @@ class DocumentationViewSet(ModelViewSet):
             "get_object",
             Params={
                 "Bucket": dataset.bucket,
-                "Key": f"documentation/{documentation.file_name}",
+                "Key": f"{dataset.bucket_dir}/documentation/{documentation.file_name}",
             },
             ExpiresIn=30,
         )
@@ -80,7 +80,9 @@ class DocumentationViewSet(ModelViewSet):
             try:
                 for documentation in documentations:
                     local_path = os.path.join(workdir, documentation.file_name)
-                    file_key = f"documentation/{documentation.file_name}"
+                    file_key = (
+                        f"{dataset.bucket_dir}/documentation/{documentation.file_name}"
+                    )
                     lib.validate_file_type(
                         s3_client,
                         documentation.dataset.bucket,
@@ -96,7 +98,9 @@ class DocumentationViewSet(ModelViewSet):
                     documentation.delete()
 
                 for file_to_delete in validated_files:
-                    s3_client.delete_object(Bucket=dataset.bucket, Key=file_to_delete)
+                    bucket_name = dataset.bucket
+                    key = f"{dataset.bucket_dir}/{file_to_delete}"
+                    s3_client.delete_object(Bucket=bucket_name, Key=key)
                 raise
 
         except Exception:

@@ -1,7 +1,10 @@
 from django.db import transaction
 from rest_framework.serializers import ModelSerializer, ValidationError
 
-from mainapp.models import Dataset, DatasetUser, User
+# noinspection PyPackageRequirements
+from slugify import slugify
+
+from mainapp.models import Dataset, DatasetUser, Tag, User
 from mainapp.serializers.user import UserSerializer
 from mainapp.serializers.dataset_user import DatasetUserSerializer
 
@@ -80,6 +83,53 @@ class DatasetSerializer(ModelSerializer):
             user = self.get_request_user()
             if user:
                 return user.id in obj.aggregated_users
+
+    def __get_permission_users(self, user_list):
+        return list(User.objects.filter(id__in=[user.id for user in user_list]))
+
+    @transaction.atomic
+    def create(self, validated_data):
+        dataset_admin_users = set(validated_data.pop("admin_users"))
+        dataset_agg_users = set(validated_data.pop("aggregated_users"))
+        dataset_full_users = set(validated_data.pop("full_access_users"))
+        dataset_users = set(validated_data.pop("datasetuser_set"))
+        dataset_tags = set(validated_data.pop("tags"))
+
+        request = self.context.get("request")
+        validated_data["user_created"] = request.user
+        validated_data["organization"] = getattr(
+            validated_data.get("ancestor"), "organization", request.user.organization
+        )
+        validated_data["is_discoverable"] = (
+            validated_data["is_discoverable"]
+            if validated_data["state"] == "private"
+            else True
+        )
+
+        if validated_data.get("ancestor"):
+            validated_data["is_discoverable"] = False
+            validated_data["state"] = "private"
+
+            if validated_data.get("default_user_permission") is None:
+                validated_data["default_user_permission"] = "None"
+                dataset_full_users.add(request.user.id)
+
+            elif validated_data["default_user_permission"] == "aggregated_access":
+                dataset_agg_users.add(request.user.id)
+
+        dataset = Dataset.objects.create(**validated_data)
+        dataset.programmatic_name = (
+            f"{slugify(dataset.name)}-{str(dataset.id).split('-')[0]}"
+        )
+        dataset.admin_users.set(self.__get_permission_users(dataset_admin_users))
+        dataset.full_access_users.set(self.__get_permission_users(dataset_full_users))
+        dataset.aggregated_users.set(self.__get_permission_users(dataset_agg_users))
+        dataset.tags.set(Tag.objects.filter(id__in=[tag.id for tag in dataset_tags]))
+
+        for dataset_user in dataset_users:
+            DatasetUser.objects.create(dataset=dataset, **dataset_user)
+
+        return dataset
 
     @transaction.atomic
     def update(self, instance, validated_data):

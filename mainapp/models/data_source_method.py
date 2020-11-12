@@ -3,6 +3,7 @@ import logging
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from mainapp.models import DataSource
+from mainapp.utils.aws_utils import refresh_dataset_file_share_cache
 from mainapp.utils.deidentification.image_de_id_helper import ImageDeIdHelper
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,9 @@ class DataSourceMethod(models.Model):
 
     def set_as_ready(self):
         self.__set_state(self.READY)
+        refresh_dataset_file_share_cache(
+            org_name=self.data_source.dataset.organization.name
+        )
 
     def set_as_error(self):
         self.__set_state(self.ERROR)

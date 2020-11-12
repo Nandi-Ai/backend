@@ -7,14 +7,11 @@ from django.db import models
 from django.db.models import signals
 from django.dispatch import receiver
 
-from mainapp.exceptions.limited_key_invalid_exception import LimitedKeyInvalidException
-from mainapp.exceptions.s3 import BucketNotFound
-from mainapp.utils.lib import LYNX_STORAGE_DIR
+from mainapp.exceptions import BucketNotFound, LimitedKeyInvalidException
 from mainapp.utils.data_source import (
     delete_data_source_glue_tables,
     delete_data_source_files_from_bucket,
 )
-from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.deidentification import (
     GLUE_LYNX_TYPE_MAPPING,
     GLUE_DATA_TYPE_MAPPING,
@@ -23,6 +20,11 @@ from mainapp.utils.deidentification import (
     DataTypes,
     COL_NAME_ROW_INDEX,
     EXAMPLE_VALUES_ROW_INDEX,
+)
+from mainapp.utils.lib import LYNX_STORAGE_DIR
+from mainapp.utils.monitoring import handle_event, MonitorEvents
+from mainapp.utils.aws_utils.storage_gateway_service import (
+    refresh_dataset_file_share_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,20 +63,8 @@ class DataSource(models.Model):
         db_table = "data_sources"
         unique_together = (("name", "dataset"),)
 
-    def get_user_role(self, user_permission):
-        dataset = self.dataset
-        permission = user_permission["permission"].replace("_", " ")
-        if permission == "full access":
-            return f"lynx-dataset-{dataset.id}"
-        if permission == "aggregated access":
-            return f"lynx-aggregated-access-{dataset.id}"
-        if permission == "limited access":
-            return f"lynx-limited-access-{user_permission['key']}-{dataset.id}"
-        if user_permission["permission"] == "deid_access":
-            return f"lynx-deid-access-{user_permission['key']}"
-
     def get_location(self, user_permission):
-        location = f"{self.dir}/{LYNX_STORAGE_DIR}/{user_permission['permission'].replace(' ', '_')}"
+        location = f"{self.dir_path}/{LYNX_STORAGE_DIR}/{user_permission['permission'].replace(' ', '_')}"
         if user_permission.get("key"):
             location = f"{location}_{user_permission['key']}"
         return location
@@ -82,6 +72,10 @@ class DataSource(models.Model):
     @property
     def bucket(self):
         return self.dataset.bucket
+
+    @property
+    def dir_path(self):
+        return f"{self.dataset.bucket_dir}/{self.dir}"
 
     @property
     def permission_key(self):
@@ -274,3 +268,5 @@ def delete_data_source(sender, instance, **kwargs):
     handle_event(
         MonitorEvents.EVENT_DATASET_REMOVE_DATASOURCE, {"datasource": data_source}
     )
+
+    refresh_dataset_file_share_cache(org_name=org_name)

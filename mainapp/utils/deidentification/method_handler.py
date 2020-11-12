@@ -4,7 +4,7 @@ import smart_open
 
 from . import ACTIONS, LYNX_DATA_TYPES
 from mainapp.settings import ORG_VALUES
-from mainapp.utils.lib import create_deid_glue_table
+from mainapp.utils.lib import create_deid_glue_table, LYNX_STORAGE_DIR, PrivilegePath
 from mainapp.utils.aws_service import create_s3_client
 from mainapp.utils.deidentification.common.enums import Actions
 
@@ -20,7 +20,10 @@ class MethodHandler(object):
         self.__data_source = data_source
         self.__dsrc_method = dsrc_method
         self.__method_id = self.__dsrc_method.method.id
-        self.__deid_data_dir = f"{self.__data_source.dir}/lynx-storage/deid_access_{self.__method_id}_{self.__dsrc_index}"
+        self.__deid_data_dir = (
+            f"{self.__data_source.dir_path}/"
+            f"{LYNX_STORAGE_DIR}/{PrivilegePath.DEID.value}_{self.__method_id}_{self.__dsrc_index}"
+        )
         self.__actions = {
             col: ACTIONS[col_attributes["action"]](
                 data_source=data_source,

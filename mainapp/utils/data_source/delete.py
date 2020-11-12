@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 def delete_data_source_files_from_bucket(data_source, org_name):
-    if data_source.dir:
-        if data_source.dir == "":
+    if data_source.dir_path:
+        if data_source.dir_path == "":
             logger.warning(
                 f"Warning: data source {data_source.name}:{data_source.id} "
                 f"in dataset {data_source.dataset.name}:{data_source.dataset.id} "
@@ -18,10 +18,10 @@ def delete_data_source_files_from_bucket(data_source, org_name):
             s3_resource = aws_service.create_s3_resource(org_name=org_name)
             try:
                 bucket = s3_resource.Bucket(data_source.bucket)
-                bucket.objects.filter(Prefix=f"{data_source.dir}/").delete()
+                bucket.objects.filter(Prefix=data_source.dir_path).delete()
             except s3_resource.meta.client.exceptions.NoSuchKey:
                 logger.warning(
-                    f"Warning no such key {data_source.dir} in {data_source.bucket}. "
+                    f"Warning no such key {data_source.dir_path} in {data_source.bucket}. "
                     f"Ignoring deleting dir while deleting data_source {data_source.name}:{data_source.id} "
                     f"in org {data_source.dataset.organization.name}"
                 )

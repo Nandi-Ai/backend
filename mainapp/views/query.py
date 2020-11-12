@@ -15,6 +15,7 @@ from mainapp.utils.response_handler import (
     NotFoundErrorResponse,
     BadRequestErrorResponse,
 )
+from mainapp.utils.aws_utils.s3_storage import TEMP_EXECUTION_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +173,7 @@ class Query(GenericAPIView):
                 "query_execution_id": query_execution_id,
                 "item": {
                     "bucket": dataset.bucket,
-                    "key": f"temp_execution_results/{query_execution_id}.csv",
+                    "key": f"{dataset.bucket_dir}/{TEMP_EXECUTION_DIR}/{query_execution_id}.csv",
                 },
             }
 

@@ -2,7 +2,7 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from mainapp.models import Method, StudyDataset, DatasetUser
-from mainapp.utils.deidentification.images_de_id import ImageDeId
+from mainapp.utils.aws_utils import refresh_dataset_file_share_cache
 
 
 @receiver(signals.pre_delete, sender=Method)
@@ -31,15 +31,9 @@ def remove_method(sender, instance, using, **kwargs):
 
 
 @receiver(signals.post_delete, sender=Method)
-def remove_files(sender, instance, using, **kwargs):
+def refresh_dataset_storage(sender, instance, using, **kwargs):
     """
-    Delete all de-id files related to this method
+    Refreshes the File share of the dataset related to the method
     """
-    for dsrc_method in instance.data_source_methods.all():
-        data_source = dsrc_method.data_source
-        image_de_id = ImageDeId(
-            org_name=data_source.dataset.organization.name,
-            data_source=data_source,
-            dsrc_method=dsrc_method,
-        )
-        image_de_id.delete()
+
+    refresh_dataset_file_share_cache(org_name=instance.dataset.organization.name)
