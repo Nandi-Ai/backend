@@ -6,7 +6,7 @@ from django.db import migrations
 def update_s3_objects(apps, schema_editor):
     data_sources = apps.get_model("mainapp", "DataSource")
     for data_source in data_sources.objects.all().iterator():
-        s3_objects = data_source.s3_objects
+        s3_objects = data_source.s3_objects or list()
         for s3_obj in s3_objects:
             path_parts = s3_obj["key"].split("/")
             if path_parts and path_parts[0] != data_source.dataset.programmatic_name:
