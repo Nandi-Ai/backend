@@ -101,7 +101,7 @@ def update_study_state(study, status):
         study.save()
 
 
-def wait_until_stopped(instance, study):
+def wait_until_stopped(instance, study_id):
     try:
         """
         Waits until this Instance is stopped. This method calls EC2.Waiter.instance_stopped.wait() which polls.
@@ -110,9 +110,11 @@ def wait_until_stopped(instance, study):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.Instance.wait_until_stopped
         """
         instance.wait_until_stopped()
+        study = Study.objects.get(id=study_id)
         update_study_state(study, Study.VM_STOPPED)
     except Exception as e:
         logger.exception("Error trying to wait until instance stopped", e)
+        study = Study.objects.get(id=study_id)
         update_study_state(study, Study.ST_ERROR)
 
 
@@ -164,7 +166,7 @@ def toggle_study_vm(
 
     if toggle_status == Study.VM_STOPPING:
         # TODO switch to EVENT-DRIVEN. if server is shutdown during the process the status won't be updated!
-        executor.submit(wait_until_stopped, instance, study)
+        executor.submit(wait_until_stopped, instance, study.id)
 
 
 def delete_study(study):
