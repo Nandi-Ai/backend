@@ -1,43 +1,50 @@
-from botocore.exceptions import ClientError
-
 import json
 import logging
 import os
 import time
 import uuid
 
+from botocore.exceptions import ClientError
+from http import HTTPStatus
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-# noinspection PyPackageRequirements
-from slugify import slugify
 
-from mainapp import resources, settings
-from mainapp.exceptions.iam_error import CreateRoleError
-from mainapp.exceptions.s3 import TooManyBucketsException
-from mainapp.models import User, Dataset, Tag, Execution, Activity, DatasetUser, Method
+from mainapp.exceptions import (
+    CreateRoleError,
+    InvalidDatasetPermissions,
+    PutPolicyError,
+)
+from mainapp.models import Activity, Execution, Method, Study
 from mainapp.serializers import DatasetSerializer, MethodSerializer
-from mainapp.utils import lib, aws_service
-from mainapp.utils.aws_utils.sts_service import assume_role
+from mainapp.settings import LYNX_FRONT_STATIC_BUCKET, LYNX_ORGANIZATION, ORG_VALUES
+
+from mainapp.utils.aws_utils import (
+    assume_role,
+    create_role,
+    generate_admin_s3_policy,
+    put_policy,
+    refresh_dataset_file_share_cache,
+    TEMP_EXECUTION_DIR,
+)
+from mainapp.utils.aws_service import create_sts_client, create_s3_client
 from mainapp.utils.deidentification.common.deid_helper_functions import handle_method
 from mainapp.utils.lib import (
+    create_glue_database,
     process_structured_data_sources_in_background,
-    PrivilegePath,
+    validate_file_type,
 )
-from mainapp.utils.permissions import IsDatasetAdmin
-from mainapp.utils.monitoring.monitor_events import MonitorEvents
 from mainapp.utils.monitoring import handle_event
+from mainapp.utils.monitoring.monitor_events import MonitorEvents
+from mainapp.utils.permissions import IsDatasetAdmin
 from mainapp.utils.response_handler import (
-    ErrorResponse,
-    ForbiddenErrorResponse,
     BadRequestErrorResponse,
     ConflictErrorResponse,
+    ErrorResponse,
+    ForbiddenErrorResponse,
 )
-from mainapp.models import Study
-from mainapp.utils.aws_service import create_sts_client
-from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
 
 logger = logging.getLogger(__name__)
 
@@ -58,21 +65,47 @@ class DatasetViewSet(ModelViewSet):
     def get_queryset(self):
         return self.request.user.datasets.exclude(is_deleted=True)
 
+    def __generate_base_trust_relationship(self, dataset):
+        return {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": f"arn:aws:iam::{ORG_VALUES[dataset.organization.name]['ACCOUNT_NUMBER']}:root"
+                    },
+                    "Action": "sts:AssumeRole",
+                    "Condition": dict(),
+                }
+            ],
+        }
+
     # noinspection PyMethodMayBeStatic
-    def logic_validate(
-        self, request, dataset_data
-    ):  # only common validations for create and update! #
+    def __logic_validate(self, dataset_data):
 
         if dataset_data["state"] == "private":
             if "default_user_permission" not in dataset_data:
-                return BadRequestErrorResponse(
+                raise InvalidDatasetPermissions(
                     "default_user_permission must be set since the state is private"
                 )
 
             if not dataset_data["default_user_permission"]:
-                return BadRequestErrorResponse(
+                raise InvalidDatasetPermissions(
                     "default_user_permission must be none or aggregated"
                 )
+
+    def __creation_logic_validate(self, dataset_data):
+        self.__logic_validate(dataset_data)
+
+        if dataset_data["state"] == "public" and dataset_data["aggregated_users"]:
+            raise InvalidDatasetPermissions(
+                "Dataset with public state can not have aggregated users"
+            )
+
+        if dataset_data["state"] == "archived":
+            raise InvalidDatasetPermissions(
+                "Can't create new dataset with status archived"
+            )
 
     @action(detail=True, permission_classes=[IsAuthenticated], methods=["put"])
     def starred(self, request, *args, **kwargs):
@@ -80,7 +113,7 @@ class DatasetViewSet(ModelViewSet):
         dataset.starred_users.add(request.user)
         dataset.save()
 
-        return Response(DatasetSerializer(dataset).data, status=200)
+        return Response(DatasetSerializer(dataset).data)
 
     @action(detail=True, permission_classes=[IsAuthenticated], methods=["put"])
     def unstarred(self, request, *args, **kwargs):
@@ -88,7 +121,7 @@ class DatasetViewSet(ModelViewSet):
         dataset.starred_users.remove(request.user)
         dataset.save()
 
-        return Response(DatasetSerializer(dataset).data, status=200)
+        return Response(DatasetSerializer(dataset).data)
 
     @action(detail=True, permission_classes=[IsAuthenticated], methods=["get"])
     def execution_sts(self, request, pk=None):  # call from execution user
@@ -118,7 +151,7 @@ class DatasetViewSet(ModelViewSet):
         sts_client = create_sts_client(org_name=org_name)
 
         role_to_assume = {
-            "RoleArn": f"arn:aws:iam::{settings.ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{dataset.bucket}",
+            "RoleArn": f"arn:aws:iam::{ORG_VALUES[org_name]['ACCOUNT_NUMBER']}:role/{dataset.iam_role}",
             "RoleSessionName": f"session_{uuid.uuid4()}",
             "DurationSeconds": 900,
             "Policy": json.dumps(
@@ -128,7 +161,7 @@ class DatasetViewSet(ModelViewSet):
                         {
                             "Effect": "Allow",
                             "Action": ["s3:GetObject", "s3:GetObjectAcl"],
-                            "Resource": f"arn:aws:s3:::{dataset.bucket}/temp_execution_results/{query_id}.csv",
+                            "Resource": f"arn:aws:s3:::{dataset.full_path}/{TEMP_EXECUTION_DIR}/{query_id}.csv",
                         },
                         {"Effect": "Allow", "Action": ["kms:Decrypt"], "Resource": "*"},
                     ],
@@ -212,23 +245,21 @@ class DatasetViewSet(ModelViewSet):
 
         method.save()
 
-        return Response(MethodSerializer(method).data, status=201)
+        return Response(MethodSerializer(method).data, status=HTTPStatus.CREATED)
 
     @action(detail=True, methods=["get"])
     def get_write_sts(self, request, *args, **kwargs):
         dataset = self.get_object()
 
-        role_name = f"lynx-dataset-{dataset.id}"
-
         try:
             sts_response = assume_role(
-                org_name=dataset.organization.name, role_name=role_name
+                org_name=dataset.organization.name, role_name=dataset.iam_role
             )
             logger.info(
                 f"Generated STS credentials for Dataset: {dataset.name}:{dataset.id} in org {dataset.organization.name}"
             )
         except ClientError as e:
-            message = f"Could not assume role for role_name {role_name} with dataset_id {dataset.id}"
+            message = f"Could not assume role for role_name {dataset.iam_role} with dataset_id {dataset.id}"
             logger.exception(message)
             return ErrorResponse(message=message, error=e)
 
@@ -237,514 +268,223 @@ class DatasetViewSet(ModelViewSet):
                 "bucket": dataset.bucket,
                 "region": dataset.region,
                 "aws_sts_creds": sts_response["Credentials"],
-                "location": dataset.bucket,
+                "location": dataset.bucket_dir,
             }
         )
 
-    def create(self, request, **kwargs):
-        dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
+    def __generate_permissions_activity(
+        self, user, permission, dataset, real_user, action="grant"
+    ):
+        Activity.objects.create(
+            type="dataset permission",
+            dataset=dataset,
+            user=real_user,
+            meta={
+                "user_affected": str(user.id),
+                "action": action,
+                "permission": permission,
+            },
+        )
 
-        if dataset_serialized.is_valid():
-            # create the dataset instance:
-            # TODO maybe use super() as in update instead of completing the all process.
+    def __generate_permission_activities(
+        self, users, permission, dataset, real_user, action="grant"
+    ):
+        for user in users:
+            self.__generate_permissions_activity(
+                user, permission, dataset, real_user, action
+            )
 
-            dataset_data = dataset_serialized.validated_data
-
-            # validations common for create and update:
-            error_response = self.logic_validate(request, dataset_data)
-            if error_response:
-                return error_response
-
-            # additional validation only for create:
-            if dataset_data["state"] == "public" and dataset_data["aggregated_users"]:
-                return BadRequestErrorResponse(
-                    "Dataset with public state can not have aggregated users"
-                )
-
-            if dataset_data["state"] == "archived":
-                return BadRequestErrorResponse(
-                    "Can't create new dataset with status archived"
-                )
-
-            dataset = Dataset(
-                name=dataset_data["name"],
-                is_discoverable=dataset_data["is_discoverable"]
-                if dataset_data["state"] == "private"
-                else True,
-                cover=dataset_data.get("cover"),
-                organization=(
-                    dataset_data["ancestor"].organization
-                    if "ancestor" in dataset_data
-                    else request.user.organization
+    def __create_dataset_iam_role(self, dataset):
+        try:
+            create_role(
+                org_name=dataset.organization.name,
+                role_name=dataset.iam_role,
+                assume_role_policy_document=json.dumps(
+                    self.__generate_base_trust_relationship(dataset)
                 ),
             )
-            dataset.id = uuid.uuid4()
+        except ClientError as e:
+            raise CreateRoleError(role_name=dataset.iam_role, error=e)
 
-            # aws stuff
-            org_name = dataset_data.get("ancestor", request.user).organization.name
-            s3 = aws_service.create_s3_client(org_name=org_name)
-
-            try:
-                lib.create_s3_bucket(
-                    org_name=org_name, name=dataset.bucket, s3_client=s3
-                )
-            except TooManyBucketsException as e:
-                return ErrorResponse(error=e)
-            except ClientError as e:
-                error = Exception(
-                    f"Could not create s3 bucket {dataset.bucket} with following error"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Could not create following dataset {dataset.name}", error=error
-                )
-
-            try:
-                lib.set_policy_clear_athena_history(
-                    s3_bucket=dataset.bucket, s3_client=s3
-                )
-            except ClientError as e:
-                error = Exception(
-                    f"The bucket {dataset.bucket} does not exist or the user does not have the relevant permissions"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            except s3.exceptions.NoSuchLifecycleConfiguration:
-                return ForbiddenErrorResponse(
-                    "The lifecycle configuration does not exist"
-                )
-            except Exception as e:
-                error = Exception(
-                    f"There was an error setting the lifecycle policy for the dataset bucket with error"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            try:
-                lib.create_glue_database(org_name=org_name, dataset=dataset)
-                time.sleep(1)  # wait for the bucket to be created
-            except ClientError as e:
-                error = Exception(
-                    f"Could not create glue client with following error"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Could not create dataset {dataset.name}", error=error
-                )
-
-            cors_configuration = {
-                "CORSRules": [
-                    {
-                        "AllowedHeaders": ["*"],
-                        "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
-                        "AllowedOrigins": ["*"],
-                        "ExposeHeaders": ["ETag"],
-                        "MaxAgeSeconds": 3000,
-                    }
-                ]
-            }
-
-            try:
-                s3.put_bucket_cors(
-                    Bucket=dataset.bucket, CORSConfiguration=cors_configuration
-                )
-            except Exception as e:
-                error = Exception(
-                    f"Couldn't put bucket {dataset.bucket} policy for current {dataset.bucket} bucket"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            # create the dataset policy:
-            policy_json = {
-                "Version": "2012-10-17",
-                "Statement": [{"Effect": "Allow", "Action": "s3:*", "Resource": []}],
-            }
-
-            policy_json["Statement"][0]["Resource"].append(
-                "arn:aws:s3:::" + dataset.bucket + "*"
+        try:
+            put_policy(
+                org_name=dataset.organization.name,
+                role_name=dataset.iam_role,
+                policy_name=dataset.iam_role,
+                policy_document=generate_admin_s3_policy(
+                    dataset.bucket_dir, dataset.bucket
+                ),
             )
-            client = aws_service.create_iam_client(org_name=org_name)
-
-            policy_name = f"lynx-dataset-{dataset.id}"
-
-            try:
-                response = client.create_policy(
-                    PolicyName=policy_name, PolicyDocument=json.dumps(policy_json)
-                )
-            except s3.exceptions.AccessDeniedException as e:
-                error = Exception(
-                    f"The user does not have needed permissions to create this policy: {policy_name}"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-            except Exception as e:
-                error = Exception(
-                    f"There was an error when trying to create this policy {policy_name}"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            policy_arn = response["Policy"]["Arn"]
-
-            # create the dataset role:
-            role_name = "lynx-dataset-" + str(dataset.id)
-            trust_policy_json = resources.create_base_trust_relationship(org_name)
-            try:
-                client.create_role(
-                    RoleName=role_name,
-                    AssumeRolePolicyDocument=json.dumps(trust_policy_json),
-                    Description=policy_name,
-                    MaxSessionDuration=43200,
-                )
-            except Exception as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            try:
-                client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
-            except Exception as e:
-                error = Exception(
-                    f"The server can't process your request due to unexpected internal error"
-                ).with_traceback(e.__traceback__)
-                return ErrorResponse(
-                    f"Unexpected error. Server was not able to complete this request.",
-                    error=error,
-                )
-
-            permissions = [PrivilegePath.FULL.value, PrivilegePath.AGG_STATS.value]
-            for permission in permissions:
-                try:
-                    create_dataset_permission_access_role(
-                        org_name=org_name,
-                        role_name=f"lynx-{permission.replace('_', '-')}-{dataset.id}",
-                        location=f"{dataset.bucket}/*/lynx-storage/{permission}",
-                        bucket=dataset.bucket,
-                    )
-                except CreateRoleError as e:
-                    error = Exception(
-                        f"The server can't process your request due to unexpected internal error"
-                    ).with_traceback(e.__traceback__)
-                    return ErrorResponse(
-                        f"Unexpected error. Server was not able to complete this request.",
-                        error=error,
-                    )
-
-            dataset.save()
-
-            dataset.description = dataset_data["description"]
-            dataset.readme = dataset_data["readme"]
-            req_admin_users = dataset_data["admin_users"]
-            dataset.admin_users.set(
-                list(User.objects.filter(id__in=[x.id for x in req_admin_users]))
-            )
-            req_aggregated_users = dataset_data["aggregated_users"]
-            dataset.aggregated_users.set(
-                list(User.objects.filter(id__in=[x.id for x in req_aggregated_users]))
-            )
-            req_full_access_users = dataset_data["full_access_users"]
-            dataset.full_access_users.set(
-                list(User.objects.filter(id__in=[x.id for x in req_full_access_users]))
+        except ClientError as e:
+            raise PutPolicyError(
+                policy_name=dataset.iam_role, role_name=dataset.iam_role, error=e
             )
 
-            req_users = dataset_data["datasetuser_set"]
-            for dataset_user in req_users:
-                DatasetUser.objects.create(dataset=dataset, **dataset_user)
+    def __update_user_status(
+        self, request_users, current_users, dataset, request, permission
+    ):
+        new_users = request_users - current_users
+        removed_users = current_users - request_users
 
-            dataset.state = dataset_data["state"]
-            dataset.default_user_permission = dataset_data["default_user_permission"]
-            dataset.permission_attributes = dataset_data.get(
-                "permission_attributes", None
-            )
-            req_tags = dataset_data["tags"]
-            dataset.tags.set(Tag.objects.filter(id__in=[x.id for x in req_tags]))
-            dataset.user_created = request.user
-            dataset.ancestor = (
-                dataset_data["ancestor"] if "ancestor" in dataset_data else None
-            )
-            if "ancestor" in dataset_data:
-                dataset.is_discoverable = False
-                dataset.state = "private"
-                # for public dataset case
-                if dataset.default_user_permission is None:
-                    dataset.default_user_permission = "None"
-                    dataset.full_access_users.add(request.user.id)
-                # for private dataset case with aggregated_access permission
-                if dataset.default_user_permission == "aggregated_access":
-                    dataset.aggregated_users.add(request.user.id)
-
-            # dataset.bucket = 'lynx-dataset-' + str(dataset.id)
-            dataset.programmatic_name = (
-                slugify(dataset.name) + "-" + str(dataset.id).split("-")[0]
-            )
-
-            dataset.save()
+        for user in new_users:
             handle_event(
-                MonitorEvents.EVENT_DATASET_CREATED,
-                {"dataset": dataset, "view_request": request},
+                MonitorEvents.EVENT_DATASET_ADD_USER,
+                {
+                    "dataset": dataset,
+                    "view_request": request,
+                    "additional_data": {
+                        "user_list": user.display_name,
+                        "permission": permission,
+                    },
+                },
+            )
+            self.__generate_permissions_activity(
+                user, permission, dataset, request.user
             )
 
-            # the role takes this time to be created!
-            # it is here in order to prevent calling GetDatasetSTS before creation
-            time.sleep(8)
-
-            data = self.serializer_class(dataset, allow_null=True).data
-
-            real_user = (
-                request.user
-                if not request.user.is_execution
-                else Execution.objects.get(execution_user=request.user).real_user
+        for user in removed_users:
+            handle_event(
+                MonitorEvents.EVENT_DATASET_REMOVE_USER,
+                {
+                    "dataset": dataset,
+                    "view_request": request,
+                    "additional_data": {
+                        "user_list": user.display_name,
+                        "permission": permission,
+                    },
+                },
+            )
+            self.__generate_permissions_activity(
+                user, permission, dataset, request.user, action="remove"
             )
 
-            # activity:
-            for user in dataset.admin_users.all():
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=real_user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "grant",
-                        "permission": "admin",
-                    },
-                )
-            for user in dataset.aggregated_users.all():
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=real_user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "grant",
-                        "permission": "aggregated_access",
-                    },
-                )
-            for user in dataset.full_access_users.all():
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=real_user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "grant",
-                        "permission": "full_access",
-                    },
-                )
+    def __update_users(self, dataset_data, dataset, request):
+        self.__update_user_status(
+            set(dataset_data["admin_users"]),
+            set(dataset.admin_users.all()),
+            dataset,
+            request,
+            "admin",
+        )
 
-            return Response(data, status=201)
-        else:
-            return BadRequestErrorResponse(f"Bad Request: {dataset_serialized.errors}")
+        self.__update_user_status(
+            set(dataset_data["aggregated_users"]),
+            set(dataset.aggregated_users.all()),
+            dataset,
+            request,
+            "aggregated_access",
+        )
+
+        self.__update_user_status(
+            set(dataset_data["full_access_users"]),
+            set(dataset.full_access_users.all()),
+            dataset,
+            request,
+            "full_access",
+        )
+
+    def __generate_create_activities(self, dataset, real_user):
+        self.__generate_permission_activities(
+            dataset.admin_users.all(), "admin", dataset, real_user
+        )
+        self.__generate_permission_activities(
+            dataset.aggregated_users.all(), "aggregated_access", dataset, real_user
+        )
+        self.__generate_permission_activities(
+            dataset.full_access_users.all(), "full_access", dataset, real_user
+        )
+
+    def create(self, request, **kwargs):
+        dataset_serialized = self.serializer_class(
+            data=request.data, context={"request": request}, allow_null=True
+        )
+        dataset_serialized.is_valid(raise_exception=True)
+
+        try:
+            self.__creation_logic_validate(dataset_serialized.validated_data)
+        except InvalidDatasetPermissions as idp:
+            return BadRequestErrorResponse(str(idp))
+
+        dataset = dataset_serialized.save()
+
+        org_name = dataset.organization.name
+        s3_client = create_s3_client(org_name=org_name)
+
+        try:
+            s3_client.put_object(
+                Bucket=dataset.bucket, Key=f"{dataset.bucket_dir}/", ACL="private"
+            )
+
+            create_glue_database(org_name=org_name, dataset=dataset)
+            time.sleep(1)  # wait for the bucket to be created
+        except ClientError as e:
+            dataset.delete()
+            return ErrorResponse(f"Could not create dataset {dataset.name}", error=e)
+
+        try:
+            self.__create_dataset_iam_role(dataset)
+        except (CreateRoleError, PutPolicyError) as e:
+            dataset.delete()
+            return ErrorResponse("Failed to create IAM role", e)
+
+        handle_event(
+            MonitorEvents.EVENT_DATASET_CREATED,
+            {"dataset": dataset, "view_request": request},
+        )
+        data = self.serializer_class(dataset, allow_null=True).data
+        real_user = (
+            request.user
+            if not request.user.is_execution
+            else Execution.objects.get(execution_user=request.user).real_user
+        )
+
+        self.__generate_create_activities(dataset, real_user)
+
+        refresh_dataset_file_share_cache(org_name=org_name)
+
+        return Response(data, status=HTTPStatus.CREATED)
 
     def update(self, request, *args, **kwargs):
         dataset_serialized = self.serializer_class(data=request.data, allow_null=True)
+        dataset_serialized.is_valid(raise_exception=True)
 
-        if dataset_serialized.is_valid():
-            dataset_data = dataset_serialized.validated_data
+        dataset_data = dataset_serialized.validated_data
 
-            error_response = self.logic_validate(request, dataset_data)
-            if error_response:
-                return error_response
+        try:
+            self.__logic_validate(dataset_data)
+        except InvalidDatasetPermissions as idp:
+            return BadRequestErrorResponse(str(idp))
 
-            dataset = self.get_object()
+        dataset = self.get_object()
 
-            if dataset.has_pending_datasource():
-                return ConflictErrorResponse(
-                    "Some of the data-sources are currently being processed. Please try again later"
-                )
+        if dataset.has_pending_datasource():
+            return ConflictErrorResponse(
+                "Some of the data-sources are currently being processed. Please try again later"
+            )
 
-            # activity
-            updated_admin = set(dataset_data["admin_users"])
-            existing = set(dataset.admin_users.all())
-            diff = updated_admin ^ existing
-            new = diff & updated_admin
-            removed_admins = diff & existing
+        self.__update_users(dataset_data, dataset, request)
 
-            if new:
-                handle_event(
-                    MonitorEvents.EVENT_DATASET_ADD_USER,
-                    {
-                        "dataset": dataset,
-                        "view_request": request,
-                        "additional_data": {
-                            "user_list": [user.display_name for user in new],
-                            "permission": "admin",
-                        },
-                    },
-                )
-
-            if removed_admins:
-                handle_event(
-                    MonitorEvents.EVENT_DATASET_REMOVE_USER,
-                    {
-                        "dataset": dataset,
-                        "view_request": request,
-                        "additional_data": {
-                            "user_list": [user.display_name for user in removed_admins],
-                            "permission": "admin",
-                        },
-                    },
-                )
-
-            for user in new:
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=request.user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "grant",
-                        "permission": "admin",
-                    },
-                )
-            for user in removed_admins:
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=request.user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "remove",
-                        "permission": "admin",
-                    },
-                )
-
-            updated_agg = set(dataset_data["aggregated_users"])
-            existing = set(dataset.aggregated_users.all())
-            diff = updated_agg ^ existing
-            new = diff & updated_agg
-            removed_agg = diff & existing
-
-            if new:
-                handle_event(
-                    MonitorEvents.EVENT_DATASET_ADD_USER,
-                    {
-                        "dataset": dataset,
-                        "view_request": request,
-                        "additional_data": {
-                            "user_list": [user.display_name for user in new],
-                            "permission": "aggregated",
-                        },
-                    },
-                )
-
-            if removed_agg:
-                handle_event(
-                    MonitorEvents.EVENT_DATASET_REMOVE_USER,
-                    {
-                        "dataset": dataset,
-                        "view_request": request,
-                        "additional_data": {
-                            "user_list": [user.display_name for user in removed_agg],
-                            "permission": "aggregated",
-                        },
-                    },
-                )
-
-            for user in new:
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=request.user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "grant",
-                        "permission": "aggregated_access",
-                    },
-                )
-
-            updated_full = set(dataset_data["full_access_users"])
-            existing = set(dataset.full_access_users.all())
-            diff = updated_full ^ existing
-            new = diff & updated_full
-            removed_full = diff & existing
-
-            if new:
-                handle_event(
-                    MonitorEvents.EVENT_DATASET_ADD_USER,
-                    {
-                        "dataset": dataset,
-                        "view_request": request,
-                        "additional_data": {
-                            "user_list": [user.display_name for user in new],
-                            "permission": "full_access",
-                        },
-                    },
-                )
-
-            if removed_full:
-                handle_event(
-                    MonitorEvents.EVENT_DATASET_REMOVE_USER,
-                    {
-                        "dataset": dataset,
-                        "view_request": request,
-                        "additional_data": {
-                            "user_list": [user.display_name for user in removed_full],
-                            "permission": "full_access",
-                        },
-                    },
-                )
-
-            for user in new:
-                Activity.objects.create(
-                    type="dataset permission",
-                    dataset=dataset,
-                    user=request.user,
-                    meta={
-                        "user_affected": str(user.id),
-                        "action": "grant",
-                        "permission": "full_access",
-                    },
-                )
-
-            all_removed_users = removed_admins | removed_agg | removed_full
-            for user in all_removed_users:
-                if user not in (updated_admin | updated_agg | updated_full):
-                    Activity.objects.create(
-                        type="dataset permission",
-                        dataset=dataset,
-                        user=request.user,
-                        meta={
-                            "user_affected": str(user.id),
-                            "action": "remove",
-                            "permission": "all",
-                        },
+        if dataset.cover != request.data["cover"]:
+            if not request.data["cover"].lower().startswith("dataset/gallery"):
+                file_name = request.data["cover"]
+                workdir = "/tmp/"
+                s3_client = create_s3_client(org_name=LYNX_ORGANIZATION)
+                local_path = os.path.join(workdir, file_name)
+                try:
+                    validate_file_type(
+                        s3_client=s3_client,
+                        bucket=LYNX_FRONT_STATIC_BUCKET,
+                        workdir="/tmp/dataset/",
+                        object_key=file_name,
+                        local_path=local_path,
+                        file_types=self.file_types,
                     )
-            if dataset.cover != request.data["cover"]:
-                if not request.data["cover"].lower().startswith("dataset/gallery"):
-                    file_name = request.data["cover"]
-                    workdir = "/tmp/"
-                    s3_client = aws_service.create_s3_client(
-                        org_name=settings.LYNX_ORGANIZATION
+                except Exception as e:
+                    return BadRequestErrorResponse(
+                        "Validation for image failed", error=e
                     )
-                    local_path = os.path.join(workdir, file_name)
-                    try:
-                        lib.validate_file_type(
-                            s3_client=s3_client,
-                            bucket=settings.LYNX_FRONT_STATIC_BUCKET,
-                            workdir="/tmp/dataset/",
-                            object_key=file_name,
-                            local_path=local_path,
-                            file_types=self.file_types,
-                        )
-                    except Exception as e:
-                        return BadRequestErrorResponse(error=e)
 
-        result = super(self.__class__, self).update(
-            request=self.request
-        )  # will handle the case where serializer is not valid
+        result = super(self.__class__, self).update(request=self.request)
 
         updated_dataset = self.get_object()
         process_structured_data_sources_in_background(dataset=updated_dataset)
@@ -779,6 +519,10 @@ class DatasetViewSet(ModelViewSet):
             {"dataset": dataset, "view_request": request},
         )
 
+        org_name = dataset.organization.name
         dataset.delete()
-        return Response(status=204)
+
+        refresh_dataset_file_share_cache(org_name=org_name)
+
+        return Response(status=HTTPStatus.NO_CONTENT)
         # return super(self.__class__, self).destroy(request=self.request)

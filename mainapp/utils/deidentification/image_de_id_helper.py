@@ -42,7 +42,7 @@ class ImageDeIdHelper(object):
 
     def __get_dsrc_method_status(self, dsrc_method, method):
         job_id_file_name = f"{dsrc_method.data_source.id}-image-job-processing.json"
-        destination_location = f"{dsrc_method.data_source.dir}/lynx-storage/status_deid_access_{method.id}_json"
+        destination_location = f"{dsrc_method.data_source.dir_path}/lynx-storage/status_deid_access_{method.id}_json"
         bucket_content = self.__list_bucket_objects(destination_location)
         total_image_count = len(dsrc_method.data_source.s3_objects)
 

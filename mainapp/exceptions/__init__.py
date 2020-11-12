@@ -13,8 +13,9 @@ from .glue_error import (
     GlueTableFetchError,
     GlueTableMigrationError,
 )
-from .iam_error import RoleNotFound, PolicyNotFound, CreateRoleError, PutPolicyError
-
+from .iam_error import CreateRoleError, PutPolicyError
+from .limited_key_invalid_exception import LimitedKeyInvalidException
+from .monitoring_error import InvalidEventData
 from .query_execution_error import (
     QueryExecutionError,
     InvalidExecutionId,
@@ -30,13 +31,12 @@ from .route53_error import (
     Route53Error,
     DnsRecordExistsError,
 )
-from .s3 import BucketNotFound
+from .serializers_error import InvalidDataset, PermissionException
 from .settings_error import (
     InvalidOrganizationOrgValues,
     InvalidOrganizationSettings,
     MissingOrganizationSettingKey,
 )
-
+from .s3 import BucketNotFound
+from .validation_errors import InvalidDatasetPermissions, InvalidDataSourceError
 from .quicksite_error import GetDashboardError
-
-from .monitoring_error import InvalidEventData

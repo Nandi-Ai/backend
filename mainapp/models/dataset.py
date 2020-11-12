@@ -7,6 +7,7 @@ from django.db import models
 from mainapp.settings import DELETE_DATASETS_FROM_DATABASE, ORG_VALUES
 from mainapp.utils import lib, aws_service
 from mainapp.utils.dataset import delete_aws_resources_for_dataset
+from mainapp.utils.aws_utils.s3_storage import TEMP_EXECUTION_DIR
 from .dataset_user import DatasetUser
 from .study import Study
 
@@ -49,10 +50,8 @@ class Dataset(models.Model):
         null=True,
     )
     permission_attributes = JSONField(null=True, default=None, blank=True)
-    bucket_override = models.CharField(max_length=255, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    glue_database_override = models.CharField(max_length=255, blank=True, null=True)
     programmatic_name = models.CharField(max_length=255, blank=True, null=True)
     organization = models.ForeignKey(
         "Organization", on_delete=models.DO_NOTHING, related_name="datasets", null=True
@@ -74,22 +73,26 @@ class Dataset(models.Model):
 
     @property
     def glue_database(self):
-        if self.glue_database_override:
-            return self.glue_database_override
-        return "dataset-" + str(self.id)
+        return str(self.id)
 
     @property
     def bucket(self):
-        if self.bucket_override:
-            return self.bucket_override
-        return "lynx-dataset-" + str(self.id)
+        return f"lynx-datasets-{self.organization.id}"
+
+    @property
+    def bucket_dir(self):
+        return self.programmatic_name
+
+    @property
+    def full_path(self):
+        return f"{self.bucket}/{self.bucket_dir}"
 
     def delete(self, using=None, keep_parents=False):
         # Deleting AWS resources MUST be above the deletion part, as if
         # DELETE_DATASETS_FROM_DATABASE is set to true,
         # the dataset object in the database will be deleted
         # and there will be no more way to find the resources by `id`, `glue_database`, etc...
-        delete_aws_resources_for_dataset(dataset=self, org_name=self.organization.name)
+        delete_aws_resources_for_dataset(dataset=self)
         # we need to set is_deleted even if DELETE_DATASETS_FROM_DATABASE as
         # the dataset_user post delete receiver verify if deleted to ignore adding Activity events
         self.is_deleted = True
@@ -105,19 +108,19 @@ class Dataset(models.Model):
             QueryString=query,
             QueryExecutionContext={"Database": self.glue_database},
             ResultConfiguration={
-                "OutputLocation": f"s3://{self.bucket}/temp_execution_results"
+                "OutputLocation": f"s3://{self.full_path}/{TEMP_EXECUTION_DIR}"
             },
         )
 
     def get_s3_object(self, key):
         return lib.get_s3_object(
-            bucket=self.bucket, key=key, org_name=self.organization.name
+            bucket=self.bucket,
+            key=f"{self.bucket_dir}/{key}",
+            org_name=self.organization.name,
         )
 
     def get_query_execution(self, query_execution_id):
-        return self.get_s3_object(
-            key="temp_execution_results/" + query_execution_id + ".csv"
-        )
+        return self.get_s3_object(key=f"{TEMP_EXECUTION_DIR}/{query_execution_id}.csv")
 
     def get_columns_types(self, glue_table):
         return lib.get_columns_types(
@@ -133,6 +136,10 @@ class Dataset(models.Model):
 
     def __filtered_dataset_users(self, permission):
         return self.datasetuser_set.filter(permission=permission)
+
+    @property
+    def iam_role(self):
+        return str(self.id)
 
     @property
     def limited_dataset_users(self):

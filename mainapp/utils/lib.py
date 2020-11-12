@@ -1,29 +1,25 @@
 import csv
 import json
 import logging
+import magic
 import os
 import shutil
+import sqlparse
 import subprocess
 import tempfile
 import threading
 import zipfile
+import botocore.exceptions
+
 from datetime import datetime as dt, timedelta as td
 from enum import Enum
 from time import sleep
-
-import botocore.exceptions
-import magic
-import sqlparse
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from mainapp import models
-from mainapp import settings
 from mainapp.exceptions import (
     BucketNotFound,
     UnableToGetGlueColumns,
-    RoleNotFound,
-    PolicyNotFound,
     UnsupportedColumnTypeError,
     MaxExecutionReactedError,
     InvalidExecutionId,
@@ -32,23 +28,39 @@ from mainapp.exceptions import (
     GlueTableMigrationError,
     GlueError,
 )
-from mainapp.exceptions.s3 import TooManyBucketsException
-from mainapp.utils import aws_service, statistics, devexpress_filtering, executor
-from mainapp.utils.aws_utils import s3_storage
+
+from mainapp.settings import token_valid_hours
+from mainapp.utils import executor
+
+from mainapp.models.tag import Tag
+from mainapp.utils.aws_service import create_glue_client
 from mainapp.utils.decorators import (
     organization_dependent,
     with_glue_client,
     with_s3_client,
     with_s3_resource,
-    with_iam_resource,
     with_athena_client,
+)
+from mainapp.utils.devexpress_filtering import (
+    dev_express_to_sql,
+    generate_where_sql_query,
 )
 from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     ErrorResponse,
     UnimplementedErrorResponse,
 )
-from mainapp.utils.aws_services_helper import create_dataset_permission_access_role
+from mainapp.utils.statistics import (
+    count_all_values_query,
+    create_default_column_names,
+    sql_builder_by_columns_types,
+    sql_response_processing,
+)
+from mainapp.utils.aws_utils.s3_storage import (
+    download_file,
+    TEMP_EXECUTION_DIR,
+    upload_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +140,7 @@ def download_and_upload_fixed_file(
         temp_file_path = f"{file_path}.temp"
 
         try:
-            s3_storage.download_file(
+            download_file(
                 s3_client=boto3_client,
                 bucket_name=bucket_name,
                 s3_object=s3_obj,
@@ -137,7 +149,7 @@ def download_and_upload_fixed_file(
 
             replace_col_name_on_downloaded_file(temp_file_path, file_path, delimiter)
 
-            s3_storage.upload_file(
+            upload_file(
                 s3_client=boto3_client,
                 csv_path_and_file=file_path,
                 bucket_name=bucket_name,
@@ -179,111 +191,6 @@ def replace_col_name_on_downloaded_file(read_file_path, write_file_path, delimit
         write_file.write(read_file.read())
 
 
-@organization_dependent
-def create_s3_bucket(
-    org_settings,
-    org_name,
-    name,
-    s3_client=None,
-    encrypt=settings.SECURED_BUCKET,
-    https_only=settings.SECURED_BUCKET,
-):
-    if not s3_client:
-        s3_client = aws_service.create_s3_client(org_name=org_name)
-    # https://github.com/boto/boto3/issues/125
-    args = {"Bucket": name, "ACL": "private"}
-    if not org_settings["AWS_REGION"] == "us-east-1":
-        args["CreateBucketConfiguration"] = {
-            "LocationConstraint": org_settings["AWS_REGION"]
-        }
-    try:
-        s3_client.create_bucket(**args)
-    except s3_client.exceptions.TooManyBuckets as e:
-        raise TooManyBucketsException() from e
-
-    try:
-        response = s3_client.put_public_access_block(
-            Bucket=name,
-            PublicAccessBlockConfiguration={
-                "BlockPublicAcls": True,
-                "IgnorePublicAcls": True,
-                "BlockPublicPolicy": True,
-                "RestrictPublicBuckets": True,
-            },
-        )
-    except BucketNotFound as e:
-        raise BucketNotFound(
-            f"The bucket queried does not exist. Bucket: {name}, in org {org_name}"
-        ) from e
-    except s3_client.exceptions.ClientError as e:
-        raise ForbiddenErrorResponse(
-            f"Missing s3:PutBucketPublicAccessBlock permissions to put public access block policy for bucket: "
-            f"{name}, in org {org_name}",
-            e,
-        )
-    except Exception as e:
-        raise Exception(
-            f"There was an error when removing public access from bucket: {name} in org {org_name}",
-            e,
-        )
-
-    s3_resource = aws_service.create_s3_resource(org_name)
-    bucket_versioning = s3_resource.BucketVersioning(name)
-    bucket_versioning.enable()
-
-    if encrypt:
-        logger.debug(f"Creating encrypted bucket: {name} in org {org_name}")
-        kms_client = aws_service.create_kms_client(org_name=org_name)
-        try:
-            response = kms_client.describe_key(KeyId="alias/aws/s3")
-        except Exception as e:
-            raise Exception(
-                f"Error occurred while creating kms key for encryption bucket {name}"
-            ) from e
-
-        try:
-            s3_client.put_bucket_encryption(
-                Bucket=name,
-                ServerSideEncryptionConfiguration={
-                    "Rules": [
-                        {
-                            "ApplyServerSideEncryptionByDefault": {
-                                "SSEAlgorithm": "aws:kms",
-                                "KMSMasterKeyID": response["KeyMetadata"]["KeyId"],
-                            }
-                        }
-                    ]
-                },
-            )
-        except Exception as e:
-            delete_bucket(bucket_name=name, org_name=org_name)
-            raise Exception("Failed to create encryption. Bucket was deleted", e)
-
-    if https_only:
-        try:
-            s3_client.put_bucket_policy(
-                Bucket=name,
-                Policy=json.dumps(
-                    {
-                        "Statement": [
-                            {
-                                "Action": "s3:*",
-                                "Effect": "Deny",
-                                "Principal": "*",
-                                "Resource": "arn:aws:s3:::" + name + "/*",
-                                "Condition": {"Bool": {"aws:SecureTransport": False}},
-                            }
-                        ]
-                    }
-                ),
-            )
-        except Exception as e:
-            delete_bucket(bucket_name=name, org_name=org_name)
-            raise Exception("Failed to create http enforcement. Bucket was deleted", e)
-
-    logger.info(f"Created S3 bucket {name} in org {org_name} ")
-
-
 def is_aggregated(query):
     # aggregated_tokens = {"AVG","SUM", "GROUPBY"}
     # res  = sqlparse.parse(query)
@@ -314,7 +221,7 @@ class MyTokenAuthentication(TokenAuthentication):
         # This is required for the time comparison
         now = dt.now()
 
-        if token.created < now - td(hours=settings.token_valid_hours):
+        if token.created < now - td(hours=token_valid_hours):
             raise AuthenticationFailed("Token has expired")
 
         # if there are issues with multiple tokens for users uncomment
@@ -354,7 +261,7 @@ def process_cohort_users(org_name, data_source, columns, data_filter, orig_data_
                 logger.info(
                     f"creating limited table for user {dataset_user.user.id} with limited {limited} "
                 )
-                query, _ = devexpress_filtering.dev_express_to_sql(
+                query, _ = dev_express_to_sql(
                     table=f"{orig_data_source.dir}_limited_{limited}",
                     schema=orig_data_source.dataset.glue_database,
                     data_filter=data_filter,
@@ -411,7 +318,7 @@ def process_datasource_glue_and_bucket_data(org_name, data_source):
                 org_name=org_name,
                 source_table=data_source.glue_table,
                 target_table=new_table_name,
-                path=f"{data_source.dataset.bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}",
+                path=f"{data_source.bucket}/{data_source.dir_path}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}",
             )
         except GlueError as ge:
             logger.exception(
@@ -478,7 +385,7 @@ def delete_if_table_exists(boto3_client, data_source, org_name, table_to_check):
 
 
 def create_deid_glue_table(data_source, deid, dsrc_index):
-    orig_path = f"{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.DEID.value}_{deid}_{dsrc_index}"
+    orig_path = f"{data_source.dir_path}/{LYNX_STORAGE_DIR}/{PrivilegePath.DEID.value}_{deid}_{dsrc_index}"
     post_path = orig_path.rstrip(f"_{dsrc_index}")
 
     crawler_ready = create_glue_table(
@@ -505,7 +412,7 @@ def create_deid_glue_table(data_source, deid, dsrc_index):
     )
     update_deid_hierarchy(
         org_name=data_source.dataset.organization.name,
-        bucket=data_source.dataset.bucket,
+        bucket=data_source.bucket,
         pre_path=orig_path,
         post_path=post_path,
     )
@@ -515,7 +422,7 @@ def create_deid_glue_table(data_source, deid, dsrc_index):
         org_name=data_source.dataset.organization.name,
         source_table=f"{PrivilegePath.DEID.value}_{deid_table_name}_{dsrc_index}",
         target_table=f"{data_source.dir}_deid_{deid_table_name}",
-        path=f"{data_source.dataset.bucket}/{post_path}",
+        path=f"{data_source.bucket}/{post_path}",
     )
 
 
@@ -650,21 +557,6 @@ def create_limited_table_for_dataset(dataset, limited_value):
 
     executor.map(thread, dataset.data_sources.all())
 
-    org_name = dataset.organization.name
-    role_name = f"lynx-limited-access-{limited_value}-{dataset.id}"
-    iam_client = aws_service.create_iam_client(org_name=org_name)
-
-    try:
-        waiter = iam_client.get_waiter("role_exists")
-        waiter.wait(RoleName=role_name, WaiterConfig={"Delay": 0, "MaxAttempts": 1})
-    except botocore.exceptions.WaiterError:
-        create_dataset_permission_access_role(
-            org_name=org_name,
-            role_name=role_name,
-            location=f"{dataset.bucket}/*/lynx-storage/limited_access_{limited_value}",
-            bucket=dataset.bucket,
-        )
-
 
 def process_structured_data_sources_in_background(dataset):
     if dataset.default_user_permission == "limited_access":
@@ -678,14 +570,14 @@ def determine_data_source_s3_object_from_execution_id(
     boto3_client, query_execution_id, org_name, dataset
 ):
     bucket = dataset.bucket
-    key = f"temp_execution_results/tables/{query_execution_id}-manifest.csv"
+    key = f"{dataset.bucket_dir}/{TEMP_EXECUTION_DIR}/tables/{query_execution_id}-manifest.csv"
     obj = boto3_client.Object(bucket, key)
     size = obj.content_length
     body = obj.get()["Body"].read().decode("utf-8")
     path, file_name, file_name_no_ext, ext = break_s3_object(body.strip("\n"))
     path = path.split("/")[-1]
 
-    key = f"{path}/{file_name}"
+    key = f"{dataset.bucket_dir}/{path}/{file_name}"
 
     return {"key": key, "size": size}
 
@@ -731,8 +623,7 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
     s3_client = boto3_client.meta.client
 
     # create folders
-    data_source_dir = data_source.dir
-    base_dir = f"{data_source_dir}/{LYNX_STORAGE_DIR}"
+    base_dir = f"{data_source.dir_path}/{LYNX_STORAGE_DIR}"
     full_access_dir = f"{base_dir}/{PrivilegePath.FULL.value}/"
     agg_stat_dir = f"{base_dir}/{PrivilegePath.AGG_STATS.value}/"
 
@@ -745,10 +636,14 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
     for index, s3_object in enumerate(s3_objects_all):
         s3_object_key = s3_object["key"]
         file_name = s3_object_key.split("/")[-1]
-        new_key = f"{data_source_dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}/{file_name}"
+        new_key = f"{data_source.dir_path}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}/{file_name}"
         try:
-            copy_source = f"{s3_bucket}/{s3_object_key}"
-            boto3_client.Object(s3_bucket, new_key).copy_from(CopySource=copy_source)
+            s3_client.copy_object(
+                Bucket=s3_bucket,
+                Key=new_key,
+                ACL="private",
+                CopySource={"Bucket": s3_bucket, "Key": s3_object_key},
+            )
         except botocore.exceptions.ClientError as e:
             return ErrorResponse(f"Unable to Move file with key {s3_object_key}!", e)
         data_source.s3_objects[index]["key"] = new_key
@@ -775,8 +670,8 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
     dataset = data_source.dataset
     destination_glue_database = dataset.glue_database
     destination_glue_table = data_source.glue_table
-    bucket = dataset.bucket
-    destination_dir = f"{bucket}/{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
+
+    destination_dir = f"{data_source.bucket}/{data_source.dir_path}/{LYNX_STORAGE_DIR}/{PrivilegePath.LIMITED.value}_{limited}/"
     if not query:
         # noinspection SqlNoDataSourceInspection
         query = (
@@ -797,12 +692,13 @@ def create_limited_glue_table(boto3_client, data_source, org_name, limited, quer
             QueryString=ctas_query,
             QueryExecutionContext={"Database": destination_glue_database},
             ResultConfiguration={
-                "OutputLocation": f"s3://{bucket}/temp_execution_results"
+                "OutputLocation": f"s3://{dataset.full_path}/{TEMP_EXECUTION_DIR}"
             },
         )
 
         logger.info(
-            f"limited file created for datasource {data_source.id} limited {limited} at {destination_dir} in bucket {bucket}"
+            f"limited file created for datasource {data_source.name}:{data_source.id} limited "
+            f"{limited} at {destination_dir} in bucket {data_source.bucket}"
         )
 
         return query_results
@@ -833,7 +729,7 @@ def create_agg_stats(boto3_client, data_source, org_name):
     try:
         boto3_client.upload_file(
             Bucket=data_source.bucket,
-            Key=f"{data_source.dir}/{LYNX_STORAGE_DIR}/{PrivilegePath.AGG_STATS.value}/{data_source.name}",
+            Key=f"{data_source.dir_path}/{LYNX_STORAGE_DIR}/{PrivilegePath.AGG_STATS.value}/{data_source.name}",
             Filename=temp_file_name,
         )
     except BucketNotFound as e:
@@ -862,22 +758,19 @@ def calculate_statistics(data_source, query_from_front=None):
     org_name = dataset.organization.name
     glue_database = dataset.glue_database
     glue_table = data_source.glue_table
-    bucket_name = data_source.bucket
 
     try:
         columns_types = get_columns_types(
             org_name=org_name, glue_database=glue_database, glue_table=glue_table
         )
-        default_athena_col_names = statistics.create_default_column_names(columns_types)
+        default_athena_col_names = create_default_column_names(columns_types)
     except UnableToGetGlueColumns as e:
         return ErrorResponse(f"Glue error", error=e)
     try:
         filter_query = (
-            None
-            if not query_from_front
-            else devexpress_filtering.generate_where_sql_query(query_from_front)
+            None if not query_from_front else generate_where_sql_query(query_from_front)
         )
-        query = statistics.sql_builder_by_columns_types(
+        query = sql_builder_by_columns_types(
             glue_table, columns_types, default_athena_col_names, filter_query
         )
     except UnsupportedColumnTypeError as e:
@@ -886,12 +779,10 @@ def calculate_statistics(data_source, query_from_front=None):
         return ErrorResponse("There was some error in execution", error=e)
 
     try:
-        response = statistics.count_all_values_query(
-            query, glue_database, bucket_name, org_name
+        response = count_all_values_query(
+            query, glue_database, dataset.full_path, org_name
         )
-        data_per_column = statistics.sql_response_processing(
-            response, default_athena_col_names
-        )
+        data_per_column = sql_response_processing(response, default_athena_col_names)
         final_result = {"result": data_per_column, "columns_types": columns_types}
     except QueryExecutionError as e:
         return ErrorResponse(
@@ -915,12 +806,12 @@ def create_glue_crawler(org_settings, data_source, org_name, obj_path):
         f"Started create_glue_crawler for datasource {data_source.name}:{data_source.id} "
         f"in dataset {data_source.dataset.name}:{data_source.dataset.id} in org {org_name}"
     )
-    glue_client = aws_service.create_glue_client(org_name=org_name)
+    glue_client = create_glue_client(org_name=org_name)
 
     glue_client.create_crawler(
         Name="data_source-" + str(data_source.id),
         Role=org_settings["AWS_GLUE_SERVICE_ROLE"],
-        DatabaseName="dataset-" + str(data_source.dataset.id),
+        DatabaseName=data_source.dataset.glue_database,
         Description="",
         Targets={
             "S3Targets": [
@@ -970,10 +861,10 @@ def load_tags(delete_removed_tags=True):
     with open("tags.json") as f:
         tags = json.load(f)
         if delete_removed_tags:
-            models.Tag.objects.all().delete()
+            Tag.objects.all().delete()
 
         for tag in tags:
-            tag_db, created = models.Tag.objects.get_or_create(
+            tag_db, created = Tag.objects.get_or_create(
                 name=tag["tag_name"], category=tag["category"]
             )
             if not created:
@@ -1116,41 +1007,6 @@ def delete_bucket(boto3_client, bucket_name, org_name):
         logger.info(f"Deleted bucket: {bucket_name} in org {org_name}")
     except boto3_client.meta.client.exceptions.NoSuchBucket as e:
         raise BucketNotFound(bucket_name) from e
-
-
-@with_iam_resource
-def delete_role_and_policy(boto3_client, bucket_name, org_name):
-    role = boto3_client.Role(bucket_name)
-    policy_arn = role.arn.replace("role", "policy")
-    policy = boto3_client.Policy(policy_arn)
-
-    try:
-        role.detach_policy(PolicyArn=policy_arn)
-        role.delete()
-    except boto3_client.exceptions.NoSuchEntityException as e:
-        raise RoleNotFound(role) from e
-
-    try:
-        policy.delete()
-    except boto3_client.exceptions.NoSuchEntityException as e:
-        raise PolicyNotFound(policy_arn) from e
-
-
-def set_policy_clear_athena_history(
-    s3_bucket, s3_client, expiration=1, prefix="temp_execution_results/"
-):
-    return s3_client.put_bucket_lifecycle_configuration(
-        Bucket=s3_bucket,
-        LifecycleConfiguration={
-            "Rules": [
-                {
-                    "Expiration": {"Days": expiration},
-                    "Filter": {"Prefix": prefix},
-                    "Status": "Enabled",
-                }
-            ]
-        },
-    )
 
 
 def get_client_ip(request):

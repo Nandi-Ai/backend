@@ -18,6 +18,7 @@ from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
 )
+from mainapp.utils.aws_utils.s3_storage import TEMP_EXECUTION_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ class CreateCohort(GenericAPIView):
             # noinspection SqlNoDataSourceInspection
             ctas_query = (
                 f'CREATE TABLE "{destination_dataset.glue_database}"."{data_source.dir}" '
-                f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dataset.bucket}/{data_source.dir}"
+                f"WITH (format = 'TEXTFILE', external_location = 's3://{destination_dataset.full_path}/{data_source.dir}"
                 f"/') AS {query};"
             )
 
@@ -119,11 +120,11 @@ class CreateCohort(GenericAPIView):
                         "Database": dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        "OutputLocation": f"s3://{destination_dataset.bucket}/temp_execution_results"
+                        "OutputLocation": f"s3://{destination_dataset.full_path}/{TEMP_EXECUTION_DIR}"
                     },
                 )
 
-            except client.exceptions.InvalidRequestException as e:
+            except client.exceptions.ClientError as e:
                 error = Exception(
                     f"Failed executing the CTAS query: {ctas_query}. "
                     f"Query string: {query}"

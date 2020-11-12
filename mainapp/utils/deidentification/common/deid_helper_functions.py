@@ -2,14 +2,15 @@ import logging
 
 from mainapp.models import DataSource
 from mainapp.utils import executor
+from mainapp.utils.deidentification import LYNX_DATA_TYPES
 from mainapp.utils.deidentification.common.exceptions import (
     DeidentificationError,
     MismatchingActionError,
     UnsupportedActionArgumentError,
 )
-from mainapp.utils.deidentification import LYNX_DATA_TYPES
-from mainapp.utils.deidentification.method_handler import MethodHandler
 from mainapp.utils.deidentification.images_de_id import ImageDeId
+from mainapp.utils.deidentification.method_handler import MethodHandler
+
 
 logger = logging.getLogger(__name__)
 

@@ -80,3 +80,7 @@ def with_sts_client(func):
 
 def with_iam_client(func):
     return with_client(client=aws_service.create_iam_client)(func)
+
+
+def with_storage_gateway_client(func):
+    return with_client(client=aws_service.create_storage_gateway_client)(func)

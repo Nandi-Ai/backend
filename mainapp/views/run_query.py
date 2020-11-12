@@ -7,6 +7,7 @@ from mainapp.models import Study, Dataset, Activity
 from mainapp.serializers import SimpleQuerySerializer
 from mainapp.utils import lib, aws_service
 from mainapp.utils.response_handler import ErrorResponse, ForbiddenErrorResponse
+from mainapp.utils.aws_utils.s3_storage import TEMP_EXECUTION_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class RunQuery(GenericAPIView):
                         "Database": dataset.glue_database  # the name of the database in glue/athena
                     },
                     ResultConfiguration={
-                        "OutputLocation": f"s3://lynx-dataset-{req_dataset_id}/temp_execution_results"
+                        "OutputLocation": f"s3://{dataset.full_path}/{TEMP_EXECUTION_DIR}"
                     },
                 )
             except Exception as e:
