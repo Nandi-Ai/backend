@@ -133,6 +133,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     interests = models.CharField(max_length=512, blank=True, null=True)
     photo = models.CharField(max_length=255, blank=True, null=True)
     tags = models.ManyToManyField("Tag", related_name="users", blank=True)
+    agreed_eula_file_path = models.CharField(max_length=255, blank=True, null=True)
+
+    @property
+    def latest_eula_file_path(self):
+        return settings.EULA_FILE_PATH
+
+    @property
+    def is_signed_eula(self):
+        return settings.EULA_FILE_PATH == self.agreed_eula_file_path
 
     @property
     def data_sources(self):
