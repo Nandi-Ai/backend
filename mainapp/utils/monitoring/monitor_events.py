@@ -6,6 +6,7 @@ class MonitorEvents(Enum):
     EVENT_USER_LOGOUT = "user_logout"
     EVENT_USER_ACTIVE = "user_active"
     EVENT_USER_IDLE = "user_idle"
+    EVENT_USER_SIGNED_EULA = "user_signed_eula"
 
     EVENT_REQUEST_NOTEBOOK = "request_notebook"
     EVENT_NOTEBOOK_READY = "notebook_ready"

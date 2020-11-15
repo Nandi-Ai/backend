@@ -1,5 +1,6 @@
 import logging
 import os
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import mixins, viewsets
 
@@ -11,6 +12,7 @@ from mainapp.utils.response_handler import (
     ForbiddenErrorResponse,
     BadRequestErrorResponse,
 )
+from mainapp.utils.monitoring import handle_event, MonitorEvents
 
 logger = logging.getLogger(__name__)
 
@@ -72,3 +74,16 @@ class UserViewSet(
             except Exception as e:
                 return BadRequestErrorResponse(str(e))
         return super(self.__class__, self).update(request=self.request)
+
+    @action(detail=True, methods=["put"])
+    def update_agreed_eula(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.agreed_eula_file_path = settings.EULA_FILE_PATH
+        user.save()
+
+        handle_event(
+            MonitorEvents.EVENT_USER_SIGNED_EULA,
+            {"user": user, "view_request": request},
+        )
+
+        return Response(UserSerializer(user).data, status=200)

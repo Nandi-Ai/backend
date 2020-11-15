@@ -18,6 +18,7 @@ from .user_activity.user_login import UserLogin
 from .user_activity.user_logout import UserLogout
 from .user_activity.user_idle import UserIdle
 from .user_activity.user_active import UserActive
+from .user_activity.user_signed_eula import UserSignedEula
 
 # dataset activity
 from .dataset_activity.dataset_add_user import DatasetAddUser
@@ -26,7 +27,6 @@ from .dataset_activity.dataset_created import DatasetCreated
 from .dataset_activity.dataset_deleted import DatasetDeleted
 from .dataset_activity.dataset_add_datasource import DatasetAddDatasource
 from .dataset_activity.dataset_remove_datasource import DatasetRemoveDatasource
-
 
 map_events = {
     MonitorEvents.EVENT_REQUEST_NOTEBOOK.value: RequestNotebook,
@@ -44,6 +44,7 @@ map_events = {
     MonitorEvents.EVENT_USER_LOGOUT.value: UserLogout,
     MonitorEvents.EVENT_USER_IDLE.value: UserIdle,
     MonitorEvents.EVENT_USER_ACTIVE.value: UserActive,
+    MonitorEvents.EVENT_USER_SIGNED_EULA: UserSignedEula,
     MonitorEvents.EVENT_DATASET_REMOVE_USER: DatasetRemoveUser,
     MonitorEvents.EVENT_DATASET_ADD_USER: DatasetAddUser,
     MonitorEvents.EVENT_DATASET_CREATED: DatasetCreated,
