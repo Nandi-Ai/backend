@@ -631,10 +631,7 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
     s3_client.put_object(Bucket=s3_bucket, Key=full_access_dir, ACL="private")
     s3_client.put_object(Bucket=s3_bucket, Key=agg_stat_dir, ACL="private")
 
-    s3_objects_all = data_source.s3_objects
-
-    for index, s3_object in enumerate(s3_objects_all):
-        s3_object_key = s3_object["key"]
+    for s3_object_key in data_source.list_objects_keys(boto3_client=s3_client):
         file_name = s3_object_key.split("/")[-1]
         new_key = f"{data_source.dir_path}/{LYNX_STORAGE_DIR}/{PrivilegePath.FULL.value}/{file_name}"
         try:
@@ -646,7 +643,7 @@ def update_folder_hierarchy(boto3_client, data_source, org_name):
             )
         except botocore.exceptions.ClientError as e:
             return ErrorResponse(f"Unable to Move file with key {s3_object_key}!", e)
-        data_source.s3_objects[index]["key"] = new_key
+        data_source.s3_objects[0]["key"] = new_key
         data_source.save()
         try:
             boto3_client.Object(s3_bucket, s3_object_key).delete()
