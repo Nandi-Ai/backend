@@ -112,10 +112,10 @@ class DatasetSerializer(ModelSerializer):
 
             if validated_data.get("default_user_permission") is None:
                 validated_data["default_user_permission"] = "None"
-                dataset_full_users.add(request.user.id)
+                dataset_full_users.add(request.user)
 
             elif validated_data["default_user_permission"] == "aggregated_access":
-                dataset_agg_users.add(request.user.id)
+                dataset_agg_users.add(request.user)
 
         dataset = Dataset.objects.create(**validated_data)
         dataset.programmatic_name = (
