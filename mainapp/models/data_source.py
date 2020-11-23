@@ -26,6 +26,7 @@ from mainapp.utils.monitoring import handle_event, MonitorEvents
 from mainapp.utils.aws_utils.storage_gateway_service import (
     refresh_dataset_file_share_cache,
 )
+from mainapp.utils.aws_utils import s3_storage
 
 logger = logging.getLogger(__name__)
 UNAVAILABLE_EXAMPLE = "*N/A*"
@@ -251,6 +252,12 @@ class DataSource(models.Model):
             return self.__get_deid_glue_table_name(key)
         else:
             return self.glue_table
+
+    def list_objects_keys(self, boto3_client):
+        for obj in s3_storage.list_objects(
+            boto3_client=boto3_client, bucket_name=self.bucket, prefix=self.dir_path
+        ):
+            yield obj["Key"]
 
 
 @receiver(signals.pre_delete, sender=DataSource)

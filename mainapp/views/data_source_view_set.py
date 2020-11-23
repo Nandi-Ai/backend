@@ -73,6 +73,7 @@ class DataSourceViewSet(ModelViewSet):
         ".zsav": [],
         ".zip": ["application/zip"],
         ".xml": ["text/html", "text/xml"],
+        ".parquet": ["application/octet-stream"],
     }
     DS_TYPES = [
         DataSource.STRUCTURED,
@@ -128,7 +129,7 @@ class DataSourceViewSet(ModelViewSet):
 
             s3_obj = data_source_data["s3_objects"][0]["key"]
             path, file_name, file_name_no_ext, ext = break_s3_object(s3_obj)
-            if ext not in ["sav", "zsav", "csv", "xml"]:
+            if ext not in ["sav", "zsav", "csv", "xml", "parquet"]:
                 raise InvalidDataSourceError(
                     BadRequestErrorResponse(
                         "File type is not supported as a structured data s3_dir"
@@ -195,7 +196,7 @@ class DataSourceViewSet(ModelViewSet):
                 workdir.cleanup()
 
         try:
-            if request.data["is_column_present"]:
+            if request.data["is_column_present"] and ext == "csv":
                 check_csv_for_empty_columns(org_name=org_name, data_source=data_source)
         except ClientError as e:
             dataset.save()

@@ -15,4 +15,19 @@ def delete_directory(boto3_client, bucket_name, directory, org_name):
     bucket.objects.filter(Prefix=f"{directory}/").delete()
 
 
+@with_s3_resource
+def list_objects(boto3_client, bucket_name, prefix):
+    next_token = str()
+    list_objects_args = {"Bucket": bucket_name, "Prefix": prefix}
+    while next_token is not None:
+        if next_token:
+            list_objects_args.update({"ContinuationToken": next_token})
+
+        objects_in_bucket = boto3_client.list_objects_v2(**list_objects_args)
+        for obj in objects_in_bucket["Contents"]:
+            yield obj
+
+        next_token = objects_in_bucket.get("NextContinuationToken")
+
+
 TEMP_EXECUTION_DIR = "temp_execution_results"

@@ -29,13 +29,14 @@ def organization_dependent(func):
 
 def with_client(client):
     def decorator(func):
-        def inner(org_name, *args, **kwargs):
-            if not org_name:
-                raise ValueError("org_name param is empty")
-            client_instance = client(org_name=org_name)
-            return func(
-                boto3_client=client_instance, org_name=org_name, *args, **kwargs
-            )
+        def inner(*args, **kwargs):
+            boto3_client = kwargs.pop("boto3_client", None)
+            org_name = kwargs.get("org_name", None)
+            if not org_name and not boto3_client:
+                raise ValueError("org_name param and boto3_client are both empty")
+            if not boto3_client:
+                boto3_client = client(org_name=org_name)
+            return func(boto3_client=boto3_client, *args, **kwargs)
 
         return inner
 
