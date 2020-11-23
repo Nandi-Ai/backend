@@ -30,6 +30,7 @@ pipeline {
       [url: 'git@bitbucket.org:lynxmd/lynx-be.git']
      ]
     ])
+    echo "after checkout" 
    }
   }
 
