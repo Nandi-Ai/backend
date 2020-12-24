@@ -16,7 +16,7 @@ pipeline {
  stages {
 
   stage('Clone repository') {
-   steps {
+  steps {
     echo "Branch name: ${params.BRANCH}"
     checkout([$class: 'GitSCM',
      branches: [
@@ -32,11 +32,11 @@ pipeline {
      ]
     ])
     echo "after checkout" 
-   }
+  }
   }
 
   stage('Building image') {
-   steps {
+  steps {
     script {
         if ("${migration}" == "true") {
             dockerImage = docker.build("${env.registry}:${env.DATE}", "-f Dockerfile-Migration ./")
@@ -46,10 +46,10 @@ pipeline {
         }
 
     }
-   }
+  }
   }
   stage('Check migration') {
-   steps {
+  steps {
     script {
      if ("${migration}" == "true") {
       docker.image("${env.registry}:${env.DATE}").withRun('python manage.py /home/lynx/lynx-be/migrate')
@@ -58,23 +58,22 @@ pipeline {
   }
   }
   stage('Push image') {
-   steps {
+  steps {
     script {
-     withAWS(region: 'us-east-1') {
+     withAWS(role: 'jenkins-execution-role', roleAccount: '858916640373',region: 'us-east-1')
       def login = ecrLogin()
       sh login
       dockerImage.push("${env.DATE}")
       dockerImage.push("latest")
      }
     }
-   }
+  }
   }
   stage('Update service') {
    steps {
     script {
-     withAWS(region: 'us-east-1') {
+     withAWS(role: 'jenkins-execution-role', roleAccount: '858916640373',region: 'us-east-1') { /// dev account
       sh "aws ecs update-service  --region ${env.AWS_REGION}  --cluster ${env.CLUSTER} --service ${env.SERVICE_NAME} --task-definition ${env.ECS_TASK} --force-new-deployment"
-     }
     }
    }
   }
@@ -88,3 +87,4 @@ def displayMessage(message) {
   echo "\033[44m  ${message} \033[0m"
  }
 }
+
