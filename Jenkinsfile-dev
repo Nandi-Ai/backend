@@ -68,7 +68,7 @@ pipeline {
      }
     }
   }
-  }
+  
   stage('Update service') {
    steps {
     script {
