@@ -60,7 +60,7 @@ pipeline {
   stage('Push image') {
   steps {
     script {
-     withAWS(role: 'jenkins-execution-role', roleAccount: '858916640373',region: 'us-east-1')
+     withAWS(role: 'jenkins-execution-role', roleAccount: '858916640373',region: 'us-east-1'){
       def login = ecrLogin()
       sh login
       dockerImage.push("${env.DATE}")
@@ -68,7 +68,7 @@ pipeline {
      }
     }
   }
-  
+  }
   stage('Update service') {
    steps {
     script {
